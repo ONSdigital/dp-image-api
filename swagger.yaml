@@ -47,7 +47,7 @@ paths:
       tags:
       - "image"
       summary: "Create a new image metadata entry"
-      description: "Creates a new image metadata entry corresponding to the provided body in this request"
+      description: "Creates a new image metadata entry corresponding to the provided body in this request. Empty objects are allowed."
       parameters:
       - $ref: '#/parameters/image'
       produces:
@@ -56,7 +56,9 @@ paths:
       - FlorenceAPIKey: []
       responses:
         201:
-          description: "The image metadata was correctly created"
+          description: "The image metadata was correctly created and a json object containing the new image information is returned, including a newly generated id"
+          schema:
+            $ref: '#/definitions/Images'
         400:
           description: |
             Invalid request, reasons can be one of the following:
@@ -184,7 +186,7 @@ definitions:
       state:
         type: string
         description: |
-          The state of the dataset collection, can only be one of the following:
+          The state of the image, can only be one of the following:
           * created
           * published
         example: "published"
