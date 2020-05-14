@@ -2,7 +2,7 @@ swagger: "2.0"
 
 info:
   title: "Digital Publishing Image API"
-  description: "Provides read and write catapabilities for image metatada"
+  description: "Provides read and write capabilities for image metadata"
   version: "1.0.0"
   license:
     name: "Open Government Licence v3.0"
@@ -23,7 +23,7 @@ paths:
       tags:
       - "image"
       summary: "Get images filtered by collection id"
-      description: "Returns a list of images metadata filtered by a compulsory query paramter defining the collection ID"
+      description: "Returns a list of images metadata filtered by a compulsory query parameter defining the collection ID"
       parameters:
       - $ref: '#/parameters/collection_id'
       produces:
@@ -47,7 +47,7 @@ paths:
       tags:
       - "image"
       summary: "Create a new image metadata entry"
-      description: "Creates a new image metadata entry corresponding to the provided body in this request. Empty objects are allowed."
+      description: "Creates a new image metadata entry corresponding to the provided body in this request."
       parameters:
       - $ref: '#/parameters/image'
       produces:
@@ -213,15 +213,24 @@ definitions:
           path:
             type: string
             description: "S3 object key (without bucket name) where the image is stored"
-            example: "imges/042e216a-7822-4fa0-a3d6-e3f5248ffc35/imageName.jpg"
+            example: "images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/imageName.jpg"
+      type:
+        type: string
+        description: "type of image, which might define a set of possible resolutions."
+        example: "chart"
       downloads:
         type: object
-        description: "all available downloads for this image keyed by resolutions, in WxH pixels. Note that this spec does not define all possible resolutions."
+        description: "all available download variants for this image, keyed by resolutions (in WxH pixels) and/or formats. Note that this spec does not define all possible resolutions, and depending on the image type, we can have multiple formats as well as multiple resolutions."
         properties:
           1920x1080:
             $ref: '#/definitions/ImageDownload'
           1280x720:
             $ref: '#/definitions/ImageDownload'
+          1920x1080_png:
+            $ref: '#/definitions/ImageDownload'
+          1920x1080_jpg:
+            $ref: '#/definitions/ImageDownload'
+                      
           
   ImageDownload:
     type: object
