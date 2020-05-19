@@ -5,8 +5,10 @@ import (
 
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
+	"github.com/ONSdigital/dp-net/handlers"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
+	"github.com/justinas/alice"
 	"github.com/pkg/errors"
 )
 
@@ -32,9 +34,10 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	}
 	log.Event(ctx, "got service configuration", log.Data{"config": cfg}, log.INFO)
 
-	// Get HTTP Server
+	// Get HTTP Server with collectionID checkHeader middleware
 	r := mux.NewRouter()
-	s := serviceList.GetHTTPServer(cfg.BindAddr, r)
+	middleware := alice.New(handlers.CheckHeaderMiddleware(handlers.CollectionIDHeaderKey))
+	s := serviceList.GetHTTPServer(cfg.BindAddr, middleware.Then(r))
 
 	// Get MongoDB client
 	mongoDB, err := serviceList.GetMongoDB(ctx, cfg)
