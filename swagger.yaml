@@ -58,7 +58,7 @@ paths:
         201:
           description: "The image metadata was correctly created and a json object containing the new image information is returned, including a newly generated id"
           schema:
-            $ref: '#/definitions/Images'
+            $ref: '#/definitions/Image'
         400:
           description: |
             Invalid request, reasons can be one of the following:
