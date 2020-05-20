@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/dp-image-api/mongo"
 	dphttp "github.com/ONSdigital/dp-net/http"
@@ -36,7 +37,7 @@ func (e *ExternalServiceList) GetHTTPServer(bindAddr string, router http.Handler
 }
 
 // GetMongoDB creates a mongoDB client and sets the Mongo flag to true
-func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config) (MongoServer, error) {
+func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoServer, error) {
 	mongoDB, err := e.Init.DoGetMongoDB(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -63,7 +64,7 @@ func (e *Init) DoGetHTTPServer(bindAddr string, router http.Handler) HTTPServer 
 }
 
 // DoGetMongoDB returns a MongoDB
-func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (MongoServer, error) {
+func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoServer, error) {
 	mongodb := &mongo.Mongo{
 		Collection: cfg.MongoConfig.Collection,
 		Database:   cfg.MongoConfig.Database,

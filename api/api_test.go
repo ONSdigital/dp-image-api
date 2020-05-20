@@ -1,23 +1,33 @@
-package api
+package api_test
 
 import (
 	"context"
-	"github.com/gorilla/mux"
+	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
+	"github.com/gorilla/mux"
+
+	"github.com/ONSdigital/dp-image-api/api"
+	"github.com/ONSdigital/dp-image-api/api/mock"
+	"github.com/ONSdigital/dp-image-api/config"
 	. "github.com/smartystreets/goconvey/convey"
+)
+
+var (
+	mu          sync.Mutex
+	testContext = context.Background()
 )
 
 func TestSetup(t *testing.T) {
 	Convey("Given an API instance", t, func() {
 		r := mux.NewRouter()
 		ctx := context.Background()
-		api := Setup(ctx, r)
+		api := api.Setup(ctx, r, &mock.MongoServerMock{})
 
 		Convey("When created the following routes should have been added", func() {
-			// Replace the check below with any newly added api endpoints
-			So(hasRoute(api.Router, "/hello", "GET"), ShouldBeTrue)
+			So(hasRoute(api.Router, "/images", http.MethodPost), ShouldBeTrue)
 		})
 	})
 }
@@ -26,7 +36,7 @@ func TestClose(t *testing.T) {
 	Convey("Given an API instance", t, func() {
 		r := mux.NewRouter()
 		ctx := context.Background()
-		a := Setup(ctx, r)
+		a := api.Setup(ctx, r, &mock.MongoServerMock{})
 
 		Convey("When the api is closed any dependencies are closed also", func() {
 			err := a.Close(ctx)
@@ -34,6 +44,13 @@ func TestClose(t *testing.T) {
 			// Check that dependencies are closed here
 		})
 	})
+}
+
+// GetAPIWithMocks also used in other tests
+func GetAPIWithMocks(mongoDbMock api.MongoServer, cfg *config.Config) *api.API {
+	mu.Lock()
+	defer mu.Unlock()
+	return api.Setup(testContext, mux.NewRouter(), mongoDbMock)
 }
 
 func hasRoute(r *mux.Router, path, method string) bool {

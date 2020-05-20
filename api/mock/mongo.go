@@ -6,7 +6,7 @@ package mock
 import (
 	"context"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-image-api/service"
+	"github.com/ONSdigital/dp-image-api/api"
 	"sync"
 )
 
@@ -15,15 +15,15 @@ var (
 	lockMongoServerMockClose   sync.RWMutex
 )
 
-// Ensure, that MongoServerMock does implement service.MongoServer.
+// Ensure, that MongoServerMock does implement api.MongoServer.
 // If this is not the case, regenerate this file with moq.
-var _ service.MongoServer = &MongoServerMock{}
+var _ api.MongoServer = &MongoServerMock{}
 
-// MongoServerMock is a mock implementation of service.MongoServer.
+// MongoServerMock is a mock implementation of api.MongoServer.
 //
 //     func TestSomethingThatUsesMongoServer(t *testing.T) {
 //
-//         // make and configure a mocked service.MongoServer
+//         // make and configure a mocked api.MongoServer
 //         mockedMongoServer := &MongoServerMock{
 //             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {
 // 	               panic("mock out the Checker method")
@@ -33,7 +33,7 @@ var _ service.MongoServer = &MongoServerMock{}
 //             },
 //         }
 //
-//         // use mockedMongoServer in code that requires service.MongoServer
+//         // use mockedMongoServer in code that requires api.MongoServer
 //         // and then make assertions.
 //
 //     }

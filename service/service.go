@@ -20,7 +20,7 @@ type Service struct {
 	api         *api.API
 	serviceList *ExternalServiceList
 	healthCheck HealthChecker
-	mongoDB     MongoServer
+	mongoDB     api.MongoServer
 }
 
 // Run the service
@@ -47,7 +47,7 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	}
 
 	// Setup the API
-	a := api.Setup(ctx, r)
+	a := api.Setup(ctx, r, mongoDB)
 
 	// Get HealthCheck
 	hc, err := serviceList.GetHealthCheck(cfg, buildTime, gitCommit, version)
@@ -138,7 +138,7 @@ func (svc *Service) Close(ctx context.Context) error {
 
 func registerCheckers(ctx context.Context,
 	hc HealthChecker,
-	mongoDB MongoServer) (err error) {
+	mongoDB api.MongoServer) (err error) {
 
 	hasErrors := false
 
