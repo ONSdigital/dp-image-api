@@ -25,7 +25,11 @@ func Setup(ctx context.Context, r *mux.Router, mongoDB MongoServer) *API {
 		mongoDB: mongoDB,
 	}
 
-	r.HandleFunc("/images", api.CreateImageHandler).Methods("POST")
+	r.HandleFunc("/images", api.CreateImageHandler).Methods(http.MethodPost)
+	r.HandleFunc("/images", api.GetImagesHandler).Methods(http.MethodGet)
+	r.HandleFunc("/images/{id}", api.GetImageHandler).Methods(http.MethodGet)
+	r.HandleFunc("/images/{id}", api.UpdateImageHandler).Methods(http.MethodPut)
+	r.HandleFunc("/images/{id}/publish", api.PublishImageHandler).Methods(http.MethodPost)
 	return api
 }
 
