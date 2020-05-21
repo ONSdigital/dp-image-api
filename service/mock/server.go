@@ -10,20 +10,20 @@ import (
 )
 
 var (
-	lockIServerMockListenAndServe sync.RWMutex
-	lockIServerMockShutdown       sync.RWMutex
+	lockHTTPServerMockListenAndServe sync.RWMutex
+	lockHTTPServerMockShutdown       sync.RWMutex
 )
 
-// Ensure, that IServerMock does implement service.IServer.
+// Ensure, that HTTPServerMock does implement service.HTTPServer.
 // If this is not the case, regenerate this file with moq.
-var _ service.IServer = &IServerMock{}
+var _ service.HTTPServer = &HTTPServerMock{}
 
-// IServerMock is a mock implementation of service.IServer.
+// HTTPServerMock is a mock implementation of service.HTTPServer.
 //
-//     func TestSomethingThatUsesIServer(t *testing.T) {
+//     func TestSomethingThatUsesHTTPServer(t *testing.T) {
 //
-//         // make and configure a mocked service.IServer
-//         mockedIServer := &IServerMock{
+//         // make and configure a mocked service.HTTPServer
+//         mockedHTTPServer := &HTTPServerMock{
 //             ListenAndServeFunc: func() error {
 // 	               panic("mock out the ListenAndServe method")
 //             },
@@ -32,11 +32,11 @@ var _ service.IServer = &IServerMock{}
 //             },
 //         }
 //
-//         // use mockedIServer in code that requires service.IServer
+//         // use mockedHTTPServer in code that requires service.HTTPServer
 //         // and then make assertions.
 //
 //     }
-type IServerMock struct {
+type HTTPServerMock struct {
 	// ListenAndServeFunc mocks the ListenAndServe method.
 	ListenAndServeFunc func() error
 
@@ -57,58 +57,58 @@ type IServerMock struct {
 }
 
 // ListenAndServe calls ListenAndServeFunc.
-func (mock *IServerMock) ListenAndServe() error {
+func (mock *HTTPServerMock) ListenAndServe() error {
 	if mock.ListenAndServeFunc == nil {
-		panic("IServerMock.ListenAndServeFunc: method is nil but IServer.ListenAndServe was just called")
+		panic("HTTPServerMock.ListenAndServeFunc: method is nil but HTTPServer.ListenAndServe was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockIServerMockListenAndServe.Lock()
+	lockHTTPServerMockListenAndServe.Lock()
 	mock.calls.ListenAndServe = append(mock.calls.ListenAndServe, callInfo)
-	lockIServerMockListenAndServe.Unlock()
+	lockHTTPServerMockListenAndServe.Unlock()
 	return mock.ListenAndServeFunc()
 }
 
 // ListenAndServeCalls gets all the calls that were made to ListenAndServe.
 // Check the length with:
-//     len(mockedIServer.ListenAndServeCalls())
-func (mock *IServerMock) ListenAndServeCalls() []struct {
+//     len(mockedHTTPServer.ListenAndServeCalls())
+func (mock *HTTPServerMock) ListenAndServeCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIServerMockListenAndServe.RLock()
+	lockHTTPServerMockListenAndServe.RLock()
 	calls = mock.calls.ListenAndServe
-	lockIServerMockListenAndServe.RUnlock()
+	lockHTTPServerMockListenAndServe.RUnlock()
 	return calls
 }
 
 // Shutdown calls ShutdownFunc.
-func (mock *IServerMock) Shutdown(ctx context.Context) error {
+func (mock *HTTPServerMock) Shutdown(ctx context.Context) error {
 	if mock.ShutdownFunc == nil {
-		panic("IServerMock.ShutdownFunc: method is nil but IServer.Shutdown was just called")
+		panic("HTTPServerMock.ShutdownFunc: method is nil but HTTPServer.Shutdown was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
 	}{
 		Ctx: ctx,
 	}
-	lockIServerMockShutdown.Lock()
+	lockHTTPServerMockShutdown.Lock()
 	mock.calls.Shutdown = append(mock.calls.Shutdown, callInfo)
-	lockIServerMockShutdown.Unlock()
+	lockHTTPServerMockShutdown.Unlock()
 	return mock.ShutdownFunc(ctx)
 }
 
 // ShutdownCalls gets all the calls that were made to Shutdown.
 // Check the length with:
-//     len(mockedIServer.ShutdownCalls())
-func (mock *IServerMock) ShutdownCalls() []struct {
+//     len(mockedHTTPServer.ShutdownCalls())
+func (mock *HTTPServerMock) ShutdownCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockIServerMockShutdown.RLock()
+	lockHTTPServerMockShutdown.RLock()
 	calls = mock.calls.Shutdown
-	lockIServerMockShutdown.RUnlock()
+	lockHTTPServerMockShutdown.RUnlock()
 	return calls
 }

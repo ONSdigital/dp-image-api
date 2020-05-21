@@ -14,7 +14,6 @@ import (
 type ExternalServiceList struct {
 	MongoDB     bool
 	HealthCheck bool
-	HTTPServer  bool
 	Init        Initialiser
 }
 
@@ -31,14 +30,13 @@ func NewServiceList(initialiser Initialiser) *ExternalServiceList {
 type Init struct{}
 
 // GetHTTPServer creates an http server and sets the Server flag to true
-func (e *ExternalServiceList) GetHTTPServer(bindAddr string, router http.Handler) IServer {
+func (e *ExternalServiceList) GetHTTPServer(bindAddr string, router http.Handler) HTTPServer {
 	s := e.Init.DoGetHTTPServer(bindAddr, router)
-	e.HTTPServer = true
 	return s
 }
 
 // GetMongoDB creates a mongoDB client and sets the Mongo flag to true
-func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config) (IMongo, error) {
+func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config) (MongoServer, error) {
 	mongoDB, err := e.Init.DoGetMongoDB(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -48,7 +46,7 @@ func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config
 }
 
 // GetHealthCheck creates a healthcheck with versionInfo and sets teh HealthCheck flag to true
-func (e *ExternalServiceList) GetHealthCheck(cfg *config.Config, buildTime, gitCommit, version string) (IHealthCheck, error) {
+func (e *ExternalServiceList) GetHealthCheck(cfg *config.Config, buildTime, gitCommit, version string) (HealthChecker, error) {
 	hc, err := e.Init.DoGetHealthCheck(cfg, buildTime, gitCommit, version)
 	if err != nil {
 		return nil, err
@@ -58,14 +56,14 @@ func (e *ExternalServiceList) GetHealthCheck(cfg *config.Config, buildTime, gitC
 }
 
 // DoGetHTTPServer creates an HTTP Server with the provided bind address and router
-func (e *Init) DoGetHTTPServer(bindAddr string, router http.Handler) IServer {
+func (e *Init) DoGetHTTPServer(bindAddr string, router http.Handler) HTTPServer {
 	s := dphttp.NewServer(bindAddr, router)
 	s.HandleOSSignals = false
 	return s
 }
 
 // DoGetMongoDB returns a MongoDB
-func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (IMongo, error) {
+func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (MongoServer, error) {
 	mongodb := &mongo.Mongo{
 		Collection: cfg.MongoConfig.Collection,
 		Database:   cfg.MongoConfig.Database,
@@ -78,7 +76,7 @@ func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (IMongo, er
 }
 
 // DoGetHealthCheck creates a healthcheck with versionInfo
-func (e *Init) DoGetHealthCheck(cfg *config.Config, buildTime, gitCommit, version string) (IHealthCheck, error) {
+func (e *Init) DoGetHealthCheck(cfg *config.Config, buildTime, gitCommit, version string) (HealthChecker, error) {
 	versionInfo, err := healthcheck.NewVersionInfo(buildTime, gitCommit, version)
 	if err != nil {
 		return nil, err

@@ -13,12 +13,12 @@ import (
 // Service contains all the configs, server and clients to run the Image API
 type Service struct {
 	config      *config.Config
-	server      IServer
+	server      HTTPServer
 	router      *mux.Router
 	api         *api.API
 	serviceList *ExternalServiceList
-	healthCheck IHealthCheck
-	mongoDB     IMongo
+	healthCheck HealthChecker
+	mongoDB     MongoServer
 }
 
 // Run the service
@@ -96,11 +96,9 @@ func (svc *Service) Close(ctx context.Context) error {
 		}
 
 		// stop any incoming requests before closing any outbound connections
-		if svc.serviceList.HTTPServer {
-			if err := svc.server.Shutdown(ctx); err != nil {
-				log.Event(ctx, "failed to shutdown http server", log.Error(err), log.ERROR)
-				hasShutdownError = true
-			}
+		if err := svc.server.Shutdown(ctx); err != nil {
+			log.Event(ctx, "failed to shutdown http server", log.Error(err), log.ERROR)
+			hasShutdownError = true
 		}
 
 		// close API
@@ -136,8 +134,8 @@ func (svc *Service) Close(ctx context.Context) error {
 }
 
 func registerCheckers(ctx context.Context,
-	hc IHealthCheck,
-	mongoDB IMongo) (err error) {
+	hc HealthChecker,
+	mongoDB MongoServer) (err error) {
 
 	hasErrors := false
 

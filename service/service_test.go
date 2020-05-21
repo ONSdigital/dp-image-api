@@ -27,15 +27,15 @@ var (
 	errHealthcheck = errors.New("healthCheck error")
 )
 
-var funcDoGetMongoDbErr = func(ctx context.Context, cfg *config.Config) (service.IMongo, error) {
+var funcDoGetMongoDbErr = func(ctx context.Context, cfg *config.Config) (service.MongoServer, error) {
 	return nil, errMongoDB
 }
 
-var funcDoGetHealthcheckErr = func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.IHealthCheck, error) {
+var funcDoGetHealthcheckErr = func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 	return nil, errHealthcheck
 }
 
-var funcDoGetHTTPServerNil = func(bindAddr string, router http.Handler) service.IServer {
+var funcDoGetHTTPServerNil = func(bindAddr string, router http.Handler) service.HTTPServer {
 	return nil
 }
 
@@ -43,28 +43,28 @@ func TestRun(t *testing.T) {
 
 	Convey("Having a set of mocked dependencies", t, func() {
 
-		mongoDbMock := &serviceMock.IMongoMock{
+		mongoDbMock := &serviceMock.MongoServerMock{
 			CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error { return nil },
 		}
 
-		hcMock := &serviceMock.IHealthCheckMock{
+		hcMock := &serviceMock.HealthCheckerMock{
 			AddCheckFunc: func(name string, checker healthcheck.Checker) error { return nil },
 			StartFunc:    func(ctx context.Context) {},
 		}
 
-		serverMock := &serviceMock.IServerMock{
+		serverMock := &serviceMock.HTTPServerMock{
 			ListenAndServeFunc: func() error { return nil },
 		}
 
-		funcDoGetMongoDbOk := func(ctx context.Context, cfg *config.Config) (service.IMongo, error) {
+		funcDoGetMongoDbOk := func(ctx context.Context, cfg *config.Config) (service.MongoServer, error) {
 			return mongoDbMock, nil
 		}
 
-		funcDoGetHealthcheckOk := func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.IHealthCheck, error) {
+		funcDoGetHealthcheckOk := func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 			return hcMock, nil
 		}
 
-		funcDoGetHTTPServer := func(bindAddr string, router http.Handler) service.IServer {
+		funcDoGetHTTPServer := func(bindAddr string, router http.Handler) service.HTTPServer {
 			return serverMock
 		}
 
@@ -131,7 +131,7 @@ func TestRun(t *testing.T) {
 		Convey("Given that Checkers cannot be registered", func() {
 
 			errAddheckFail := errors.New("Error(s) registering checkers for healthcheck")
-			hcMockAddFail := &serviceMock.IHealthCheckMock{
+			hcMockAddFail := &serviceMock.HealthCheckerMock{
 				AddCheckFunc: func(name string, checker healthcheck.Checker) error { return errAddheckFail },
 				StartFunc:    func(ctx context.Context) {},
 			}
@@ -139,7 +139,7 @@ func TestRun(t *testing.T) {
 			initMock := &serviceMock.InitialiserMock{
 				DoGetHTTPServerFunc: funcDoGetHTTPServerNil,
 				DoGetMongoDBFunc:    funcDoGetMongoDbOk,
-				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.IHealthCheck, error) {
+				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 					return hcMockAddFail, nil
 				},
 			}
@@ -167,7 +167,7 @@ func TestClose(t *testing.T) {
 		serverStopped := false
 
 		// mongoDB Close will fail if healthcheck and http server are not already closed
-		mongoDbMock := &serviceMock.IMongoMock{
+		mongoDbMock := &serviceMock.MongoServerMock{
 			CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error { return nil },
 			CloseFunc: func(ctx context.Context) error {
 				if !hcStopped || !serverStopped {
@@ -178,14 +178,14 @@ func TestClose(t *testing.T) {
 		}
 
 		// healthcheck Stop does not depend on any other service being closed/stopped
-		hcMock := &serviceMock.IHealthCheckMock{
+		hcMock := &serviceMock.HealthCheckerMock{
 			AddCheckFunc: func(name string, checker healthcheck.Checker) error { return nil },
 			StartFunc:    func(ctx context.Context) {},
 			StopFunc:     func() { hcStopped = true },
 		}
 
 		// server Shutdown will fail if healthcheck is not stopped
-		serverMock := &mock.IServerMock{
+		serverMock := &mock.HTTPServerMock{
 			ListenAndServeFunc: func() error { return nil },
 			ShutdownFunc: func(ctx context.Context) error {
 				if !hcStopped {
@@ -199,9 +199,9 @@ func TestClose(t *testing.T) {
 		Convey("Closing the service results in all the dependencies being closed in the expected order", func() {
 
 			initMock := &mock.InitialiserMock{
-				DoGetHTTPServerFunc: func(bindAddr string, router http.Handler) service.IServer { return serverMock },
-				DoGetMongoDBFunc:    func(ctx context.Context, cfg *config.Config) (service.IMongo, error) { return mongoDbMock, nil },
-				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.IHealthCheck, error) {
+				DoGetHTTPServerFunc: func(bindAddr string, router http.Handler) service.HTTPServer { return serverMock },
+				DoGetMongoDBFunc:    func(ctx context.Context, cfg *config.Config) (service.MongoServer, error) { return mongoDbMock, nil },
+				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 					return hcMock, nil
 				},
 			}
@@ -220,7 +220,7 @@ func TestClose(t *testing.T) {
 
 		Convey("If services fail to stop, the Close operation tries to close all dependencies and returns an error", func() {
 
-			failingserverMock := &mock.IServerMock{
+			failingserverMock := &mock.HTTPServerMock{
 				ListenAndServeFunc: func() error { return nil },
 				ShutdownFunc: func(ctx context.Context) error {
 					return errors.New("Failed to stop http server")
@@ -228,9 +228,9 @@ func TestClose(t *testing.T) {
 			}
 
 			initMock := &mock.InitialiserMock{
-				DoGetHTTPServerFunc: func(bindAddr string, router http.Handler) service.IServer { return failingserverMock },
-				DoGetMongoDBFunc:    func(ctx context.Context, cfg *config.Config) (service.IMongo, error) { return mongoDbMock, nil },
-				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.IHealthCheck, error) {
+				DoGetHTTPServerFunc: func(bindAddr string, router http.Handler) service.HTTPServer { return failingserverMock },
+				DoGetMongoDBFunc:    func(ctx context.Context, cfg *config.Config) (service.MongoServer, error) { return mongoDbMock, nil },
+				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 					return hcMock, nil
 				},
 			}

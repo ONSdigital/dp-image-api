@@ -5,8 +5,8 @@ import (
 	"errors"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	mongolib "github.com/ONSdigital/dp-mongodb"
-	mongoHealth "github.com/ONSdigital/dp-mongodb/health"
+	dpMongodb "github.com/ONSdigital/dp-mongodb"
+	dpMongoHealth "github.com/ONSdigital/dp-mongodb/health"
 	"github.com/globalsign/mgo"
 )
 
@@ -16,8 +16,8 @@ type Mongo struct {
 	Database     string
 	Session      *mgo.Session
 	URI          string
-	client       *mongoHealth.Client
-	healthClient *mongoHealth.CheckMongoClient
+	client       *dpMongoHealth.Client
+	healthClient *dpMongoHealth.CheckMongoClient
 }
 
 // Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
@@ -34,8 +34,8 @@ func (m *Mongo) Init() (err error) {
 	m.Session.SetMode(mgo.Strong, true)
 
 	// Create client and healthclient from session
-	m.client = mongoHealth.NewClient(m.Session)
-	m.healthClient = &mongoHealth.CheckMongoClient{
+	m.client = dpMongoHealth.NewClient(m.Session)
+	m.healthClient = &dpMongoHealth.CheckMongoClient{
 		Client:      *m.client,
 		Healthcheck: m.client.Healthcheck,
 	}
@@ -44,7 +44,7 @@ func (m *Mongo) Init() (err error) {
 
 // Close closes the mongo session and returns any error
 func (m *Mongo) Close(ctx context.Context) error {
-	return mongolib.Close(ctx, m.Session)
+	return dpMongodb.Close(ctx, m.Session)
 }
 
 // Checker is called by the healthcheck library to check the health state of this mongoDB instance

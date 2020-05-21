@@ -27,13 +27,13 @@ var _ service.Initialiser = &InitialiserMock{}
 //
 //         // make and configure a mocked service.Initialiser
 //         mockedInitialiser := &InitialiserMock{
-//             DoGetHTTPServerFunc: func(bindAddr string, router http.Handler) service.IServer {
+//             DoGetHTTPServerFunc: func(bindAddr string, router http.Handler) service.HTTPServer {
 // 	               panic("mock out the DoGetHTTPServer method")
 //             },
-//             DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.IHealthCheck, error) {
+//             DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 // 	               panic("mock out the DoGetHealthCheck method")
 //             },
-//             DoGetMongoDBFunc: func(ctx context.Context, cfg *config.Config) (service.IMongo, error) {
+//             DoGetMongoDBFunc: func(ctx context.Context, cfg *config.Config) (service.MongoServer, error) {
 // 	               panic("mock out the DoGetMongoDB method")
 //             },
 //         }
@@ -44,13 +44,13 @@ var _ service.Initialiser = &InitialiserMock{}
 //     }
 type InitialiserMock struct {
 	// DoGetHTTPServerFunc mocks the DoGetHTTPServer method.
-	DoGetHTTPServerFunc func(bindAddr string, router http.Handler) service.IServer
+	DoGetHTTPServerFunc func(bindAddr string, router http.Handler) service.HTTPServer
 
 	// DoGetHealthCheckFunc mocks the DoGetHealthCheck method.
-	DoGetHealthCheckFunc func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.IHealthCheck, error)
+	DoGetHealthCheckFunc func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error)
 
 	// DoGetMongoDBFunc mocks the DoGetMongoDB method.
-	DoGetMongoDBFunc func(ctx context.Context, cfg *config.Config) (service.IMongo, error)
+	DoGetMongoDBFunc func(ctx context.Context, cfg *config.Config) (service.MongoServer, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -83,7 +83,7 @@ type InitialiserMock struct {
 }
 
 // DoGetHTTPServer calls DoGetHTTPServerFunc.
-func (mock *InitialiserMock) DoGetHTTPServer(bindAddr string, router http.Handler) service.IServer {
+func (mock *InitialiserMock) DoGetHTTPServer(bindAddr string, router http.Handler) service.HTTPServer {
 	if mock.DoGetHTTPServerFunc == nil {
 		panic("InitialiserMock.DoGetHTTPServerFunc: method is nil but Initialiser.DoGetHTTPServer was just called")
 	}
@@ -118,7 +118,7 @@ func (mock *InitialiserMock) DoGetHTTPServerCalls() []struct {
 }
 
 // DoGetHealthCheck calls DoGetHealthCheckFunc.
-func (mock *InitialiserMock) DoGetHealthCheck(cfg *config.Config, buildTime string, gitCommit string, version string) (service.IHealthCheck, error) {
+func (mock *InitialiserMock) DoGetHealthCheck(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 	if mock.DoGetHealthCheckFunc == nil {
 		panic("InitialiserMock.DoGetHealthCheckFunc: method is nil but Initialiser.DoGetHealthCheck was just called")
 	}
@@ -161,7 +161,7 @@ func (mock *InitialiserMock) DoGetHealthCheckCalls() []struct {
 }
 
 // DoGetMongoDB calls DoGetMongoDBFunc.
-func (mock *InitialiserMock) DoGetMongoDB(ctx context.Context, cfg *config.Config) (service.IMongo, error) {
+func (mock *InitialiserMock) DoGetMongoDB(ctx context.Context, cfg *config.Config) (service.MongoServer, error) {
 	if mock.DoGetMongoDBFunc == nil {
 		panic("InitialiserMock.DoGetMongoDBFunc: method is nil but Initialiser.DoGetMongoDB was just called")
 	}

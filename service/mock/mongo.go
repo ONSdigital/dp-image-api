@@ -11,20 +11,20 @@ import (
 )
 
 var (
-	lockIMongoMockChecker sync.RWMutex
-	lockIMongoMockClose   sync.RWMutex
+	lockMongoServerMockChecker sync.RWMutex
+	lockMongoServerMockClose   sync.RWMutex
 )
 
-// Ensure, that IMongoMock does implement service.IMongo.
+// Ensure, that MongoServerMock does implement service.MongoServer.
 // If this is not the case, regenerate this file with moq.
-var _ service.IMongo = &IMongoMock{}
+var _ service.MongoServer = &MongoServerMock{}
 
-// IMongoMock is a mock implementation of service.IMongo.
+// MongoServerMock is a mock implementation of service.MongoServer.
 //
-//     func TestSomethingThatUsesIMongo(t *testing.T) {
+//     func TestSomethingThatUsesMongoServer(t *testing.T) {
 //
-//         // make and configure a mocked service.IMongo
-//         mockedIMongo := &IMongoMock{
+//         // make and configure a mocked service.MongoServer
+//         mockedMongoServer := &MongoServerMock{
 //             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {
 // 	               panic("mock out the Checker method")
 //             },
@@ -33,11 +33,11 @@ var _ service.IMongo = &IMongoMock{}
 //             },
 //         }
 //
-//         // use mockedIMongo in code that requires service.IMongo
+//         // use mockedMongoServer in code that requires service.MongoServer
 //         // and then make assertions.
 //
 //     }
-type IMongoMock struct {
+type MongoServerMock struct {
 	// CheckerFunc mocks the Checker method.
 	CheckerFunc func(ctx context.Context, state *healthcheck.CheckState) error
 
@@ -62,9 +62,9 @@ type IMongoMock struct {
 }
 
 // Checker calls CheckerFunc.
-func (mock *IMongoMock) Checker(ctx context.Context, state *healthcheck.CheckState) error {
+func (mock *MongoServerMock) Checker(ctx context.Context, state *healthcheck.CheckState) error {
 	if mock.CheckerFunc == nil {
-		panic("IMongoMock.CheckerFunc: method is nil but IMongo.Checker was just called")
+		panic("MongoServerMock.CheckerFunc: method is nil but MongoServer.Checker was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
@@ -73,16 +73,16 @@ func (mock *IMongoMock) Checker(ctx context.Context, state *healthcheck.CheckSta
 		Ctx:   ctx,
 		State: state,
 	}
-	lockIMongoMockChecker.Lock()
+	lockMongoServerMockChecker.Lock()
 	mock.calls.Checker = append(mock.calls.Checker, callInfo)
-	lockIMongoMockChecker.Unlock()
+	lockMongoServerMockChecker.Unlock()
 	return mock.CheckerFunc(ctx, state)
 }
 
 // CheckerCalls gets all the calls that were made to Checker.
 // Check the length with:
-//     len(mockedIMongo.CheckerCalls())
-func (mock *IMongoMock) CheckerCalls() []struct {
+//     len(mockedMongoServer.CheckerCalls())
+func (mock *MongoServerMock) CheckerCalls() []struct {
 	Ctx   context.Context
 	State *healthcheck.CheckState
 } {
@@ -90,39 +90,39 @@ func (mock *IMongoMock) CheckerCalls() []struct {
 		Ctx   context.Context
 		State *healthcheck.CheckState
 	}
-	lockIMongoMockChecker.RLock()
+	lockMongoServerMockChecker.RLock()
 	calls = mock.calls.Checker
-	lockIMongoMockChecker.RUnlock()
+	lockMongoServerMockChecker.RUnlock()
 	return calls
 }
 
 // Close calls CloseFunc.
-func (mock *IMongoMock) Close(ctx context.Context) error {
+func (mock *MongoServerMock) Close(ctx context.Context) error {
 	if mock.CloseFunc == nil {
-		panic("IMongoMock.CloseFunc: method is nil but IMongo.Close was just called")
+		panic("MongoServerMock.CloseFunc: method is nil but MongoServer.Close was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
 	}{
 		Ctx: ctx,
 	}
-	lockIMongoMockClose.Lock()
+	lockMongoServerMockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
-	lockIMongoMockClose.Unlock()
+	lockMongoServerMockClose.Unlock()
 	return mock.CloseFunc(ctx)
 }
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
-//     len(mockedIMongo.CloseCalls())
-func (mock *IMongoMock) CloseCalls() []struct {
+//     len(mockedMongoServer.CloseCalls())
+func (mock *MongoServerMock) CloseCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockIMongoMockClose.RLock()
+	lockMongoServerMockClose.RLock()
 	calls = mock.calls.Close
-	lockIMongoMockClose.RUnlock()
+	lockMongoServerMockClose.RUnlock()
 	return calls
 }
