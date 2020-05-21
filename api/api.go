@@ -101,7 +101,7 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 		data = log.Data{}
 	}
 
-	data["responseStatus"] = status
+	data["response_status"] = status
 	log.Event(ctx, "request unsuccessful", log.ERROR, log.Error(err), data)
 	http.Error(w, err.Error(), status)
 }
