@@ -1,5 +1,14 @@
 package models
 
+// Images represents an array of images model as it is stored in mongoDB and json representation for API
+type Images struct {
+	Count      int     `bson:"count,omitempty"        json:"count"`
+	Offset     int     `bson:"offset_index,omitempty" json:"offset_index"`
+	Limit      int     `bson:"limit,omitempty"        json:"limit"`
+	Items      []Image `bson:"items,omitempty"        json:"items"`
+	TotalCount int     `bson:"total_count,omitempty"  json:"total_count"`
+}
+
 // Image represents an image metadata model as it is stored in mongoDB and json representation for API
 type Image struct {
 	ID           string                         `bson:"_id,omitempty"           json:"id,omitempty"`
