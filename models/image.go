@@ -1,5 +1,12 @@
 package models
 
+import (
+	"github.com/ONSdigital/dp-image-api/apierrors"
+)
+
+// MaxFilenameLen is the maximum number of characters allowed for Image filenames
+const MaxFilenameLen = 40
+
 // Images represents an array of images model as it is stored in mongoDB and json representation for API
 type Images struct {
 	Count      int     `bson:"count,omitempty"        json:"count"`
@@ -38,4 +45,19 @@ type Download struct {
 	Href    string `bson:"href,omitempty"           json:"href,omitempty"`
 	Public  string `bson:"public,omitempty"         json:"pubic,omitempty"`
 	Private string `bson:"private,omitempty"        json:"private,omitempty"`
+}
+
+// Validate checks that an image struct complies with the filename and state constraints
+func (i *Image) Validate() error {
+
+	if len(i.Filename) > MaxFilenameLen {
+		return apierrors.ErrImageFilenameTooLong
+	}
+
+	for _, validState := range stateValues {
+		if i.State == validState {
+			return nil
+		}
+	}
+	return apierrors.ErrImageInvalidState
 }

@@ -95,7 +95,9 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 		case apierrors.ErrUnableToReadMessage,
 			apierrors.ErrColIDMismatch,
 			apierrors.ErrUnableToParseJSON,
-			apierrors.ErrWrongColID:
+			apierrors.ErrWrongColID,
+			apierrors.ErrImageFilenameTooLong,
+			apierrors.ErrImageInvalidState:
 			status = http.StatusBadRequest
 		default:
 			status = http.StatusInternalServerError

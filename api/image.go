@@ -39,6 +39,10 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 		License:      newImageRequest.License,
 		Type:         newImageRequest.Type,
 	}
+	if err := newImage.Validate(); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
 	log.Event(ctx, "storing new image", log.INFO, log.Data{"image": newImage})
 
 	if err := api.mongoDB.UpsertImage(newImage.ID, &newImage); err != nil {

@@ -38,6 +38,27 @@ var newImagePayload = fmt.Sprintf(`
 }
 `, testCollectionID)
 
+var newImagePayloadTooLong = fmt.Sprintf(`
+{
+	"collection_id": "%s",
+	"filename": "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch",
+	"type": "Filename is too long"
+}
+`, testCollectionID)
+
+var newImageInvalidState = fmt.Sprintf(`
+{
+	"collection_id": "%s",
+	"filename": "some-image-name",
+	"state": "invalidState",
+	"license": {
+		"title": "Open Government Licence v3.0",
+		"href": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+	},
+	"type": "chart"
+}
+`, testCollectionID)
+
 var fullImagePayload = fmt.Sprintf(`
 {
 	"id": "%s",
@@ -158,6 +179,28 @@ func TestCreateImageHandler(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(retImage, ShouldResemble, createdImage)
 			})
+		})
+
+		Convey("When a new image with an invalid state fields is posted", func() {
+			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(newImageInvalidState))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			Convey("Then a newly created image with the new id and provided details is returned with status code 201, ignoring the state and any field that is not supposed to be provided at creation time", func() {
+				So(w.Code, ShouldEqual, http.StatusCreated)
+				payload, err := ioutil.ReadAll(w.Body)
+				So(err, ShouldBeNil)
+				retImage := models.Image{}
+				err = json.Unmarshal(payload, &retImage)
+				So(err, ShouldBeNil)
+				So(retImage, ShouldResemble, createdImage)
+			})
+		})
+
+		Convey("Posting an image with a filename longer than the maximum allowed results in BadRequest response", func() {
+			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(newImagePayloadTooLong))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusBadRequest)
 		})
 
 		Convey("An empty request body results in a BadRequest response", func() {
