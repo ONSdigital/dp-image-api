@@ -12,6 +12,11 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// NewID returns a new UUID
+var NewID = func() string {
+	return uuid.NewV4().String()
+}
+
 // CreateImageHandler is a handler that upserts an image into mongoDB
 func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
@@ -27,7 +32,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 
 	// generate new image from request, mapping only allowed fields at creation time (model newImage in swagger spec)
 	newImage := models.Image{
-		ID:           uuid.NewV4().String(),
+		ID:           NewID(),
 		CollectionID: newImageRequest.CollectionID,
 		State:        models.StateCreated.String(),
 		Filename:     newImageRequest.Filename,
