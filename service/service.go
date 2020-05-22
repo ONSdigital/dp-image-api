@@ -36,7 +36,7 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 
 	// Get HTTP Server with collectionID checkHeader middleware
 	r := mux.NewRouter()
-	middleware := alice.New(handlers.CheckHeaderMiddleware(handlers.CollectionIDHeaderKey))
+	middleware := alice.New(handlers.CheckHeader(handlers.CollectionID))
 	s := serviceList.GetHTTPServer(cfg.BindAddr, middleware.Then(r))
 
 	// Get MongoDB client

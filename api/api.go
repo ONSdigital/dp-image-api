@@ -94,6 +94,8 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			status = http.StatusConflict
 		case apierrors.ErrUnableToReadMessage:
 			status = http.StatusBadRequest
+		case apierrors.ErrColIDMismatch:
+			status = http.StatusBadRequest
 		case apierrors.ErrUnableToParseJSON:
 			status = http.StatusBadRequest
 		default:

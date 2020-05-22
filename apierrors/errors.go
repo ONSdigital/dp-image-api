@@ -10,5 +10,6 @@ var (
 	ErrInternalServer      = errors.New("internal error")
 	ErrResourceState       = errors.New("incorrect resource state")
 	ErrUnableToReadMessage = errors.New("failed to read message body")
+	ErrColIDMismatch       = errors.New("'Collection-Id' header does not match 'collection_id' query parameter")
 	ErrUnableToParseJSON   = errors.New("failed to parse json body")
 )
