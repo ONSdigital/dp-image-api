@@ -92,11 +92,10 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			status = http.StatusNotFound
 		case apierrors.ErrResourceState:
 			status = http.StatusConflict
-		case apierrors.ErrUnableToReadMessage:
-			status = http.StatusBadRequest
-		case apierrors.ErrColIDMismatch:
-			status = http.StatusBadRequest
-		case apierrors.ErrUnableToParseJSON:
+		case apierrors.ErrUnableToReadMessage,
+			apierrors.ErrColIDMismatch,
+			apierrors.ErrUnableToParseJSON,
+			apierrors.ErrWrongColID:
 			status = http.StatusBadRequest
 		default:
 			status = http.StatusInternalServerError

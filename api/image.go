@@ -9,6 +9,7 @@ import (
 	dpHTTP "github.com/ONSdigital/dp-net/http"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
+	uuid "github.com/satori/go.uuid"
 )
 
 // CreateImageHandler is a handler that upserts an image into mongoDB
@@ -19,18 +20,32 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
 	}
 
-	newImage := models.Image{}
-	if err := ReadJSONBody(ctx, req.Body, &newImage, w, logdata); err != nil {
+	newImageRequest := &models.Image{}
+	if err := ReadJSONBody(ctx, req.Body, newImageRequest, w, logdata); err != nil {
 		return
 	}
 
-	// TODO create image in MongoDB
+	// generate new image from request, mapping only allowed fields at creation time (model newImage in swagger spec)
+	newImage := models.Image{
+		ID:           uuid.NewV4().String(),
+		CollectionID: newImageRequest.CollectionID,
+		State:        models.StateCreated.String(),
+		Filename:     newImageRequest.Filename,
+		License:      newImageRequest.License,
+		Type:         newImageRequest.Type,
+	}
+	log.Event(ctx, "storing new image", log.INFO, log.Data{"image": newImage})
+
+	if err := api.mongoDB.UpsertImage(newImage.ID, &newImage); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
 
 	w.WriteHeader(http.StatusCreated)
 	if err := WriteJSONBody(ctx, newImage, w, logdata); err != nil {
 		return
 	}
-	log.Event(ctx, "(noop) successfully created image", log.INFO, logdata)
+	log.Event(ctx, "successfully created image", log.INFO, logdata)
 }
 
 // GetImagesHandler is a handler that gets all images in a collection from MongoDB
@@ -42,12 +57,14 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
 	}
 
+	// validate collection ID from header matches collection ID from query param
 	colID := req.URL.Query().Get("collection_id")
 	if colID != hColID {
 		handleError(ctx, w, apierrors.ErrColIDMismatch, logdata)
 		return
 	}
 
+	// get images from MongoDB for the requested collection
 	items, err := api.mongoDB.GetImages(ctx, colID)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
@@ -72,15 +89,23 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	vars := mux.Vars(req)
 	id := vars["id"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
-		handlers.CollectionID.Header(): ctx.Value(handlers.CollectionID.Context()),
+		handlers.CollectionID.Header(): hColID,
 		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
 		"image-id":                     id,
 	}
 
+	// get image from mongoDB by id
 	image, err := api.mongoDB.GetImage(id)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// if image is not published, vaidate that its collectionID matches que header collection-Id
+	if image.State != models.StatePublished.String() && image.CollectionID != hColID {
+		handleError(ctx, w, apierrors.ErrColIDMismatch, logdata)
 		return
 	}
 
