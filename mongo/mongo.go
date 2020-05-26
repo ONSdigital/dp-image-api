@@ -113,7 +113,7 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 	log.Event(ctx, "updating image", log.Data{"id": id})
 
 	updates := createImageUpdateQuery(ctx, id, image)
-	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"next.last_updated": time.Now()}}
+	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
 	if err := s.DB(m.Database).C(imagesCol).UpdateId(id, update); err != nil {
 		if err == mgo.ErrNotFound {
 			return errs.ErrImageNotFound
@@ -130,32 +130,32 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 	log.Event(ctx, "building update query for image resource", log.INFO, log.INFO, log.Data{"image_id": id, "image": image, "updates": updates})
 
 	if image.CollectionID != "" {
-		updates["next.collection_id"] = image.CollectionID
+		updates["collection_id"] = image.CollectionID
 	}
 
 	if image.State != "" {
-		updates["next.state"] = image.State
+		updates["state"] = image.State
 	}
 
 	if image.Filename != "" {
-		updates["next.filename"] = image.Filename
+		updates["filename"] = image.Filename
 	}
 
 	if image.License != nil {
-		updates["next.license.title"] = image.License.Title
-		updates["next.license.href"] = image.License.Href
+		updates["license.title"] = image.License.Title
+		updates["license.href"] = image.License.Href
 	}
 
 	if image.Upload != nil {
-		updates["next.upload.path"] = image.Upload.Path
+		updates["upload.path"] = image.Upload.Path
 	}
 
 	if image.Type != "" {
-		updates["next.type"] = image.Type
+		updates["type"] = image.Type
 	}
 
 	if image.Downloads != nil {
-		updates["next.downloads"] = image.Downloads
+		updates["downloads"] = image.Downloads
 	}
 
 	return updates

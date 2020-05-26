@@ -12,6 +12,7 @@ var (
 	ErrUnableToReadMessage  = errors.New("failed to read message body")
 	ErrColIDMismatch        = errors.New("'Collection-Id' header does not match 'collection_id' query parameter")
 	ErrWrongColID           = errors.New("'Collection-Id' header does not match image's 'collection_id'")
+	ErrImageIDMismatch      = errors.New("Image id provided in body does not match 'id' path parameter")
 	ErrUnableToParseJSON    = errors.New("failed to parse json body")
 	ErrImageFilenameTooLong = errors.New("image filename is too long")
 	ErrImageInvalidState    = errors.New("image state is not a valid state name")

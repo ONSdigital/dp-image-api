@@ -127,12 +127,37 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 // UpdateImageHandler is a handler that updates an existing image in MongoDB
 func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
 	logdata := log.Data{
 		handlers.CollectionID.Header(): ctx.Value(handlers.CollectionID.Context()),
 		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
+		"image-id":                     id,
 	}
-	log.Event(ctx, "update image was called, but it is not implemented yet", log.INFO, logdata)
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
+
+	// Unmarshal image from body and validate it
+	image := &models.Image{}
+	if err := ReadJSONBody(ctx, req.Body, image, w, logdata); err != nil {
+		return
+	}
+	if err := image.Validate(); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	log.Event(ctx, "updating image", log.INFO, log.Data{"image": image})
+
+	// Validate a possible mismatch of image id, if provided
+	if image.ID != "" && image.ID != id {
+		handleError(ctx, w, apierrors.ErrImageIDMismatch, logdata)
+		return
+	}
+	image.ID = id
+
+	// Update image in mongo DB
+	if err := api.mongoDB.UpdateImage(ctx, id, image); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
 }
 
 // PublishImageHandler is a handler that triggers the publishing of an image
