@@ -31,21 +31,21 @@ func (s State) TransitionAllowed(target State) bool {
 		}
 	case StateUploaded:
 		switch target {
-		case StatePublishing, StateDeleted:
+		case StateUploaded, StatePublishing, StateDeleted:
 			return true
 		default:
 			return false
 		}
 	case StatePublishing:
 		switch target {
-		case StatePublished, StateUploaded, StateDeleted:
+		case StatePublishing, StatePublished, StateUploaded, StateDeleted:
 			return true
 		default:
 			return false
 		}
 	case StatePublished:
 		switch target {
-		case StateDeleted:
+		case StatePublished, StateDeleted:
 			return true
 		default:
 			return false

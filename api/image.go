@@ -45,7 +45,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	log.Event(ctx, "storing new image", log.INFO, log.Data{"image": newImage})
 
-	if err := api.mongoDB.UpsertImage(newImage.ID, &newImage); err != nil {
+	if err := api.mongoDB.UpsertImage(req.Context(), newImage.ID, &newImage); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -106,13 +106,13 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// get image from mongoDB by id
-	image, err := api.mongoDB.GetImage(id)
+	image, err := api.mongoDB.GetImage(req.Context(), id)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
 
-	// if image is not published, vaidate that its collectionID matches que header collection-Id
+	// if image is not published, validate that its collectionID matches the collection-Id header
 	if image.State != models.StatePublished.String() && image.CollectionID != hColID {
 		handleError(ctx, w, apierrors.ErrColIDMismatch, logdata)
 		return
@@ -142,6 +142,6 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		handlers.CollectionID.Header(): ctx.Value(handlers.CollectionID.Context()),
 		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
 	}
-	log.Event(ctx, "update image was called, but it is not implemented yet", log.INFO, logdata)
+	log.Event(ctx, "publish image was called, but it is not implemented yet", log.INFO, logdata)
 	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }

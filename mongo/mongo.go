@@ -63,9 +63,13 @@ func (m *Mongo) Checker(ctx context.Context, state *healthcheck.CheckState) erro
 func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Image, error) {
 	s := m.Session.Copy()
 	defer s.Close()
+	log.Event(ctx, "getting images for collectionID", log.Data{"collectionID": collectionID})
 
-	// TODO filter by collectionID
-	iter := s.DB(m.Database).C(imagesCol).Find(nil).Iter()
+	// Filter by collectionID
+	colIDFilter := make(bson.M)
+	colIDFilter["collection_id"] = collectionID
+
+	iter := s.DB(m.Database).C(imagesCol).Find(colIDFilter).Iter()
 	defer func() {
 		err := iter.Close()
 		if err != nil {
@@ -85,9 +89,10 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 }
 
 // GetImage retrieves an image document by its ID
-func (m *Mongo) GetImage(id string) (*models.Image, error) {
+func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) {
 	s := m.Session.Copy()
 	defer s.Close()
+	log.Event(ctx, "getting image by ID", log.Data{"id": id})
 
 	var image models.Image
 	err := s.DB(m.Database).C(imagesCol).Find(bson.M{"_id": id}).One(&image)
@@ -105,6 +110,7 @@ func (m *Mongo) GetImage(id string) (*models.Image, error) {
 func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image) error {
 	s := m.Session.Copy()
 	defer s.Close()
+	log.Event(ctx, "updating image", log.Data{"id": id})
 
 	updates := createImageUpdateQuery(ctx, id, image)
 	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"next.last_updated": time.Now()}}
@@ -156,9 +162,10 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 }
 
 // UpsertImage adds or overides an existing image document
-func (m *Mongo) UpsertImage(id string, image *models.Image) (err error) {
+func (m *Mongo) UpsertImage(ctx context.Context, id string, image *models.Image) (err error) {
 	s := m.Session.Copy()
 	defer s.Close()
+	log.Event(ctx, "upserting image", log.Data{"id": id})
 
 	update := bson.M{
 		"$set": image,

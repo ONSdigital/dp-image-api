@@ -147,7 +147,7 @@ func TestCreateImageHandler(t *testing.T) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		mongoDbMock := &mock.MongoServerMock{
-			UpsertImageFunc: func(id string, image *models.Image) error { return nil },
+			UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error { return nil },
 		}
 		imageApi := GetAPIWithMocks(mongoDbMock, cfg)
 
@@ -222,7 +222,7 @@ func TestCreateImageHandler(t *testing.T) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		mongoDbMock := &mock.MongoServerMock{
-			UpsertImageFunc: func(id string, image *models.Image) error { return errMongoDB },
+			UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error { return errMongoDB },
 		}
 		imageApi := GetAPIWithMocks(mongoDbMock, cfg)
 
@@ -241,7 +241,7 @@ func TestGetImageHandler(t *testing.T) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		mongoDbMock := &mock.MongoServerMock{
-			GetImageFunc: func(id string) (*models.Image, error) {
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testCreatedImageID:
 					return &createdImage, nil

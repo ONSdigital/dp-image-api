@@ -13,6 +13,6 @@ var (
 	ErrColIDMismatch        = errors.New("'Collection-Id' header does not match 'collection_id' query parameter")
 	ErrWrongColID           = errors.New("'Collection-Id' header does not match image's 'collection_id'")
 	ErrUnableToParseJSON    = errors.New("failed to parse json body")
-	ErrImageFilenameTooLong = errors.New("Image filename is too long")
-	ErrImageInvalidState    = errors.New("Image state is not a valid state name")
+	ErrImageFilenameTooLong = errors.New("image filename is too long")
+	ErrImageInvalidState    = errors.New("image state is not a valid state name")
 )

@@ -36,7 +36,7 @@ var _ api.MongoServer = &MongoServerMock{}
 //             CloseFunc: func(ctx context.Context) error {
 // 	               panic("mock out the Close method")
 //             },
-//             GetImageFunc: func(id string) (*models.Image, error) {
+//             GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 // 	               panic("mock out the GetImage method")
 //             },
 //             GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
@@ -45,7 +45,7 @@ var _ api.MongoServer = &MongoServerMock{}
 //             UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) error {
 // 	               panic("mock out the UpdateImage method")
 //             },
-//             UpsertImageFunc: func(id string, image *models.Image) error {
+//             UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error {
 // 	               panic("mock out the UpsertImage method")
 //             },
 //         }
@@ -62,7 +62,7 @@ type MongoServerMock struct {
 	CloseFunc func(ctx context.Context) error
 
 	// GetImageFunc mocks the GetImage method.
-	GetImageFunc func(id string) (*models.Image, error)
+	GetImageFunc func(ctx context.Context, id string) (*models.Image, error)
 
 	// GetImagesFunc mocks the GetImages method.
 	GetImagesFunc func(ctx context.Context, collectionID string) ([]models.Image, error)
@@ -71,7 +71,7 @@ type MongoServerMock struct {
 	UpdateImageFunc func(ctx context.Context, id string, image *models.Image) error
 
 	// UpsertImageFunc mocks the UpsertImage method.
-	UpsertImageFunc func(id string, image *models.Image) error
+	UpsertImageFunc func(ctx context.Context, id string, image *models.Image) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -89,6 +89,8 @@ type MongoServerMock struct {
 		}
 		// GetImage holds details about calls to the GetImage method.
 		GetImage []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 			// ID is the id argument value.
 			ID string
 		}
@@ -110,6 +112,8 @@ type MongoServerMock struct {
 		}
 		// UpsertImage holds details about calls to the UpsertImage method.
 		UpsertImage []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
 			// ID is the id argument value.
 			ID string
 			// Image is the image argument value.
@@ -185,29 +189,33 @@ func (mock *MongoServerMock) CloseCalls() []struct {
 }
 
 // GetImage calls GetImageFunc.
-func (mock *MongoServerMock) GetImage(id string) (*models.Image, error) {
+func (mock *MongoServerMock) GetImage(ctx context.Context, id string) (*models.Image, error) {
 	if mock.GetImageFunc == nil {
 		panic("MongoServerMock.GetImageFunc: method is nil but MongoServer.GetImage was just called")
 	}
 	callInfo := struct {
-		ID string
+		Ctx context.Context
+		ID  string
 	}{
-		ID: id,
+		Ctx: ctx,
+		ID:  id,
 	}
 	lockMongoServerMockGetImage.Lock()
 	mock.calls.GetImage = append(mock.calls.GetImage, callInfo)
 	lockMongoServerMockGetImage.Unlock()
-	return mock.GetImageFunc(id)
+	return mock.GetImageFunc(ctx, id)
 }
 
 // GetImageCalls gets all the calls that were made to GetImage.
 // Check the length with:
 //     len(mockedMongoServer.GetImageCalls())
 func (mock *MongoServerMock) GetImageCalls() []struct {
-	ID string
+	Ctx context.Context
+	ID  string
 } {
 	var calls []struct {
-		ID string
+		Ctx context.Context
+		ID  string
 	}
 	lockMongoServerMockGetImage.RLock()
 	calls = mock.calls.GetImage
@@ -290,31 +298,35 @@ func (mock *MongoServerMock) UpdateImageCalls() []struct {
 }
 
 // UpsertImage calls UpsertImageFunc.
-func (mock *MongoServerMock) UpsertImage(id string, image *models.Image) error {
+func (mock *MongoServerMock) UpsertImage(ctx context.Context, id string, image *models.Image) error {
 	if mock.UpsertImageFunc == nil {
 		panic("MongoServerMock.UpsertImageFunc: method is nil but MongoServer.UpsertImage was just called")
 	}
 	callInfo := struct {
+		Ctx   context.Context
 		ID    string
 		Image *models.Image
 	}{
+		Ctx:   ctx,
 		ID:    id,
 		Image: image,
 	}
 	lockMongoServerMockUpsertImage.Lock()
 	mock.calls.UpsertImage = append(mock.calls.UpsertImage, callInfo)
 	lockMongoServerMockUpsertImage.Unlock()
-	return mock.UpsertImageFunc(id, image)
+	return mock.UpsertImageFunc(ctx, id, image)
 }
 
 // UpsertImageCalls gets all the calls that were made to UpsertImage.
 // Check the length with:
 //     len(mockedMongoServer.UpsertImageCalls())
 func (mock *MongoServerMock) UpsertImageCalls() []struct {
+	Ctx   context.Context
 	ID    string
 	Image *models.Image
 } {
 	var calls []struct {
+		Ctx   context.Context
 		ID    string
 		Image *models.Image
 	}
