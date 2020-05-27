@@ -129,8 +129,9 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	vars := mux.Vars(req)
 	id := vars["id"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
-		handlers.CollectionID.Header(): ctx.Value(handlers.CollectionID.Context()),
+		handlers.CollectionID.Header(): hColID,
 		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
 		"image-id":                     id,
 	}
@@ -153,10 +154,22 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	image.ID = id
 
+	// validate a possible mismatch of collectionID in header and image, if provided
+	if image.CollectionID != "" && image.CollectionID != hColID {
+		handleError(ctx, w, apierrors.ErrWrongColID, logdata)
+		return
+	}
+
 	// get image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// check that collectionID in header matches the collection ID in mongoDB
+	if existingImage.CollectionID != hColID {
+		handleError(ctx, w, apierrors.ErrWrongColID, logdata)
 		return
 	}
 

@@ -92,6 +92,12 @@ var noIDImagePayload = fmt.Sprintf(`{
 	"state": "created"
 }`, testCollectionID)
 
+var noIDImageWrongColIDPayload = `{
+	"collection_id": "wrongCollectionID",
+	"filename": "some-image-name",
+	"state": "created"
+}`
+
 var createdImage = models.Image{
 	ID:           testCreatedImageID,
 	CollectionID: testCollectionID,
@@ -414,6 +420,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("Calling update image with a valid image results in 200 OK response with the expected image provided to mongoDB", func() {
 			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testCreatedImageID), bytes.NewBufferString(noIDImagePayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusOK)
@@ -431,6 +438,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("Calling update image with an image that has a different id results in 400 response", func() {
 			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testCreatedImageID), bytes.NewBufferString(fullImagePayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusBadRequest)
@@ -440,6 +448,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("Calling update image with an image that has a filename that is too long results in 400 response", func() {
 			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testCreatedImageID), bytes.NewBufferString(newImagePayloadTooLong))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusBadRequest)
@@ -449,6 +458,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("Calling update image with an inexistent image id results in 404 response", func() {
 			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", "inexistent"), bytes.NewBufferString(noIDImagePayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusNotFound)
@@ -457,8 +467,29 @@ func TestUpdateImageHandler(t *testing.T) {
 			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
 		})
 
+		Convey("Calling update image with a collectionID that does not match the header collectionID results in 400 response", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testCreatedImageID), bytes.NewBufferString(noIDImagePayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), "differentCollectionID"))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusBadRequest)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 0)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
+		})
+
+		Convey("Calling update image with a collectionID that does not match the mongoDB collectionID results in 400 response", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testCreatedImageID), bytes.NewBufferString(noIDImageWrongColIDPayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusBadRequest)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 0)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
+		})
+
 		Convey("Calling update image for an already published image results in 409 response", func() {
 			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testPublishedImageID), bytes.NewBufferString(fullImagePayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusConflict)
@@ -469,6 +500,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("An internal mongoDB error in getImage results in 500 response", func() {
 			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", "idGetImageErr"), bytes.NewBufferString(noIDImagePayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusInternalServerError)
@@ -479,6 +511,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("An internal mongoDB error in updateImage results in 500 response", func() {
 			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", "idUpdateImageErr"), bytes.NewBufferString(noIDImagePayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusInternalServerError)
