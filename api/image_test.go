@@ -73,7 +73,7 @@ var fullImagePayload = fmt.Sprintf(`
 	"upload": {
 		"path": "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png"
 	},
-	"download": {
+	"downloads": {
 		"png": {
 			"1920x1080": {
 				"size": 1024,
@@ -85,6 +85,12 @@ var fullImagePayload = fmt.Sprintf(`
 	}
 }
 `, testPublishedImageID, testCollectionID)
+
+var noIDImagePayload = fmt.Sprintf(`{
+	"collection_id": "%s",
+	"filename": "some-image-name",
+	"state": "created"
+}`, testCollectionID)
 
 var createdImage = models.Image{
 	ID:           testCreatedImageID,
@@ -377,18 +383,112 @@ func TestGetImagesHandler(t *testing.T) {
 }
 
 func TestUpdateImageHandler(t *testing.T) {
-	Convey("Given an image API with empty mongoDB", t, func() {
+	Convey("Given an image API with existing images", t, func() {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
-		imageApi := GetAPIWithMocks(&mock.MongoServerMock{}, cfg)
+		mongoDBMock := &mock.MongoServerMock{
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				switch id {
+				case testCreatedImageID, "idUpdateImageErr":
+					return &createdImage, nil
+				case testPublishedImageID:
+					return &publishedImage, nil
+				case "idGetImageErr":
+					return nil, errors.New("internal mongoDB error")
+				default:
+					return nil, apierrors.ErrImageNotFound
+				}
+			},
+			UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) error {
+				switch id {
+				case testCreatedImageID, testPublishedImageID:
+					return nil
+				case "idUpdateImageErr":
+					return errors.New("internal mongoDB error")
+				default:
+					return apierrors.ErrImageNotFound
+				}
+			},
+		}
+		imageApi := GetAPIWithMocks(mongoDBMock, cfg)
 
-		Convey("Calling update image results in 501 NotImplemented", func() {
-			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testCreatedImageID), nil)
+		Convey("Calling update image with a valid image results in 200 OK response with the expected image provided to mongoDB", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testCreatedImageID), bytes.NewBufferString(noIDImagePayload))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusNotImplemented)
+			So(w.Code, ShouldEqual, http.StatusOK)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testCreatedImageID)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testCreatedImageID)
+			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{
+				ID:           testCreatedImageID,
+				CollectionID: testCollectionID,
+				Filename:     "some-image-name",
+				State:        "created",
+			})
+		})
+
+		Convey("Calling update image with an image that has a different id results in 400 response", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testCreatedImageID), bytes.NewBufferString(fullImagePayload))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusBadRequest)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 0)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
+		})
+
+		Convey("Calling update image with an image that has a filename that is too long results in 400 response", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testCreatedImageID), bytes.NewBufferString(newImagePayloadTooLong))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusBadRequest)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 0)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
+		})
+
+		Convey("Calling update image with an inexistent image id results in 404 response", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", "inexistent"), bytes.NewBufferString(noIDImagePayload))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusNotFound)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, "inexistent")
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
+		})
+
+		Convey("Calling update image for an already published image results in 409 response", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testPublishedImageID), bytes.NewBufferString(fullImagePayload))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusConflict)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testPublishedImageID)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
+		})
+
+		Convey("An internal mongoDB error in getImage results in 500 response", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", "idGetImageErr"), bytes.NewBufferString(noIDImagePayload))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusInternalServerError)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, "idGetImageErr")
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
+		})
+
+		Convey("An internal mongoDB error in updateImage results in 500 response", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", "idUpdateImageErr"), bytes.NewBufferString(noIDImagePayload))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusInternalServerError)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, "idUpdateImageErr")
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, "idUpdateImageErr")
 		})
 	})
+
 }
 
 func TestPublishImageHandler(t *testing.T) {

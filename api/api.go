@@ -100,6 +100,8 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			apierrors.ErrImageInvalidState,
 			apierrors.ErrImageIDMismatch:
 			status = http.StatusBadRequest
+		case apierrors.ErrImageAlreadyPublished:
+			status = http.StatusConflict
 		default:
 			status = http.StatusInternalServerError
 		}

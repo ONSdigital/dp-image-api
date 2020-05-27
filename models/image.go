@@ -43,7 +43,7 @@ type Upload struct {
 type Download struct {
 	Size    int    `bson:"size,omitempty"           json:"size,omitempty"`
 	Href    string `bson:"href,omitempty"           json:"href,omitempty"`
-	Public  string `bson:"public,omitempty"         json:"pubic,omitempty"`
+	Public  string `bson:"public,omitempty"         json:"public,omitempty"`
 	Private string `bson:"private,omitempty"        json:"private,omitempty"`
 }
 
@@ -54,10 +54,9 @@ func (i *Image) Validate() error {
 		return apierrors.ErrImageFilenameTooLong
 	}
 
-	for _, validState := range stateValues {
-		if i.State == validState {
-			return nil
-		}
+	if _, err := ParseState(i.State); err != nil {
+		return apierrors.ErrImageInvalidState
 	}
-	return apierrors.ErrImageInvalidState
+
+	return nil
 }

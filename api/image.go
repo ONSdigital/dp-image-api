@@ -153,6 +153,19 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	image.ID = id
 
+	// get image from mongoDB by id
+	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// if the image is already published, it cannot be updated
+	if existingImage.State == models.StatePublished.String() {
+		handleError(ctx, w, apierrors.ErrImageAlreadyPublished, logdata)
+		return
+	}
+
 	// Update image in mongo DB
 	if err := api.mongoDB.UpdateImage(ctx, id, image); err != nil {
 		handleError(ctx, w, err, logdata)

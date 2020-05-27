@@ -129,33 +129,45 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 
 	log.Event(ctx, "building update query for image resource", log.INFO, log.INFO, log.Data{"image_id": id, "image": image, "updates": updates})
 
-	if image.CollectionID != "" {
-		updates["collection_id"] = image.CollectionID
-	}
-
-	if image.State != "" {
-		updates["state"] = image.State
-	}
-
-	if image.Filename != "" {
-		updates["filename"] = image.Filename
-	}
+	updates["collection_id"] = image.CollectionID
+	updates["state"] = image.State
+	updates["filename"] = image.Filename
+	updates["type"] = image.Type
 
 	if image.License != nil {
-		updates["license.title"] = image.License.Title
-		updates["license.href"] = image.License.Href
+		license := make(bson.M)
+		license["title"] = image.License.Title
+		license["href"] = image.License.Href
+		updates["license"] = license
+	} else {
+		updates["license"] = nil
 	}
 
 	if image.Upload != nil {
-		updates["upload.path"] = image.Upload.Path
-	}
-
-	if image.Type != "" {
-		updates["type"] = image.Type
+		upload := make(bson.M)
+		upload["path"] = image.Upload.Path
+		updates["upload"] = upload
+	} else {
+		updates["upload"] = nil
 	}
 
 	if image.Downloads != nil {
-		updates["downloads"] = image.Downloads
+		k0Downloads := make(bson.M)
+		for k0, map0 := range image.Downloads {
+			k1Downloads := make(bson.M)
+			for k1, download := range map0 {
+				d := make(bson.M)
+				d["size"] = download.Size
+				d["href"] = download.Href
+				d["public"] = download.Public
+				d["private"] = download.Private
+				k1Downloads[k1] = d
+			}
+			k0Downloads[k0] = k1Downloads
+		}
+		updates["downloads"] = k0Downloads
+	} else {
+		updates["downloads"] = nil
 	}
 
 	return updates
