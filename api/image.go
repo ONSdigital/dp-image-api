@@ -147,14 +147,14 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	log.Event(ctx, "updating image", log.INFO, log.Data{"image": image})
 
-	// Validate a possible mismatch of image id, if provided
+	// Validate a possible mismatch of image id, if provided in image body
 	if image.ID != "" && image.ID != id {
 		handleError(ctx, w, apierrors.ErrImageIDMismatch, logdata)
 		return
 	}
 	image.ID = id
 
-	// validate a possible mismatch of collectionID in header and image, if provided
+	// validate a possible mismatch of collectionID in header and image, if provided in image body
 	if image.CollectionID != "" && image.CollectionID != hColID {
 		handleError(ctx, w, apierrors.ErrWrongColID, logdata)
 		return
@@ -170,6 +170,14 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	// check that collectionID in header matches the collection ID in mongoDB
 	if existingImage.CollectionID != hColID {
 		handleError(ctx, w, apierrors.ErrWrongColID, logdata)
+		return
+	}
+
+	// check that state transition is allowed
+	if !existingImage.StateTransitionAllowed(image.State) {
+		logdata["current_state"] = existingImage.State
+		logdata["target_state"] = image.State
+		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
 		return
 	}
 

@@ -60,3 +60,16 @@ func (i *Image) Validate() error {
 
 	return nil
 }
+
+// StateTransitionAllowed checks if the image can transition from its current state to the provided target state
+func (i *Image) StateTransitionAllowed(target string) bool {
+	currentState, err := ParseState(i.State)
+	if err != nil {
+		return false
+	}
+	targetState, err := ParseState(target)
+	if err != nil {
+		return false
+	}
+	return currentState.TransitionAllowed(targetState)
+}
