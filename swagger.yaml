@@ -246,6 +246,7 @@ definitions:
         type: string
         description: "Collection unique identifier corresponding to this image"
         example: "5557dcd9-bf58-4a67-94f7-2343569834cc"
+        required: true
       state:
         type: string
         enum:
@@ -256,6 +257,7 @@ definitions:
           - deleted
         description: "The state of the image"
         example: "published"
+        required: true
       filename:
         type: string
         description: "Image's file name. According to SEO recommendations, the name should not be longer than 5 words. And it should not include extension because multiple extensions for the same image might be available as download variants."

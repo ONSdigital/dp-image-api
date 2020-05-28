@@ -54,6 +54,10 @@ func (i *Image) Validate() error {
 		return apierrors.ErrImageFilenameTooLong
 	}
 
+	if i.CollectionID == "" {
+		return apierrors.ErrImageNoCollectionID
+	}
+
 	if _, err := ParseState(i.State); err != nil {
 		return apierrors.ErrImageInvalidState
 	}
