@@ -152,20 +152,20 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 	}
 
 	if image.Downloads != nil {
-		k0Downloads := make(bson.M)
-		for k0, map0 := range image.Downloads {
-			k1Downloads := make(bson.M)
-			for k1, download := range map0 {
+		variants := make(bson.M)
+		for variantKey, variant := range image.Downloads {
+			resolutions := make(bson.M)
+			for resolutionKey, download := range variant {
 				d := make(bson.M)
 				d["size"] = download.Size
 				d["href"] = download.Href
 				d["public"] = download.Public
 				d["private"] = download.Private
-				k1Downloads[k1] = d
+				resolutions[resolutionKey] = d
 			}
-			k0Downloads[k0] = k1Downloads
+			variants[variantKey] = resolutions
 		}
-		updates["downloads"] = k0Downloads
+		updates["downloads"] = variants
 	} else {
 		updates["downloads"] = nil
 	}
