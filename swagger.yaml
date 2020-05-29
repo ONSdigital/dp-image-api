@@ -1,42 +1,368 @@
 swagger: "2.0"
+
 info:
-  title: dp-image-api
-  description: "TODO"
-  version: 1.0.0
+  title: "Digital Publishing Image API"
+  description: "Provides read and write capabilities for image metadata"
+  version: "1.0.0"
   license:
     name: "Open Government Licence v3.0"
     url: "http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+
 basePath: "/v1"
+
 schemes:
   - http
+
 tags:
-  - name: "hello"
+  - name: "image"
+
 paths:
-  /hello:
+
+  /images:
     get:
       tags:
-        - hello
-      summary: Example hello world endpoint
-      description: Returns an example payload.
+      - "image"
+      summary: "Get images filtered by collection id"
+      description: "Returns a list of images metadata filtered by a compulsory query parameter defining the collection ID"
+      parameters:
+      - $ref: '#/parameters/collection_id'
       produces:
-        - application/json
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
       responses:
         200:
-          description: OK
+          description: "A json object containing images which correspond to the provided collection ID"
           schema:
-            $ref: "#/definitions/HelloResponse"
+            $ref: '#/definitions/Images'
+        400:
+          description: "Invalid request, collection id was incorrect"
+        401:
+          $ref: '#/responses/Unauthenticated'
+        403:
+          description: "Unauthorised to view images metadata"
+        500:
+          $ref: '#/responses/InternalError'
+    post:
+      tags:
+      - "image"
+      summary: "Create a new image metadata entry"
+      description: "Creates a new image metadata entry corresponding to the provided body in this request."
+      parameters:
+      - $ref: '#/parameters/new_image'
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
+      responses:
+        201:
+          description: "The image metadata was correctly created and a json object containing the new image information is returned, including a newly generated id"
+          schema:
+            $ref: '#/definitions/Images'
+        400:
+          description: |
+            Invalid request, reasons can be one of the following:
+              * collection id was incorrect
+              * malformed body
+              * provided image had an invalid parameter
+        401:
+          $ref: '#/responses/Unauthenticated'
+        403:
+          description: "Unauthorised to create images metadata"
+        404:
+          $ref: '#/responses/NotFound'
+        500:
+          $ref: '#/responses/InternalError'
+
+  /images/{image_id}:
+    get:
+      tags:
+      - "image"
+      summary: "Get an image metadata by its id"
+      description: "Returns an image metadata whose id matches the id provided as path parameter"
+      parameters:
+      - $ref: '#/parameters/image_id'
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
+      responses:
+        200:
+          description: "A json with the requested image metadata"
+          schema:
+            $ref: '#/definitions/Image'
+        401:
+          $ref: '#/responses/Unauthenticated'
+        403:
+          description: "Unauthorised to view image metadata"
+        404:
+          $ref: '#/responses/NotFound'
+        500:
+          $ref: '#/responses/InternalError'
+    put:
+      tags:
+      - "image"
+      summary: "Update an image metadata entry"
+      description: "Updates an image metadata entry whose id matches the id provided as path parameter"
+      parameters:
+      - $ref: '#/parameters/image_id'
+      - $ref: '#/parameters/image'
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
+      - ServiceAPIKey: []
+      responses:
+        200:
+          description: "A json with the requested image metadata"
+          schema:
+            $ref: '#/definitions/Image'
+        400:
+          description: |
+            Invalid request, reasons can be one of the following:
+              * image id was incorrect
+              * collection id was incorrect
+              * malformed body
+              * provided image had an invalid parameter
+        401:
+          $ref: '#/responses/Unauthenticated'
+        403:
+          description: "Unauthorised to update image metadata"
+        404:
+          $ref: '#/responses/NotFound'
+        409:
+          description: "Cannot update an image for the provided collection ID because it is already published"
+        500:
+          $ref: '#/responses/InternalError'
+
+  /images/{image_id}/publish:
+    post:
+      tags:
+      - "image"
+      summary: "Publish an image"
+      description: "Requests an image publishing via the static file publisher, which puts the S3 objects for this image to the static bucket. This call sets the image state to 'publishing'."
+      parameters:
+      - $ref: '#/parameters/image_id'
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
+      responses:
+        200:
+          description: "The image publishing was successfully requested to Static file publisher."
+        400:
+          description: "Invalid request, image id was incorrect"
+        401:
+          $ref: '#/responses/Unauthenticated'
+        403:
+          description: "Unauthorised to publish image"
+        404:
+          $ref: '#/responses/NotFound'
+        409:
+          description: "Cannot publish the image because it is not uploaded yet, or it is has already been published"
         500:
           $ref: '#/responses/InternalError'
 
 responses:
+
   InternalError:
     description: "Failed to process the request due to an internal error"
+    
+  NotFound:
+    description: "Requested item cannot be found"
+    
+  InvalidRequestError:
+    description: "Failed to process the request due to invalid request"
+
+  Unauthenticated:
+    description: "User or service is not authenticated"
 
 definitions:
-  HelloResponse:
+
+  Images:
+    description: "A list of images"
     type: object
     properties:
-      message:
+      count:
+        description: "The number of images returned"
+        readOnly: true
+        type: integer
+        example: 1
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/Image'
+      limit:
+        description: "The number of images requested"
+        type: integer
+      offset:
+        description: "The first row of images to retrieve, starting at 0. Use this parameter as a pagination mechanism along with the limit parameter"
+        type: integer
+      total_count:
+        description: "The total number of images"
+        readOnly: true
+        type: integer
+        example: 1
+
+  NewImage:
+    type: object
+    description: "New Image metadata model, used to create new images. The image ID will be created by image API, and the state will be set to 'created' at creation time."
+    properties:
+      collection_id:
         type: string
-        description: "Message returned by hello world endpoint"
-        example: "Hello, world!"
+        description: "Collection unique identifier corresponding to this image"
+        example: "5557dcd9-bf58-4a67-94f7-2343569834cc"
+      filename:
+        type: string
+        description: "Image's file name. According to SEO recommendations, the name should not be longer than 5 words. And it should not include extension because multiple extensions for the same image might be available as download variants."
+        example: "image-name"
+        maxLength: 40
+      license:
+        type: object
+        description: "License that defines the third party permissions for this image"
+        properties:
+          title:
+            type: string
+            description: "Title of the license"
+            example: "Open Government Licence v3.0"
+          href: 
+            type: string
+            description: "Link to the license content"
+            example: "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+      type:
+        type: string
+        description: "Type of image, which might define a set of possible formats and variants or resolutions that will be generated by the image importer."
+        example: "chart"
+
+  Image:
+    type: object
+    description: "Existing Image metadata model"
+    properties:
+      id:
+        type: string
+        description: "Image metadata unique identifier"
+        example: "042e216a-7822-4fa0-a3d6-e3f5248ffc35"
+      collection_id:
+        type: string
+        description: "Collection unique identifier corresponding to this image"
+        example: "5557dcd9-bf58-4a67-94f7-2343569834cc"
+      state:
+        type: string
+        enum:
+          - created
+          - uploaded
+          - publishing
+          - published
+          - deleted
+        description: "The state of the image"
+        example: "published"
+      filename:
+        type: string
+        description: "Image's file name. According to SEO recommendations, the name should not be longer than 5 words. And it should not include extension because multiple extensions for the same image might be available as download variants."
+        example: "image-name"
+        maxLength: 40
+      license:
+        type: object
+        description: "License that defines the third party permissions for this image"
+        properties:
+          title:
+            type: string
+            description: "Title of the license"
+            example: "Open Government Licence v3.0"
+          href: 
+            type: string
+            description: "Link to the license content"
+            example: "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+      upload:
+        type: object
+        description: "Original file upload in the upload bucket"
+        properties:
+          path:
+            type: string
+            description: "S3 object key (without bucket name) where the originally uploaded image is stored"
+            example: "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png"
+      type:
+        type: string
+        description: "Type of image, which might define a set of possible formats and variants or resolutions."
+        example: "chart"
+      downloads:
+        type: object
+        description: "All available formats and variants for this image. Note that this spec does not define all cases, and depending on the image type, we can have multiple formats as well as multiple variants."
+        properties:
+          png:
+            type: object
+            description: "All available download variants for this image format, keyed by resolution (in WxH pixels) or with some other identifier."
+            properties:
+              1920x1080:
+                $ref: '#/definitions/ImageDownload'
+              1280x720:
+                $ref: '#/definitions/ImageDownload'
+              thumbnail:
+                $ref: '#/definitions/ImageDownload'
+
+  ImageDownload:
+    type: object
+    description: "Download information for a particular image variant and resolution"
+    properties:
+      size:
+        type: integer
+        description: "File size in number of bytes"
+        example: 1024
+      href:
+        type: string
+        description: "Full URL pointing to the image in download service"
+        example: "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png"
+      public:
+        type: string
+        description: "S3 Public bucket name"
+        example: "my-pubic-bucket"
+      private:
+        type: string
+        description: "S3 Private bucket name"
+        example: "my-private-bucket"
+
+securityDefinitions:
+
+  FlorenceAPIKey:
+    name: X-Florence-Token
+    description: "API key used to allow florence users to create, update and query images metadata"
+    in: header
+    type: apiKey
+
+  ServiceAPIKey:
+    name: Authorization
+    description: "API key used to allow services to update the state of an image"
+    in: header
+    type: apiKey
+
+parameters:
+
+  image_id:
+    name: image_id
+    description: "A unique id for an image metadata entry"
+    required: true
+    in: path
+    type: string
+    
+  collection_id:
+    name: collection_id
+    description: "A unique id for a collection to filter on"
+    required: true
+    in: query
+    type: string
+    
+  image:
+    name: image
+    description: "A valid image model, which already exists"
+    in: body
+    required: true
+    schema:
+      $ref: '#/definitions/Image'
+
+  new_image:
+    name: new_image
+    description: "A valid image model at creation time, which might define the same fields as an existing image model, except for the id and state"
+    in: body
+    required: true
+    schema:
+      $ref: '#/definitions/NewImage'
