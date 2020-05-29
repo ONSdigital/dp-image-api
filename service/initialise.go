@@ -8,14 +8,16 @@ import (
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/dp-image-api/mongo"
+	kafka "github.com/ONSdigital/dp-kafka"
 	dphttp "github.com/ONSdigital/dp-net/http"
 )
 
 // ExternalServiceList holds the initialiser and initialisation state of external services.
 type ExternalServiceList struct {
-	MongoDB     bool
-	HealthCheck bool
-	Init        Initialiser
+	MongoDB       bool
+	HealthCheck   bool
+	KafkaProducer bool
+	Init          Initialiser
 }
 
 // NewServiceList creates a new service list with the provided initialiser
@@ -46,6 +48,16 @@ func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config
 	return mongoDB, nil
 }
 
+// GetKafkaProducer returns a kafka producer
+func (e *ExternalServiceList) GetKafkaProducer(ctx context.Context, cfg *config.Config) (kafka.IProducer, error) {
+	kafkaProducer, err := e.Init.DoGetKafkaProducer(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	e.KafkaProducer = true
+	return kafkaProducer, nil
+}
+
 // GetHealthCheck creates a healthcheck with versionInfo and sets teh HealthCheck flag to true
 func (e *ExternalServiceList) GetHealthCheck(cfg *config.Config, buildTime, gitCommit, version string) (HealthChecker, error) {
 	hc, err := e.Init.DoGetHealthCheck(cfg, buildTime, gitCommit, version)
@@ -74,6 +86,16 @@ func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoS
 		return nil, err
 	}
 	return mongodb, nil
+}
+
+// DoGetKafkaProducer creates a kafka producer for the provided broker addresses, topic and envMax values in config
+func (e *Init) DoGetKafkaProducer(ctx context.Context, cfg *config.Config) (kafka.IProducer, error) {
+	producerChannels := kafka.CreateProducerChannels()
+	kafkaProducer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ImageUploadedTopic, cfg.KafkaMaxBytes, producerChannels)
+	if err != nil {
+		return nil, err
+	}
+	return kafkaProducer, nil
 }
 
 // DoGetHealthCheck creates a healthcheck with versionInfo

@@ -5,6 +5,7 @@ import (
 
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
+	kafka "github.com/ONSdigital/dp-kafka"
 	"github.com/ONSdigital/dp-net/handlers"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
@@ -14,13 +15,14 @@ import (
 
 // Service contains all the configs, server and clients to run the Image API
 type Service struct {
-	config      *config.Config
-	server      HTTPServer
-	router      *mux.Router
-	api         *api.API
-	serviceList *ExternalServiceList
-	healthCheck HealthChecker
-	mongoDB     api.MongoServer
+	config        *config.Config
+	server        HTTPServer
+	router        *mux.Router
+	api           *api.API
+	serviceList   *ExternalServiceList
+	healthCheck   HealthChecker
+	mongoDB       api.MongoServer
+	kafkaProducer kafka.IProducer
 }
 
 // Run the service
@@ -46,6 +48,13 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 		return nil, err
 	}
 
+	// Get Kafka producer
+	kafkaProducer, err := serviceList.GetKafkaProducer(ctx, cfg)
+	if err != nil {
+		log.Event(ctx, "failed to create a kafka producer", log.FATAL, log.Error(err))
+		return nil, err
+	}
+
 	// Setup the API
 	a := api.Setup(ctx, r, mongoDB)
 
@@ -55,7 +64,7 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 		log.Event(ctx, "could not instantiate healthcheck", log.FATAL, log.Error(err))
 		return nil, err
 	}
-	if err := registerCheckers(ctx, hc, mongoDB); err != nil {
+	if err := registerCheckers(ctx, hc, mongoDB, kafkaProducer); err != nil {
 		return nil, errors.Wrap(err, "unable to register checkers")
 	}
 
@@ -70,13 +79,14 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	}()
 
 	return &Service{
-		config:      cfg,
-		server:      s,
-		router:      r,
-		api:         a,
-		serviceList: serviceList,
-		healthCheck: hc,
-		mongoDB:     mongoDB,
+		config:        cfg,
+		server:        s,
+		router:        r,
+		api:           a,
+		serviceList:   serviceList,
+		healthCheck:   hc,
+		mongoDB:       mongoDB,
+		kafkaProducer: kafkaProducer,
 	}, nil
 }
 
@@ -118,6 +128,14 @@ func (svc *Service) Close(ctx context.Context) error {
 			}
 		}
 
+		// close kafka producer
+		if svc.serviceList.KafkaProducer {
+			if err := svc.kafkaProducer.Close(ctx); err != nil {
+				log.Event(ctx, "error closing Kafka Producer", log.Error(err), log.ERROR)
+				hasShutdownError = true
+			}
+		}
+
 		if !hasShutdownError {
 			gracefulShutdown = true
 		}
@@ -138,13 +156,19 @@ func (svc *Service) Close(ctx context.Context) error {
 
 func registerCheckers(ctx context.Context,
 	hc HealthChecker,
-	mongoDB api.MongoServer) (err error) {
+	mongoDB api.MongoServer,
+	kafkaProducer kafka.IProducer) (err error) {
 
 	hasErrors := false
 
 	if err = hc.AddCheck("Mongo DB", mongoDB.Checker); err != nil {
 		hasErrors = true
 		log.Event(ctx, "error adding check for mongo db", log.ERROR, log.Error(err))
+	}
+
+	if err = hc.AddCheck("Kafka Producer", kafkaProducer.Checker); err != nil {
+		hasErrors = true
+		log.Event(ctx, "error adding check for kafka producer", log.ERROR, log.Error(err))
 	}
 
 	if hasErrors {
