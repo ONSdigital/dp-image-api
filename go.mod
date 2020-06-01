@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/ONSdigital/dp-healthcheck v1.0.4
-	github.com/ONSdigital/dp-kafka v1.1.6-0.20200529131010-24a78297afe4
+	github.com/ONSdigital/dp-kafka v1.1.6
 	github.com/ONSdigital/dp-mongodb v1.2.0
 	github.com/ONSdigital/dp-net v1.0.4-0.20200521155446-34cf3d4fece1
 	github.com/ONSdigital/log.go v1.0.0
