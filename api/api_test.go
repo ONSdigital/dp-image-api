@@ -93,10 +93,10 @@ func TestClose(t *testing.T) {
 }
 
 // GetAPIWithMocks also used in other tests
-func GetAPIWithMocks(cfg *config.Config, mongoDbMock api.MongoServer, authHandlerMock *mock.AuthHandlerMock) *api.API {
+func GetAPIWithMocks(cfg *config.Config, mongoDbMock *mock.MongoServerMock, authHandlerMock *mock.AuthHandlerMock) *api.API {
 	mu.Lock()
 	defer mu.Unlock()
-	return api.Setup(testContext, &config.Config{}, mux.NewRouter(), mongoDbMock, authHandlerMock)
+	return api.Setup(testContext, cfg, mux.NewRouter(), mongoDbMock, authHandlerMock)
 }
 
 func hasRoute(r *mux.Router, path, method string) bool {
