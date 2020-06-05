@@ -7,29 +7,38 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/apierrors"
+	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
 )
 
 //API provides a struct to wrap the api around
 type API struct {
-	Router  *mux.Router
-	mongoDB MongoServer
+	Router      *mux.Router
+	mongoDB     MongoServer
+	permissions AuthHandler
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
-func Setup(ctx context.Context, r *mux.Router, mongoDB MongoServer) *API {
+func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, mongoDB MongoServer, permissions AuthHandler) *API {
 	api := &API{
-		Router:  r,
-		mongoDB: mongoDB,
+		Router:      r,
+		mongoDB:     mongoDB,
+		permissions: permissions,
 	}
 
-	r.HandleFunc("/images", api.CreateImageHandler).Methods(http.MethodPost)
-	r.HandleFunc("/images", api.GetImagesHandler).Methods(http.MethodGet)
-	r.HandleFunc("/images/{id}", api.GetImageHandler).Methods(http.MethodGet)
-	r.HandleFunc("/images/{id}", api.UpdateImageHandler).Methods(http.MethodPut)
-	r.HandleFunc("/images/{id}/publish", api.PublishImageHandler).Methods(http.MethodPost)
+	if cfg.IsPublishing {
+		r.HandleFunc("/images", permissions.Require(auth.Permissions{Create: true}, api.CreateImageHandler)).Methods(http.MethodPost)
+		r.HandleFunc("/images", permissions.Require(auth.Permissions{Read: true}, api.GetImagesHandler)).Methods(http.MethodGet)
+		r.HandleFunc("/images/{id}", permissions.Require(auth.Permissions{Read: true}, api.GetImageHandler)).Methods(http.MethodGet)
+		r.HandleFunc("/images/{id}", permissions.Require(auth.Permissions{Update: true}, api.UpdateImageHandler)).Methods(http.MethodPut)
+		r.HandleFunc("/images/{id}/publish", permissions.Require(auth.Permissions{Update: true}, api.PublishImageHandler)).Methods(http.MethodPost)
+	} else {
+		r.HandleFunc("/images", api.GetImagesHandler).Methods(http.MethodGet)
+		r.HandleFunc("/images/{id}", api.GetImageHandler).Methods(http.MethodGet)
+	}
 	return api
 }
 

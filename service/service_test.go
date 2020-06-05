@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ONSdigital/dp-api-clients-go/health"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-image-api/api"
 	apiMock "github.com/ONSdigital/dp-image-api/api/mock"
@@ -90,11 +91,19 @@ func TestRun(t *testing.T) {
 			return kafkaProducerMock, nil
 		}
 
+		funcDoGetHealthClientOk := func(name string, url string) *health.Client {
+			return &health.Client{
+				URL:  url,
+				Name: name,
+			}
+		}
+
 		Convey("Given that initialising mongoDB returns an error", func() {
 			initMock := &serviceMock.InitialiserMock{
 				DoGetHTTPServerFunc:    funcDoGetHTTPServerNil,
 				DoGetMongoDBFunc:       funcDoGetMongoDbErr,
 				DoGetKafkaProducerFunc: funcDoGetKafkaProducerOk,
+				DoGetHealthClientFunc:  funcDoGetHealthClientOk,
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
@@ -113,6 +122,7 @@ func TestRun(t *testing.T) {
 				DoGetHTTPServerFunc:    funcDoGetHTTPServerNil,
 				DoGetMongoDBFunc:       funcDoGetMongoDbOk,
 				DoGetKafkaProducerFunc: funcDoGetKafkaProducerErr,
+				DoGetHealthClientFunc:  funcDoGetHealthClientOk,
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
@@ -132,6 +142,7 @@ func TestRun(t *testing.T) {
 				DoGetMongoDBFunc:       funcDoGetMongoDbOk,
 				DoGetHealthCheckFunc:   funcDoGetHealthcheckErr,
 				DoGetKafkaProducerFunc: funcDoGetKafkaProducerOk,
+				DoGetHealthClientFunc:  funcDoGetHealthClientOk,
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
@@ -152,6 +163,7 @@ func TestRun(t *testing.T) {
 				DoGetMongoDBFunc:       funcDoGetMongoDbOk,
 				DoGetKafkaProducerFunc: funcDoGetKafkaProducerOk,
 				DoGetHealthCheckFunc:   funcDoGetHealthcheckOk,
+				DoGetHealthClientFunc:  funcDoGetHealthClientOk,
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
@@ -165,9 +177,10 @@ func TestRun(t *testing.T) {
 			})
 
 			Convey("The checkers are registered and the healthcheck and http server started", func() {
-				So(len(hcMock.AddCheckCalls()), ShouldEqual, 2)
+				So(len(hcMock.AddCheckCalls()), ShouldEqual, 3)
 				So(hcMock.AddCheckCalls()[0].Name, ShouldResemble, "Mongo DB")
 				So(hcMock.AddCheckCalls()[1].Name, ShouldResemble, "Kafka Producer")
+				So(hcMock.AddCheckCalls()[2].Name, ShouldEqual, "Zebedee")
 				So(len(initMock.DoGetHTTPServerCalls()), ShouldEqual, 1)
 				So(initMock.DoGetHTTPServerCalls()[0].BindAddr, ShouldEqual, ":24700")
 				So(len(hcMock.StartCalls()), ShouldEqual, 1)
@@ -191,6 +204,7 @@ func TestRun(t *testing.T) {
 				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 					return hcMockAddFail, nil
 				},
+				DoGetHealthClientFunc: funcDoGetHealthClientOk,
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
@@ -201,9 +215,10 @@ func TestRun(t *testing.T) {
 				So(err.Error(), ShouldResemble, fmt.Sprintf("unable to register checkers: %s", errAddheckFail.Error()))
 				So(svcList.MongoDB, ShouldBeTrue)
 				So(svcList.HealthCheck, ShouldBeTrue)
-				So(len(hcMockAddFail.AddCheckCalls()), ShouldEqual, 2)
+				So(len(hcMockAddFail.AddCheckCalls()), ShouldEqual, 3)
 				So(hcMockAddFail.AddCheckCalls()[0].Name, ShouldResemble, "Mongo DB")
 				So(hcMockAddFail.AddCheckCalls()[1].Name, ShouldResemble, "Kafka Producer")
+				So(hcMockAddFail.AddCheckCalls()[2].Name, ShouldResemble, "Zebedee")
 			})
 		})
 	})
@@ -268,6 +283,7 @@ func TestClose(t *testing.T) {
 				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 					return hcMock, nil
 				},
+				DoGetHealthClientFunc: func(name, url string) *health.Client { return &health.Client{} },
 			}
 
 			svcErrors := make(chan error, 1)
@@ -299,6 +315,7 @@ func TestClose(t *testing.T) {
 				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 					return hcMock, nil
 				},
+				DoGetHealthClientFunc: func(name, url string) *health.Client { return &health.Client{} },
 			}
 
 			svcErrors := make(chan error, 1)

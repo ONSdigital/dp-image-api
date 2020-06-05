@@ -5,6 +5,7 @@ package mock
 
 import (
 	"context"
+	"github.com/ONSdigital/dp-api-clients-go/health"
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/dp-image-api/service"
@@ -16,6 +17,7 @@ import (
 var (
 	lockInitialiserMockDoGetHTTPServer    sync.RWMutex
 	lockInitialiserMockDoGetHealthCheck   sync.RWMutex
+	lockInitialiserMockDoGetHealthClient  sync.RWMutex
 	lockInitialiserMockDoGetKafkaProducer sync.RWMutex
 	lockInitialiserMockDoGetMongoDB       sync.RWMutex
 )
@@ -36,6 +38,9 @@ var _ service.Initialiser = &InitialiserMock{}
 //             DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 // 	               panic("mock out the DoGetHealthCheck method")
 //             },
+//             DoGetHealthClientFunc: func(name string, url string) *health.Client {
+// 	               panic("mock out the DoGetHealthClient method")
+//             },
 //             DoGetKafkaProducerFunc: func(ctx context.Context, cfg *config.Config) (kafka.IProducer, error) {
 // 	               panic("mock out the DoGetKafkaProducer method")
 //             },
@@ -54,6 +59,9 @@ type InitialiserMock struct {
 
 	// DoGetHealthCheckFunc mocks the DoGetHealthCheck method.
 	DoGetHealthCheckFunc func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error)
+
+	// DoGetHealthClientFunc mocks the DoGetHealthClient method.
+	DoGetHealthClientFunc func(name string, url string) *health.Client
 
 	// DoGetKafkaProducerFunc mocks the DoGetKafkaProducer method.
 	DoGetKafkaProducerFunc func(ctx context.Context, cfg *config.Config) (kafka.IProducer, error)
@@ -80,6 +88,13 @@ type InitialiserMock struct {
 			GitCommit string
 			// Version is the version argument value.
 			Version string
+		}
+		// DoGetHealthClient holds details about calls to the DoGetHealthClient method.
+		DoGetHealthClient []struct {
+			// Name is the name argument value.
+			Name string
+			// URL is the url argument value.
+			URL string
 		}
 		// DoGetKafkaProducer holds details about calls to the DoGetKafkaProducer method.
 		DoGetKafkaProducer []struct {
@@ -173,6 +188,41 @@ func (mock *InitialiserMock) DoGetHealthCheckCalls() []struct {
 	lockInitialiserMockDoGetHealthCheck.RLock()
 	calls = mock.calls.DoGetHealthCheck
 	lockInitialiserMockDoGetHealthCheck.RUnlock()
+	return calls
+}
+
+// DoGetHealthClient calls DoGetHealthClientFunc.
+func (mock *InitialiserMock) DoGetHealthClient(name string, url string) *health.Client {
+	if mock.DoGetHealthClientFunc == nil {
+		panic("InitialiserMock.DoGetHealthClientFunc: method is nil but Initialiser.DoGetHealthClient was just called")
+	}
+	callInfo := struct {
+		Name string
+		URL  string
+	}{
+		Name: name,
+		URL:  url,
+	}
+	lockInitialiserMockDoGetHealthClient.Lock()
+	mock.calls.DoGetHealthClient = append(mock.calls.DoGetHealthClient, callInfo)
+	lockInitialiserMockDoGetHealthClient.Unlock()
+	return mock.DoGetHealthClientFunc(name, url)
+}
+
+// DoGetHealthClientCalls gets all the calls that were made to DoGetHealthClient.
+// Check the length with:
+//     len(mockedInitialiser.DoGetHealthClientCalls())
+func (mock *InitialiserMock) DoGetHealthClientCalls() []struct {
+	Name string
+	URL  string
+} {
+	var calls []struct {
+		Name string
+		URL  string
+	}
+	lockInitialiserMockDoGetHealthClient.RLock()
+	calls = mock.calls.DoGetHealthClient
+	lockInitialiserMockDoGetHealthClient.RUnlock()
 	return calls
 }
 
