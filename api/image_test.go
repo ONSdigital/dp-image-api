@@ -11,7 +11,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ONSdigital/dp-authorisation/auth"
+	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/api/mock"
 	"github.com/ONSdigital/dp-image-api/apierrors"
@@ -164,7 +164,7 @@ func TestCreateImageHandler(t *testing.T) {
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required auth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -254,7 +254,7 @@ func TestCreateImageHandler(t *testing.T) {
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required auth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -304,7 +304,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required auth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -393,7 +393,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required auth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -491,7 +491,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required auth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -635,7 +635,7 @@ func TestPublishImageHandler(t *testing.T) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required auth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}

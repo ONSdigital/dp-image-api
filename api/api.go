@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/ONSdigital/dp-authorisation/auth"
+	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/log.go/log"
@@ -16,25 +16,25 @@ import (
 
 //API provides a struct to wrap the api around
 type API struct {
-	Router      *mux.Router
-	mongoDB     MongoServer
-	permissions AuthHandler
+	Router  *mux.Router
+	mongoDB MongoServer
+	auth    AuthHandler
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
-func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, mongoDB MongoServer, permissions AuthHandler) *API {
+func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, mongoDB MongoServer, auth AuthHandler) *API {
 	api := &API{
-		Router:      r,
-		mongoDB:     mongoDB,
-		permissions: permissions,
+		Router:  r,
+		mongoDB: mongoDB,
+		auth:    auth,
 	}
 
 	if cfg.IsPublishing {
-		r.HandleFunc("/images", permissions.Require(auth.Permissions{Create: true}, api.CreateImageHandler)).Methods(http.MethodPost)
-		r.HandleFunc("/images", permissions.Require(auth.Permissions{Read: true}, api.GetImagesHandler)).Methods(http.MethodGet)
-		r.HandleFunc("/images/{id}", permissions.Require(auth.Permissions{Read: true}, api.GetImageHandler)).Methods(http.MethodGet)
-		r.HandleFunc("/images/{id}", permissions.Require(auth.Permissions{Update: true}, api.UpdateImageHandler)).Methods(http.MethodPut)
-		r.HandleFunc("/images/{id}/publish", permissions.Require(auth.Permissions{Update: true}, api.PublishImageHandler)).Methods(http.MethodPost)
+		r.HandleFunc("/images", auth.Require(dpauth.Permissions{Create: true}, api.CreateImageHandler)).Methods(http.MethodPost)
+		r.HandleFunc("/images", auth.Require(dpauth.Permissions{Read: true}, api.GetImagesHandler)).Methods(http.MethodGet)
+		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Read: true}, api.GetImageHandler)).Methods(http.MethodGet)
+		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Update: true}, api.UpdateImageHandler)).Methods(http.MethodPut)
+		r.HandleFunc("/images/{id}/publish", auth.Require(dpauth.Permissions{Update: true}, api.PublishImageHandler)).Methods(http.MethodPost)
 	} else {
 		r.HandleFunc("/images", api.GetImagesHandler).Methods(http.MethodGet)
 		r.HandleFunc("/images/{id}", api.GetImageHandler).Methods(http.MethodGet)

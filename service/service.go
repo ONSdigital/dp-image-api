@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/ONSdigital/dp-api-clients-go/health"
-	"github.com/ONSdigital/dp-authorisation/auth"
+	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
 	kafka "github.com/ONSdigital/dp-kafka"
@@ -45,10 +45,10 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 
 	// Get Health client for Zebedee and permissions only if we are in publishing mode
 	var zc *health.Client
-	var permissions api.AuthHandler
+	var auth api.AuthHandler
 	if cfg.IsPublishing {
 		zc = serviceList.GetHealthClient("Zebedee", cfg.ZebedeeURL)
-		permissions = getAuthorisationHandlers(zc)
+		auth = getAuthorisationHandlers(zc)
 	}
 
 	// Get MongoDB client
@@ -66,7 +66,7 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	}
 
 	// Setup the API
-	a := api.Setup(ctx, cfg, r, mongoDB, permissions)
+	a := api.Setup(ctx, cfg, r, mongoDB, auth)
 
 	// Get HealthCheck
 	hc, err := serviceList.GetHealthCheck(cfg, buildTime, gitCommit, version)
@@ -198,16 +198,16 @@ func registerCheckers(ctx context.Context,
 
 // generate permissions from dp-auth-api, using the provided health client, reusing its http Client
 func getAuthorisationHandlers(zc *health.Client) api.AuthHandler {
-	auth.LoggerNamespace("dp-image-api-auth")
+	dpauth.LoggerNamespace("dp-image-api-auth")
 
 	log.Event(nil, "getting Authorisation Handlers", log.Data{"zc_url": zc.URL})
 
-	authClient := auth.NewPermissionsClient(zc.Client)
-	authVerifier := auth.DefaultPermissionsVerifier()
+	authClient := dpauth.NewPermissionsClient(zc.Client)
+	authVerifier := dpauth.DefaultPermissionsVerifier()
 
 	// for checking caller permissions when we only have a user/service token
-	permissions := auth.NewHandler(
-		auth.NewPermissionsRequestBuilder(zc.URL),
+	permissions := dpauth.NewHandler(
+		dpauth.NewPermissionsRequestBuilder(zc.URL),
 		authClient,
 		authVerifier,
 	)

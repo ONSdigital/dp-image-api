@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/ONSdigital/dp-authorisation/auth"
+	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/api/mock"
 	"github.com/ONSdigital/dp-image-api/config"
@@ -27,7 +27,7 @@ func TestSetup(t *testing.T) {
 		ctx := context.Background()
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required auth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return func(http.ResponseWriter, *http.Request) {}
 			},
 		}
@@ -46,15 +46,15 @@ func TestSetup(t *testing.T) {
 
 			Convey("And auth handler is called once per route with the expected permissions", func() {
 				So(len(authHandlerMock.RequireCalls()), ShouldEqual, 5)
-				So(authHandlerMock.RequireCalls()[0].Required, ShouldResemble, auth.Permissions{
+				So(authHandlerMock.RequireCalls()[0].Required, ShouldResemble, dpauth.Permissions{
 					Create: true, Read: false, Update: false, Delete: false}) // permissions for POST /images
-				So(authHandlerMock.RequireCalls()[1].Required, ShouldResemble, auth.Permissions{
+				So(authHandlerMock.RequireCalls()[1].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: true, Update: false, Delete: false}) // permissions for GET /images
-				So(authHandlerMock.RequireCalls()[2].Required, ShouldResemble, auth.Permissions{
+				So(authHandlerMock.RequireCalls()[2].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: true, Update: false, Delete: false}) // permissions for GET /images/{id}
-				So(authHandlerMock.RequireCalls()[3].Required, ShouldResemble, auth.Permissions{
+				So(authHandlerMock.RequireCalls()[3].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for PUT /images/{id}
-				So(authHandlerMock.RequireCalls()[4].Required, ShouldResemble, auth.Permissions{
+				So(authHandlerMock.RequireCalls()[4].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/publish
 			})
 		})
