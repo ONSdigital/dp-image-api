@@ -33,6 +33,7 @@ const (
 )
 
 var errMongoDB = errors.New("MongoDB generic error")
+var testSize = 1024
 
 // Variants of new Image Payload without any extra field.
 var (
@@ -65,6 +66,19 @@ var (
 	noIDColID1ImagePayload      = fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateCreated.String())
 	noIDColID2ImagePayload      = fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID2, models.StateCreated.String())
 	noIDNoColIDImagePayload     = fmt.Sprintf(newImageWithStatePayloadFmt, "", models.StateCreated.String())
+)
+
+// Image-update payloads with empty fields that corresponds to noops
+var (
+	emptyUploadPayload = `{
+		"upload": {}
+	}`
+	emptyLicensePayload = `{
+		"license": {}
+	}`
+	emptyDownloadsPayload = `{
+		"downloads": {}
+	}`
 )
 
 // Full Image payload, containing all possible fields
@@ -109,6 +123,17 @@ var createdImage = models.Image{
 	State: models.StateCreated.String(),
 }
 
+var createdImageNoCollectionID = models.Image{
+	ID:       testImageID1,
+	Filename: "some-image-name",
+	License: &models.License{
+		Title: "Open Government Licence v3.0",
+		Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+	},
+	Type:  "chart",
+	State: models.StateCreated.String(),
+}
+
 var publishedImage = models.Image{
 	ID:           testImageID2,
 	CollectionID: testCollectionID1,
@@ -124,7 +149,7 @@ var publishedImage = models.Image{
 	Downloads: map[string]map[string]models.Download{
 		"png": {
 			"1920x1080": models.Download{
-				Size:    1024,
+				Size:    &testSize,
 				Href:    "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png",
 				Public:  "my-public-bucket",
 				Private: "my-private-bucket",
@@ -511,15 +536,65 @@ func TestUpdateImageHandler(t *testing.T) {
 			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, createdImage)
 		})
 
-		Convey("Calling update image with an image without collectionID results in 400 response", func() {
+		Convey("Calling update image with an image without collectionID results in 200 OK response, and only the provided fields are updated", func() {
 			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(noIDNoColIDImagePayload))
 			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusBadRequest)
-			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 0)
-			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
+			So(w.Code, ShouldEqual, http.StatusOK)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, createdImageNoCollectionID)
+		})
+
+		Convey("Calling update image with an image with only an empty upload (which corresponds to a no-op update) results in 200 OK response and nothing is updated in mongoDB", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(emptyUploadPayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusOK)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{
+				ID:     testImageID1,
+				Upload: &models.Upload{},
+			})
+		})
+
+		Convey("Calling update image with an image with only an empty downloads (which corresponds to a no-op update) results in 200 OK", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(emptyDownloadsPayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusOK)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{
+				ID:        testImageID1,
+				Downloads: map[string]map[string]models.Download{}},
+			)
+		})
+
+		Convey("Calling update image with an image with only an empty license (which corresponds to a no-op update) results in 200 OK", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(emptyLicensePayload))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusOK)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{
+				ID:      testImageID1,
+				License: &models.License{}},
+			)
 		})
 
 		Convey("Calling update image with an image that has a different id results in 400 response", func() {

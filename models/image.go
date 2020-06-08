@@ -41,25 +41,25 @@ type Upload struct {
 
 // Download represents a download variant model
 type Download struct {
-	Size    int    `bson:"size,omitempty"           json:"size,omitempty"`
+	Size    *int   `bson:"size,omitempty"           json:"size,omitempty"`
 	Href    string `bson:"href,omitempty"           json:"href,omitempty"`
 	Public  string `bson:"public,omitempty"         json:"public,omitempty"`
 	Private string `bson:"private,omitempty"        json:"private,omitempty"`
 }
 
-// Validate checks that an image struct complies with the filename and state constraints
+// Validate checks that an image struct complies with the filename and state constraints, if provided.
 func (i *Image) Validate() error {
 
-	if len(i.Filename) > MaxFilenameLen {
-		return apierrors.ErrImageFilenameTooLong
+	if i.Filename != "" {
+		if len(i.Filename) > MaxFilenameLen {
+			return apierrors.ErrImageFilenameTooLong
+		}
 	}
 
-	if i.CollectionID == "" {
-		return apierrors.ErrImageNoCollectionID
-	}
-
-	if _, err := ParseState(i.State); err != nil {
-		return apierrors.ErrImageInvalidState
+	if i.State != "" {
+		if _, err := ParseState(i.State); err != nil {
+			return apierrors.ErrImageInvalidState
+		}
 	}
 
 	return nil
@@ -69,7 +69,7 @@ func (i *Image) Validate() error {
 func (i *Image) StateTransitionAllowed(target string) bool {
 	currentState, err := ParseState(i.State)
 	if err != nil {
-		return false
+		currentState = StateCreated // default value, if state is not present or invalid value
 	}
 	targetState, err := ParseState(target)
 	if err != nil {
