@@ -66,7 +66,7 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	}
 
 	// Setup the API
-	a := api.Setup(ctx, cfg, r, mongoDB, auth)
+	a := api.Setup(ctx, cfg, r, auth, mongoDB, kafkaProducer)
 
 	// Get HealthCheck
 	hc, err := serviceList.GetHealthCheck(cfg, buildTime, gitCommit, version)
