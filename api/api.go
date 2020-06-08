@@ -10,23 +10,26 @@ import (
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/config"
+	kafka "github.com/ONSdigital/dp-kafka"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
 )
 
 //API provides a struct to wrap the api around
 type API struct {
-	Router  *mux.Router
-	mongoDB MongoServer
-	auth    AuthHandler
+	Router   *mux.Router
+	mongoDB  MongoServer
+	auth     AuthHandler
+	producer kafka.IProducer
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
-func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, mongoDB MongoServer, auth AuthHandler) *API {
+func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, kafkaProducer kafka.IProducer) *API {
 	api := &API{
-		Router:  r,
-		mongoDB: mongoDB,
-		auth:    auth,
+		Router:   r,
+		auth:     auth,
+		mongoDB:  mongoDB,
+		producer: kafkaProducer,
 	}
 
 	if cfg.IsPublishing {

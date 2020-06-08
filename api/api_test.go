@@ -13,6 +13,7 @@ import (
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/api/mock"
 	"github.com/ONSdigital/dp-image-api/config"
+	"github.com/ONSdigital/dp-kafka/kafkatest"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -34,7 +35,7 @@ func TestSetup(t *testing.T) {
 
 		Convey("When created in Publishing mode", func() {
 			cfg := &config.Config{IsPublishing: true}
-			api := api.Setup(ctx, cfg, r, &mock.MongoServerMock{}, authHandlerMock)
+			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, &kafkatest.IProducerMock{})
 
 			Convey("Then the following routes should have been added", func() {
 				So(hasRoute(api.Router, "/images", http.MethodPost), ShouldBeTrue)
@@ -61,7 +62,7 @@ func TestSetup(t *testing.T) {
 
 		Convey("When created in Web mode", func() {
 			cfg := &config.Config{IsPublishing: false}
-			api := api.Setup(ctx, cfg, r, &mock.MongoServerMock{}, authHandlerMock)
+			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, &kafkatest.IProducerMock{})
 
 			Convey("Then only the get routes should have been added", func() {
 				So(hasRoute(api.Router, "/images", http.MethodGet), ShouldBeTrue)
@@ -82,7 +83,7 @@ func TestClose(t *testing.T) {
 	Convey("Given an API instance", t, func() {
 		r := mux.NewRouter()
 		ctx := context.Background()
-		a := api.Setup(ctx, &config.Config{}, r, &mock.MongoServerMock{}, &mock.AuthHandlerMock{})
+		a := api.Setup(ctx, &config.Config{}, r, &mock.AuthHandlerMock{}, &mock.MongoServerMock{}, &kafkatest.IProducerMock{})
 
 		Convey("When the api is closed any dependencies are closed also", func() {
 			err := a.Close(ctx)
@@ -96,7 +97,7 @@ func TestClose(t *testing.T) {
 func GetAPIWithMocks(cfg *config.Config, mongoDbMock *mock.MongoServerMock, authHandlerMock *mock.AuthHandlerMock) *api.API {
 	mu.Lock()
 	defer mu.Unlock()
-	return api.Setup(testContext, cfg, mux.NewRouter(), mongoDbMock, authHandlerMock)
+	return api.Setup(testContext, cfg, mux.NewRouter(), authHandlerMock, mongoDbMock, &kafkatest.IProducerMock{})
 }
 
 func hasRoute(r *mux.Router, path, method string) bool {

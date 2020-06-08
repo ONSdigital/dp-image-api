@@ -204,6 +204,12 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
+
+	// If Uploaded was provided, generate the kafka event to trigger it
+	if image.Upload != nil && image.Upload.Path != "" {
+		log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
+		// TODO send message using kafka producer
+	}
 }
 
 // PublishImageHandler is a handler that triggers the publishing of an image
