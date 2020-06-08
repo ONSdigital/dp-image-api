@@ -39,12 +39,22 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 		License:      newImageRequest.License,
 		Type:         newImageRequest.Type,
 	}
+
+	// generic image validation
 	if err := newImage.Validate(); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
+
+	// check that collectionID is provided
+	if newImage.CollectionID == "" {
+		handleError(ctx, w, apierrors.ErrImageNoCollectionID, logdata)
+		return
+	}
+
 	log.Event(ctx, "storing new image", log.INFO, log.Data{"image": newImage})
 
+	// Upsert image in MongoDB
 	if err := api.mongoDB.UpsertImage(req.Context(), newImage.ID, &newImage); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
@@ -173,12 +183,14 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// check that state transition is allowed
-	if !existingImage.StateTransitionAllowed(image.State) {
-		logdata["current_state"] = existingImage.State
-		logdata["target_state"] = image.State
-		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
-		return
+	// check that state transition is allowed, only if state is provided
+	if image.State != "" {
+		if !existingImage.StateTransitionAllowed(image.State) {
+			logdata["current_state"] = existingImage.State
+			logdata["target_state"] = image.State
+			handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
+			return
+		}
 	}
 
 	// if the image is already published, it cannot be updated

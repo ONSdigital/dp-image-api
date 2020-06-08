@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
@@ -113,6 +114,11 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 	log.Event(ctx, "updating image", log.Data{"id": id})
 
 	updates := createImageUpdateQuery(ctx, id, image)
+	if len(updates) == 0 {
+		log.Event(ctx, "nothing to update")
+		return nil
+	}
+
 	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
 	if err := s.DB(m.Database).C(imagesCol).UpdateId(id, update); err != nil {
 		if err == mgo.ErrNotFound {
@@ -124,50 +130,58 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 	return nil
 }
 
+// createImageUpdateQuery generates the bson model to update an image with the provided image update.
+// Fields present in mongoDB will not be deleted if they are not present in the image update object.
 func createImageUpdateQuery(ctx context.Context, id string, image *models.Image) bson.M {
 	updates := make(bson.M)
 
 	log.Event(ctx, "building update query for image resource", log.INFO, log.INFO, log.Data{"image_id": id, "image": image, "updates": updates})
 
-	updates["collection_id"] = image.CollectionID
-	updates["state"] = image.State
-	updates["filename"] = image.Filename
-	updates["type"] = image.Type
+	if image.CollectionID != "" {
+		updates["collection_id"] = image.CollectionID
+	}
+	if image.State != "" {
+		updates["state"] = image.State
+	}
+	if image.Filename != "" {
+		updates["filename"] = image.Filename
+	}
+	if image.Type != "" {
+		updates["type"] = image.Type
+	}
 
 	if image.License != nil {
-		license := make(bson.M)
-		license["title"] = image.License.Title
-		license["href"] = image.License.Href
-		updates["license"] = license
-	} else {
-		updates["license"] = nil
+		if image.License.Title != "" {
+			updates["license.title"] = image.License.Title
+		}
+		if image.License.Href != "" {
+			updates["license.href"] = image.License.Href
+		}
 	}
 
 	if image.Upload != nil {
-		upload := make(bson.M)
-		upload["path"] = image.Upload.Path
-		updates["upload"] = upload
-	} else {
-		updates["upload"] = nil
+		if image.Upload.Path != "" {
+			updates["upload"] = image.Upload
+		}
 	}
 
 	if image.Downloads != nil {
-		variants := make(bson.M)
 		for variantKey, variant := range image.Downloads {
-			resolutions := make(bson.M)
 			for resolutionKey, download := range variant {
-				d := make(bson.M)
-				d["size"] = download.Size
-				d["href"] = download.Href
-				d["public"] = download.Public
-				d["private"] = download.Private
-				resolutions[resolutionKey] = d
+				if download.Size != nil {
+					updates[fmt.Sprintf("downloads.%s.%s.size", variantKey, resolutionKey)] = download.Size
+				}
+				if download.Href != "" {
+					updates[fmt.Sprintf("downloads.%s.%s.href", variantKey, resolutionKey)] = download.Href
+				}
+				if download.Public != "" {
+					updates[fmt.Sprintf("downloads.%s.%s.public", variantKey, resolutionKey)] = download.Public
+				}
+				if download.Private != "" {
+					updates[fmt.Sprintf("downloads.%s.%s.private", variantKey, resolutionKey)] = download.Private
+				}
 			}
-			variants[variantKey] = resolutions
 		}
-		updates["downloads"] = variants
-	} else {
-		updates["downloads"] = nil
 	}
 
 	return updates
