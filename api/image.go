@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/ONSdigital/dp-image-api/apierrors"
+	"github.com/ONSdigital/dp-image-api/event"
 	"github.com/ONSdigital/dp-image-api/models"
 	"github.com/ONSdigital/dp-net/handlers"
 	dphttp "github.com/ONSdigital/dp-net/http"
@@ -211,7 +212,11 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	// If Uploaded was provided, generate the kafka event to trigger it
 	if image.Upload != nil && image.Upload.Path != "" {
 		log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
-		// TODO send message using kafka producer
+		event := event.ImageUploaded{
+			ImageID: image.ID,
+			Path:    image.Upload.Path,
+		}
+		api.producer.ImageUploaded(&event)
 	}
 }
 

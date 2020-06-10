@@ -10,6 +10,8 @@ import (
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/config"
+	"github.com/ONSdigital/dp-image-api/event"
+	"github.com/ONSdigital/dp-image-api/schema"
 	kafka "github.com/ONSdigital/dp-kafka"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
@@ -20,16 +22,19 @@ type API struct {
 	Router   *mux.Router
 	mongoDB  MongoServer
 	auth     AuthHandler
-	producer kafka.IProducer
+	producer *event.AvroProducer
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
 func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, kafkaProducer kafka.IProducer) *API {
+
+	eventProducer := event.NewAvroProducer(kafkaProducer.Channels().Output, schema.ImageUploadedEvent)
+
 	api := &API{
 		Router:   r,
 		auth:     auth,
 		mongoDB:  mongoDB,
-		producer: kafkaProducer,
+		producer: eventProducer,
 	}
 
 	if cfg.IsPublishing {

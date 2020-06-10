@@ -58,9 +58,7 @@ func TestRun(t *testing.T) {
 			CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error { return nil },
 		}
 
-		kafkaProducerMock := &kafkatest.IProducerMock{
-			CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error { return nil },
-		}
+		kafkaProducerMock := kafkatest.NewMessageProducer(true)
 
 		hcMock := &serviceMock.HealthCheckerMock{
 			AddCheckFunc: func(name string, checker healthcheck.Checker) error { return nil },
@@ -263,7 +261,6 @@ func TestClose(t *testing.T) {
 			},
 		}
 
-		// kafkaProducerMock will fail if healthcheck, http server and mongo are not already closed
 		kafkaProducerMock := &kafkatest.IProducerMock{
 			CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error { return nil },
 			CloseFunc: func(ctx context.Context) error {
@@ -272,6 +269,7 @@ func TestClose(t *testing.T) {
 				}
 				return nil
 			},
+			ChannelsFunc: func() *kafka.ProducerChannels { return kafka.CreateProducerChannels() },
 		}
 
 		Convey("Closing the service results in all the dependencies being closed in the expected order", func() {
