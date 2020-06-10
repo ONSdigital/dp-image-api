@@ -81,6 +81,9 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	r.StrictSlash(true).Path("/health").HandlerFunc(hc.Handler)
 	hc.Start(ctx)
 
+	// kafka error channel logging go-routine
+	kafkaProducer.Channels().LogErrors(ctx, "kafka producer")
+
 	// Run the http server in a new go-routine
 	go func() {
 		if err := s.ListenAndServe(); err != nil {
