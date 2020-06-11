@@ -51,7 +51,7 @@ var funcDoGetHTTPServerNil = func(bindAddr string, router http.Handler) service.
 	return nil
 }
 
-func TestRun(t *testing.T) {
+func TestRunPublishing(t *testing.T) {
 
 	Convey("Having a set of mocked dependencies", t, func() {
 
@@ -130,7 +130,7 @@ func TestRun(t *testing.T) {
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
-			_, err := service.Run(ctx, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
 			Convey("Then service Run fails with the same error and the flag is not set. No further initialisations are attempted", func() {
 				So(err, ShouldResemble, errMongoDB)
@@ -150,7 +150,7 @@ func TestRun(t *testing.T) {
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
-			_, err := service.Run(ctx, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
 			Convey("Then service Run fails with the same error and the flag is not set. No further initialisations are attempted", func() {
 				So(err, ShouldResemble, errKafkaProducer)
@@ -170,7 +170,7 @@ func TestRun(t *testing.T) {
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
-			_, err := service.Run(ctx, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
 			Convey("Then service Run fails with the same error and the flag is not set. No further initialisations are attempted", func() {
 				So(err, ShouldResemble, errKafkaProducer)
@@ -191,7 +191,7 @@ func TestRun(t *testing.T) {
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
-			_, err := service.Run(ctx, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
 			Convey("Then service Run fails with the same error and the flag is not set", func() {
 				So(err, ShouldResemble, errHealthcheck)
@@ -221,7 +221,7 @@ func TestRun(t *testing.T) {
 			}
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
-			_, err := service.Run(ctx, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
 			Convey("Then service Run fails, but all checks try to register", func() {
 				So(err, ShouldNotBeNil)
@@ -248,7 +248,7 @@ func TestRun(t *testing.T) {
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
 			serverWg.Add(1)
-			_, err := service.Run(ctx, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
 			Convey("Then service Run succeeds and all the flags are set", func() {
 				So(err, ShouldBeNil)
@@ -284,13 +284,34 @@ func TestRun(t *testing.T) {
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
 			serverWg.Add(1)
-			_, err := service.Run(ctx, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 			So(err, ShouldBeNil)
 
 			Convey("Then the error is returned in the error channel", func() {
 				sErr := <-svcErrors
 				So(sErr.Error(), ShouldResemble, fmt.Sprintf("failure in http listen and serve: %s", errServer.Error()))
 				So(len(failingServerMock.ListenAndServeCalls()), ShouldEqual, 1)
+			})
+		})
+
+		Convey("Given that all required dependencies are successfully initialised in web mode", func() {
+			cfg.IsPublishing = false
+			initMock := &serviceMock.InitialiserMock{
+				DoGetHTTPServerFunc:  funcDoGetHTTPServer,
+				DoGetMongoDBFunc:     funcDoGetMongoDbOk,
+				DoGetHealthCheckFunc: funcDoGetHealthcheckOk,
+			}
+			svcErrors := make(chan error, 1)
+			svcList := service.NewServiceList(initMock)
+			serverWg.Add(1)
+			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+
+			Convey("Then service Run succeeds but only the required flags are set", func() {
+				So(err, ShouldBeNil)
+				So(svcList.MongoDB, ShouldBeTrue)
+				So(svcList.KafkaProducerUploaded, ShouldBeFalse)
+				So(svcList.KafkaProducerPublished, ShouldBeFalse)
+				So(svcList.HealthCheck, ShouldBeTrue)
 			})
 		})
 	})
@@ -376,7 +397,7 @@ func TestClose(t *testing.T) {
 
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
-			svc, err := service.Run(ctx, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+			svc, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 			So(err, ShouldBeNil)
 
 			err = svc.Close(context.Background())
@@ -409,7 +430,7 @@ func TestClose(t *testing.T) {
 
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
-			svc, err := service.Run(ctx, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
+			svc, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 			So(err, ShouldBeNil)
 
 			err = svc.Close(context.Background())
