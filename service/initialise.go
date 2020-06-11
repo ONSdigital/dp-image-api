@@ -13,20 +13,32 @@ import (
 	dphttp "github.com/ONSdigital/dp-net/http"
 )
 
+// KafkaProducerType to differentiate the kafka producers
+type KafkaProducerType int
+
+// All possible Kafka producers
+const (
+	KafkaProducerUploaded KafkaProducerType = iota
+	KafkaProducerPublished
+)
+
 // ExternalServiceList holds the initialiser and initialisation state of external services.
 type ExternalServiceList struct {
-	MongoDB       bool
-	HealthCheck   bool
-	KafkaProducer bool
-	Init          Initialiser
+	MongoDB                bool
+	HealthCheck            bool
+	KafkaProducerUploaded  bool
+	KafkaProducerPublished bool
+	Init                   Initialiser
 }
 
 // NewServiceList creates a new service list with the provided initialiser
 func NewServiceList(initialiser Initialiser) *ExternalServiceList {
 	return &ExternalServiceList{
-		MongoDB:     false,
-		HealthCheck: false,
-		Init:        initialiser,
+		MongoDB:                false,
+		HealthCheck:            false,
+		KafkaProducerUploaded:  false,
+		KafkaProducerPublished: false,
+		Init:                   initialiser,
 	}
 }
 
@@ -50,12 +62,21 @@ func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config
 }
 
 // GetKafkaProducer returns a kafka producer
-func (e *ExternalServiceList) GetKafkaProducer(ctx context.Context, cfg *config.Config) (kafka.IProducer, error) {
-	kafkaProducer, err := e.Init.DoGetKafkaProducer(ctx, cfg)
-	if err != nil {
-		return nil, err
+func (e *ExternalServiceList) GetKafkaProducer(ctx context.Context, cfg *config.Config, producerType KafkaProducerType) (kafkaProducer kafka.IProducer, err error) {
+	switch producerType {
+	case KafkaProducerUploaded:
+		kafkaProducer, err = e.Init.DoGetKafkaProducer(ctx, cfg.Brokers, cfg.ImageUploadedTopic, cfg.KafkaMaxBytes)
+		if err != nil {
+			return nil, err
+		}
+		e.KafkaProducerUploaded = true
+	case KafkaProducerPublished:
+		kafkaProducer, err = e.Init.DoGetKafkaProducer(ctx, cfg.Brokers, cfg.StaticFilePublishedTopic, cfg.KafkaMaxBytes)
+		if err != nil {
+			return nil, err
+		}
+		e.KafkaProducerPublished = true
 	}
-	e.KafkaProducer = true
 	return kafkaProducer, nil
 }
 
@@ -95,9 +116,9 @@ func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoS
 }
 
 // DoGetKafkaProducer creates a kafka producer for the provided broker addresses, topic and envMax values in config
-func (e *Init) DoGetKafkaProducer(ctx context.Context, cfg *config.Config) (kafka.IProducer, error) {
+func (e *Init) DoGetKafkaProducer(ctx context.Context, brokers []string, topic string, maxBytes int) (kafka.IProducer, error) {
 	producerChannels := kafka.CreateProducerChannels()
-	kafkaProducer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ImageUploadedTopic, cfg.KafkaMaxBytes, producerChannels)
+	kafkaProducer, err := kafka.NewProducer(ctx, brokers, topic, maxBytes, producerChannels)
 	if err != nil {
 		return nil, err
 	}
