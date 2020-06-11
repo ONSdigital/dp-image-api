@@ -17,14 +17,15 @@ import (
 
 // Service contains all the configs, server and clients to run the Image API
 type Service struct {
-	config        *config.Config
-	server        HTTPServer
-	router        *mux.Router
-	api           *api.API
-	serviceList   *ExternalServiceList
-	healthCheck   HealthChecker
-	mongoDB       api.MongoServer
-	kafkaProducer kafka.IProducer
+	config                 *config.Config
+	server                 HTTPServer
+	router                 *mux.Router
+	api                    *api.API
+	serviceList            *ExternalServiceList
+	healthCheck            HealthChecker
+	mongoDB                api.MongoServer
+	uploadedKafkaProducer  kafka.IProducer
+	publishedKafkaProducer kafka.IProducer
 }
 
 // Run the service
@@ -58,10 +59,17 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 		return nil, err
 	}
 
-	// Get Kafka producer
-	kafkaProducer, err := serviceList.GetKafkaProducer(ctx, cfg)
+	// Get Uploaded Kafka producer
+	uploadedKafkaProducer, err := serviceList.GetKafkaProducer(ctx, cfg, KafkaProducerUploaded)
 	if err != nil {
-		log.Event(ctx, "failed to create a kafka producer", log.FATAL, log.Error(err))
+		log.Event(ctx, "failed to create image-uploaded kafka producer", log.FATAL, log.Error(err))
+		return nil, err
+	}
+
+	// Get Published Kafka producer
+	publishedKafkaProducer, err := serviceList.GetKafkaProducer(ctx, cfg, KafkaProducerPublished)
+	if err != nil {
+		log.Event(ctx, "failed to create image-published kafka producer", log.FATAL, log.Error(err))
 		return nil, err
 	}
 
@@ -74,7 +82,7 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 		log.Event(ctx, "could not instantiate healthcheck", log.FATAL, log.Error(err))
 		return nil, err
 	}
-	if err := registerCheckers(ctx, cfg, hc, mongoDB, kafkaProducer, zc); err != nil {
+	if err := registerCheckers(ctx, cfg, hc, mongoDB, uploadedKafkaProducer, publishedKafkaProducer, zc); err != nil {
 		return nil, errors.Wrap(err, "unable to register checkers")
 	}
 
@@ -89,14 +97,15 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	}()
 
 	return &Service{
-		config:        cfg,
-		server:        s,
-		router:        r,
-		api:           a,
-		serviceList:   serviceList,
-		healthCheck:   hc,
-		mongoDB:       mongoDB,
-		kafkaProducer: kafkaProducer,
+		config:                 cfg,
+		server:                 s,
+		router:                 r,
+		api:                    a,
+		serviceList:            serviceList,
+		healthCheck:            hc,
+		mongoDB:                mongoDB,
+		uploadedKafkaProducer:  uploadedKafkaProducer,
+		publishedKafkaProducer: publishedKafkaProducer,
 	}, nil
 }
 
@@ -138,10 +147,18 @@ func (svc *Service) Close(ctx context.Context) error {
 			}
 		}
 
-		// close kafka producer
-		if svc.serviceList.KafkaProducer {
-			if err := svc.kafkaProducer.Close(ctx); err != nil {
-				log.Event(ctx, "error closing Kafka Producer", log.Error(err), log.ERROR)
+		// close kafka uploaded producer
+		if svc.serviceList.KafkaProducerUploaded {
+			if err := svc.uploadedKafkaProducer.Close(ctx); err != nil {
+				log.Event(ctx, "error closing Uploaded Kafka Producer", log.Error(err), log.ERROR)
+				hasShutdownError = true
+			}
+		}
+
+		// close kafka published producer
+		if svc.serviceList.KafkaProducerUploaded {
+			if err := svc.publishedKafkaProducer.Close(ctx); err != nil {
+				log.Event(ctx, "error closing Published Kafka Producer", log.Error(err), log.ERROR)
 				hasShutdownError = true
 			}
 		}
@@ -168,7 +185,7 @@ func registerCheckers(ctx context.Context,
 	cfg *config.Config,
 	hc HealthChecker,
 	mongoDB api.MongoServer,
-	kafkaProducer kafka.IProducer,
+	uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer,
 	zebedeeClient *health.Client) (err error) {
 
 	hasErrors := false
@@ -178,9 +195,14 @@ func registerCheckers(ctx context.Context,
 		log.Event(ctx, "error adding check for mongo db", log.ERROR, log.Error(err))
 	}
 
-	if err = hc.AddCheck("Kafka Producer", kafkaProducer.Checker); err != nil {
+	if err = hc.AddCheck("Uploaded Kafka Producer", uploadedKafkaProducer.Checker); err != nil {
 		hasErrors = true
-		log.Event(ctx, "error adding check for kafka producer", log.ERROR, log.Error(err))
+		log.Event(ctx, "error adding check for uploaded kafka producer", log.ERROR, log.Error(err), log.Data{"topic": cfg.ImageUploadedTopic})
+	}
+
+	if err = hc.AddCheck("Published Kafka Producer", publishedKafkaProducer.Checker); err != nil {
+		hasErrors = true
+		log.Event(ctx, "error adding check for published kafka producer", log.ERROR, log.Error(err), log.Data{"topic": cfg.StaticFilePublishedTopic})
 	}
 
 	if cfg.IsPublishing {

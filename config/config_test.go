@@ -22,6 +22,7 @@ func TestConfig(t *testing.T) {
 				So(cfg.Brokers, ShouldResemble, []string{"localhost:9092"})
 				So(cfg.KafkaMaxBytes, ShouldEqual, 2000000)
 				So(cfg.ImageUploadedTopic, ShouldEqual, "image-uploaded")
+				So(cfg.StaticFilePublishedTopic, ShouldEqual, "static-file-published")
 				So(cfg.GracefulShutdownTimeout, ShouldEqual, 5*time.Second)
 				So(cfg.HealthCheckInterval, ShouldEqual, 30*time.Second)
 				So(cfg.HealthCheckCriticalTimeout, ShouldEqual, 90*time.Second)
