@@ -78,10 +78,7 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 
 	// validate collection ID from header matches collection ID from query param
 	colID := req.URL.Query().Get("collection_id")
-	if colID != hColID {
-		handleError(ctx, w, apierrors.ErrColIDMismatch, logdata)
-		return
-	}
+	logdata["collection_id"] = colID
 
 	// get images from MongoDB for the requested collection
 	items, err := api.mongoDB.GetImages(ctx, colID)

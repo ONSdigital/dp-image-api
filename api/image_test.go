@@ -159,11 +159,19 @@ var publishedImage = models.Image{
 	State: models.StatePublished.String(),
 }
 
-var images = models.Images{
+var imagesWithCollectionID1 = models.Images{
 	Items:      []models.Image{createdImage, publishedImage},
 	Count:      2,
 	Limit:      2,
 	TotalCount: 2,
+	Offset:     0,
+}
+
+var allImages = models.Images{
+	Items:      []models.Image{createdImage, createdImageNoCollectionID, publishedImage},
+	Count:      3,
+	Limit:      3,
+	TotalCount: 3,
 	Offset:     0,
 }
 
@@ -406,15 +414,18 @@ func TestGetImagesHandler(t *testing.T) {
 
 func doTestGetImagesHandler(cfg *config.Config) {
 
-	Convey("And an image API with mongoDB returning the images for the testing Collection-Id", func() {
+	Convey("And an image API with mongoDB returning the images as expected according to the collectionID filter", func() {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		mongoDbMock := &mock.MongoServerMock{
 			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
 				if collectionID == testCollectionID1 {
 					return []models.Image{createdImage, publishedImage}, nil
+				} else if collectionID == "" {
+					return []models.Image{createdImage, createdImageNoCollectionID, publishedImage}, nil
+				} else {
+					return []models.Image{}, nil
 				}
-				return []models.Image{}, nil
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
@@ -424,12 +435,13 @@ func doTestGetImagesHandler(cfg *config.Config) {
 		}
 		imageApi := GetAPIWithMocks(cfg, mongoDbMock, authHandlerMock)
 
-		Convey("When existing images are requested with a valid Collection-Id context and query value", func() {
+		Convey("When existing images are requested with a valid Collection-Id context and query parameter value", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), nil)
 			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
+
 			Convey("Then the expected images are returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				payload, err := ioutil.ReadAll(w.Body)
@@ -437,16 +449,17 @@ func doTestGetImagesHandler(cfg *config.Config) {
 				retImages := models.Images{}
 				err = json.Unmarshal(payload, &retImages)
 				So(err, ShouldBeNil)
-				So(retImages, ShouldResemble, images)
+				So(retImages, ShouldResemble, imagesWithCollectionID1)
 			})
 		})
 
-		Convey("When inexistent images are requested with a valid Collection-Id context and query value", func() {
+		Convey("When inexistent images are requested with a valid Collection-Id context and query parameter value", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", "otherCollectionId"), nil)
 			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), "otherCollectionId"))
 			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
+
 			Convey("Then an empty list of images is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				payload, err := ioutil.ReadAll(w.Body)
@@ -458,32 +471,58 @@ func doTestGetImagesHandler(cfg *config.Config) {
 			})
 		})
 
-		Convey("Missing a valid Collection-Id header when requesting images results in a BadRequest response", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
-			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusBadRequest)
-		})
-
-		Convey("Missing a valid Collection-Id query parmeter when requesting images results in a BadRequest response", func() {
+		Convey("When no collection_id query parameter value is provided", func() {
 			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images", nil)
 			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusBadRequest)
+
+			Convey("Then the full list of images is returned with status code 200", func() {
+				So(w.Code, ShouldEqual, http.StatusOK)
+				payload, err := ioutil.ReadAll(w.Body)
+				So(err, ShouldBeNil)
+				retImages := models.Images{}
+				err = json.Unmarshal(payload, &retImages)
+				So(err, ShouldBeNil)
+				So(retImages, ShouldResemble, allImages)
+			})
 		})
 
-		Convey("Providing different values for Collection-Id header and query parameter when requesting images results in a BadRequest response", func() {
+		Convey("Providing different values for Collection-Id header and query parameter is allowed", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), nil)
 			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), "otherCollectionId"))
 			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusBadRequest)
+			So(w.Code, ShouldEqual, http.StatusOK)
 		})
 
+	})
+
+	Convey("And an image API with mongoDB returning an error", func() {
+		cfg, err := config.Get()
+		So(err, ShouldBeNil)
+		mongoDbMock := &mock.MongoServerMock{
+			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
+				return []models.Image{}, errMongoDB
+			},
+		}
+		authHandlerMock := &mock.AuthHandlerMock{
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+				return handler
+			},
+		}
+		imageApi := GetAPIWithMocks(cfg, mongoDbMock, authHandlerMock)
+
+		Convey("Then when images are requested, a 500 error is returned", func() {
+			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images", nil)
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusInternalServerError)
+		})
 	})
 }
 

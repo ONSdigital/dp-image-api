@@ -66,9 +66,11 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 	defer s.Close()
 	log.Event(ctx, "getting images for collectionID", log.Data{"collectionID": collectionID})
 
-	// Filter by collectionID
+	// Filter by collectionID, if provided
 	colIDFilter := make(bson.M)
-	colIDFilter["collection_id"] = collectionID
+	if collectionID != "" {
+		colIDFilter["collection_id"] = collectionID
+	}
 
 	iter := s.DB(m.Database).C(imagesCol).Find(colIDFilter).Iter()
 	defer func() {
