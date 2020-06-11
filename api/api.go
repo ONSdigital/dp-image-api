@@ -28,16 +28,14 @@ type API struct {
 // Setup creates the API struct and its endpoints with corresponding handlers
 func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, kafkaProducer kafka.IProducer) *API {
 
-	eventProducer := event.NewAvroProducer(kafkaProducer.Channels().Output, schema.ImageUploadedEvent)
-
 	api := &API{
-		Router:   r,
-		auth:     auth,
-		mongoDB:  mongoDB,
-		producer: eventProducer,
+		Router:  r,
+		auth:    auth,
+		mongoDB: mongoDB,
 	}
 
 	if cfg.IsPublishing {
+		api.producer = event.NewAvroProducer(kafkaProducer.Channels().Output, schema.ImageUploadedEvent)
 		r.HandleFunc("/images", auth.Require(dpauth.Permissions{Create: true}, api.CreateImageHandler)).Methods(http.MethodPost)
 		r.HandleFunc("/images", auth.Require(dpauth.Permissions{Read: true}, api.GetImagesHandler)).Methods(http.MethodGet)
 		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Read: true}, api.GetImageHandler)).Methods(http.MethodGet)

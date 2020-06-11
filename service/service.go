@@ -44,6 +44,8 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		return nil, err
 	}
 
+	var a *api.API
+
 	// The following dependencies will only be initialised if we are in publishing mode
 	var zc *health.Client
 	var auth api.AuthHandler
@@ -68,10 +70,14 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 			log.Event(ctx, "failed to create image-published kafka producer", log.FATAL, log.Error(err))
 			return nil, err
 		}
-	}
 
-	// Setup the API
-	a := api.Setup(ctx, cfg, r, auth, mongoDB, uploadedKafkaProducer)
+		// Setup the API in publishing
+		a = api.Setup(ctx, cfg, r, auth, mongoDB, uploadedKafkaProducer)
+
+	} else {
+		// Setup the API in web mode
+		a = api.Setup(ctx, cfg, r, auth, mongoDB, nil)
+	}
 
 	// Get HealthCheck
 	hc, err := serviceList.GetHealthCheck(cfg, buildTime, gitCommit, version)
