@@ -51,7 +51,7 @@ var funcDoGetHTTPServerNil = func(bindAddr string, router http.Handler) service.
 	return nil
 }
 
-func TestRun(t *testing.T) {
+func TestRunPublishing(t *testing.T) {
 
 	Convey("Having a set of mocked dependencies", t, func() {
 
