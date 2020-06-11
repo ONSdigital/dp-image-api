@@ -62,9 +62,7 @@ func TestRun(t *testing.T) {
 			CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error { return nil },
 		}
 
-		kafkaProducerMock := &kafkatest.IProducerMock{
-			CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error { return nil },
-		}
+		kafkaProducerMock := kafkatest.NewMessageProducer(true)
 
 		hcMock := &serviceMock.HealthCheckerMock{
 			AddCheckFunc: func(name string, checker healthcheck.Checker) error { return nil },
@@ -350,6 +348,7 @@ func TestClose(t *testing.T) {
 					}
 					return nil
 				},
+				ChannelsFunc: func() *kafka.ProducerChannels { return kafka.CreateProducerChannels() },
 			}
 		}
 		kafkaUploadedProducerMock := createKafkaProducerMock()

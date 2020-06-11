@@ -44,14 +44,6 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	middleware := alice.New(handlers.CheckHeader(handlers.CollectionID))
 	s := serviceList.GetHTTPServer(cfg.BindAddr, middleware.Then(r))
 
-	// Get Health client for Zebedee and permissions only if we are in publishing mode
-	var zc *health.Client
-	var auth api.AuthHandler
-	if cfg.IsPublishing {
-		zc = serviceList.GetHealthClient("Zebedee", cfg.ZebedeeURL)
-		auth = getAuthorisationHandlers(zc)
-	}
-
 	// Get MongoDB client
 	mongoDB, err := serviceList.GetMongoDB(ctx, cfg)
 	if err != nil {
@@ -59,18 +51,30 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 		return nil, err
 	}
 
-	// Get Uploaded Kafka producer
-	uploadedKafkaProducer, err := serviceList.GetKafkaProducer(ctx, cfg, KafkaProducerUploaded)
-	if err != nil {
-		log.Event(ctx, "failed to create image-uploaded kafka producer", log.FATAL, log.Error(err))
-		return nil, err
-	}
+	// The following dependencies will only be initialised if we are in publishing mode
+	var zc *health.Client
+	var auth api.AuthHandler
+	var uploadedKafkaProducer kafka.IProducer
+	var publishedKafkaProducer kafka.IProducer
+	if cfg.IsPublishing {
 
-	// Get Published Kafka producer
-	publishedKafkaProducer, err := serviceList.GetKafkaProducer(ctx, cfg, KafkaProducerPublished)
-	if err != nil {
-		log.Event(ctx, "failed to create image-published kafka producer", log.FATAL, log.Error(err))
-		return nil, err
+		// Get Health client for Zebedee and permissions
+		zc = serviceList.GetHealthClient("Zebedee", cfg.ZebedeeURL)
+		auth = getAuthorisationHandlers(zc)
+
+		// Get Uploaded Kafka producer
+		uploadedKafkaProducer, err = serviceList.GetKafkaProducer(ctx, cfg, KafkaProducerUploaded)
+		if err != nil {
+			log.Event(ctx, "failed to create image-uploaded kafka producer", log.FATAL, log.Error(err))
+			return nil, err
+		}
+
+		// Get Published Kafka producer
+		publishedKafkaProducer, err = serviceList.GetKafkaProducer(ctx, cfg, KafkaProducerPublished)
+		if err != nil {
+			log.Event(ctx, "failed to create image-published kafka producer", log.FATAL, log.Error(err))
+			return nil, err
+		}
 	}
 
 	// Setup the API
@@ -88,6 +92,12 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 
 	r.StrictSlash(true).Path("/health").HandlerFunc(hc.Handler)
 	hc.Start(ctx)
+
+	if cfg.IsPublishing {
+		// kafka error channel logging go-routines
+		uploadedKafkaProducer.Channels().LogErrors(ctx, "kafka Uploaded Producer")
+		publishedKafkaProducer.Channels().LogErrors(ctx, "Kafka Published Producer")
+	}
 
 	// Run the http server in a new go-routine
 	go func() {
@@ -195,17 +205,17 @@ func registerCheckers(ctx context.Context,
 		log.Event(ctx, "error adding check for mongo db", log.ERROR, log.Error(err))
 	}
 
-	if err = hc.AddCheck("Uploaded Kafka Producer", uploadedKafkaProducer.Checker); err != nil {
-		hasErrors = true
-		log.Event(ctx, "error adding check for uploaded kafka producer", log.ERROR, log.Error(err), log.Data{"topic": cfg.ImageUploadedTopic})
-	}
-
-	if err = hc.AddCheck("Published Kafka Producer", publishedKafkaProducer.Checker); err != nil {
-		hasErrors = true
-		log.Event(ctx, "error adding check for published kafka producer", log.ERROR, log.Error(err), log.Data{"topic": cfg.StaticFilePublishedTopic})
-	}
-
 	if cfg.IsPublishing {
+		if err = hc.AddCheck("Uploaded Kafka Producer", uploadedKafkaProducer.Checker); err != nil {
+			hasErrors = true
+			log.Event(ctx, "error adding check for uploaded kafka producer", log.ERROR, log.Error(err), log.Data{"topic": cfg.ImageUploadedTopic})
+		}
+
+		if err = hc.AddCheck("Published Kafka Producer", publishedKafkaProducer.Checker); err != nil {
+			hasErrors = true
+			log.Event(ctx, "error adding check for published kafka producer", log.ERROR, log.Error(err), log.Data{"topic": cfg.StaticFilePublishedTopic})
+		}
+
 		if err = hc.AddCheck("Zebedee", zebedeeClient.Checker); err != nil {
 			hasErrors = true
 			log.Event(ctx, "error adding check for zebedeee", log.ERROR, log.Error(err))
