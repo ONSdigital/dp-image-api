@@ -348,9 +348,7 @@ func TestClose(t *testing.T) {
 					}
 					return nil
 				},
-				ChannelsFunc: func() *kafka.ProducerChannels {
-					return &kafka.ProducerChannels{}
-				},
+				ChannelsFunc: func() *kafka.ProducerChannels { return kafka.CreateProducerChannels() },
 			}
 		}
 		kafkaUploadedProducerMock := createKafkaProducerMock()
