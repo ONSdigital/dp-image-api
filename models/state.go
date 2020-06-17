@@ -9,12 +9,13 @@ type State int
 const (
 	StateCreated State = iota
 	StateUploaded
-	StatePublishing
+	StateImporting
+	StateImported
 	StatePublished
 	StateDeleted
 )
 
-var stateValues = []string{"created", "uploaded", "publishing", "published", "deleted"}
+var stateValues = []string{"created", "uploaded", "importing", "imported", "published", "deleted"}
 
 // String returns the string representation of a state
 func (s State) String() string {
@@ -43,14 +44,21 @@ func (s State) TransitionAllowed(target State) bool {
 		}
 	case StateUploaded:
 		switch target {
-		case StateUploaded, StatePublishing, StateDeleted:
+		case StateUploaded, StateImporting, StateDeleted:
 			return true
 		default:
 			return false
 		}
-	case StatePublishing:
+	case StateImporting:
 		switch target {
-		case StatePublishing, StatePublished, StateUploaded, StateDeleted:
+		case StateImporting, StateImported, StateDeleted:
+			return true
+		default:
+			return false
+		}
+	case StateImported:
+		switch target {
+		case StateImported, StatePublished, StateDeleted:
 			return true
 		default:
 			return false

@@ -19,4 +19,5 @@ var (
 	ErrImageAlreadyPublished          = errors.New("image is already published")
 	ErrImageInvalidState              = errors.New("image state is not a valid state name")
 	ErrImageStateTransitionNotAllowed = errors.New("image state transition not allowed")
+	ErrImagePublishWrongEndpoint      = errors.New("wrong endpoint to publish images. Please use 'PUT /images/{id}/publish' instead")
 )

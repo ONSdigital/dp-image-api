@@ -40,7 +40,7 @@ func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHand
 		r.HandleFunc("/images", auth.Require(dpauth.Permissions{Read: true}, api.GetImagesHandler)).Methods(http.MethodGet)
 		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Read: true}, api.GetImageHandler)).Methods(http.MethodGet)
 		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Update: true}, api.UpdateImageHandler)).Methods(http.MethodPut)
-		r.HandleFunc("/images/{id}/publish", auth.Require(dpauth.Permissions{Update: true}, api.PublishImageHandler)).Methods(http.MethodPost)
+		r.HandleFunc("/images/{id}/publish", auth.Require(dpauth.Permissions{Update: true}, api.PublishImageHandler)).Methods(http.MethodPut)
 	} else {
 		r.HandleFunc("/images", api.GetImagesHandler).Methods(http.MethodGet)
 		r.HandleFunc("/images/{id}", api.GetImageHandler).Methods(http.MethodGet)
@@ -105,8 +105,6 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 		switch err {
 		case apierrors.ErrImageNotFound:
 			status = http.StatusNotFound
-		case apierrors.ErrResourceState:
-			status = http.StatusConflict
 		case apierrors.ErrUnableToReadMessage,
 			apierrors.ErrColIDMismatch,
 			apierrors.ErrUnableToParseJSON,
@@ -116,9 +114,11 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			apierrors.ErrImageInvalidState,
 			apierrors.ErrImageIDMismatch:
 			status = http.StatusBadRequest
-		case apierrors.ErrImageAlreadyPublished,
-			apierrors.ErrImageStateTransitionNotAllowed:
-			status = http.StatusConflict
+		case apierrors.ErrResourceState,
+			apierrors.ErrImageAlreadyPublished,
+			apierrors.ErrImageStateTransitionNotAllowed,
+			apierrors.ErrImagePublishWrongEndpoint:
+			status = http.StatusForbidden
 		default:
 			status = http.StatusInternalServerError
 		}

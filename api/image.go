@@ -229,10 +229,38 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 // PublishImageHandler is a handler that triggers the publishing of an image
 func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
-		handlers.CollectionID.Header(): ctx.Value(handlers.CollectionID.Context()),
+		handlers.CollectionID.Header(): hColID,
 		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"image-id":                     id,
 	}
-	log.Event(ctx, "publish image was called, but it is not implemented yet", log.INFO, logdata)
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
+
+	imageUpdate := &models.Image{State: models.StatePublished.String()}
+
+	// get image from mongoDB by id
+	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// validate that the publish transition state is allowed
+	if !existingImage.StateTransitionAllowed(imageUpdate.State) {
+		logdata["current_state"] = existingImage.State
+		logdata["target_state"] = imageUpdate.State
+		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
+		return
+	}
+
+	// TODO Send kafka message
+
+	// Update image in mongo DB
+	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
 }

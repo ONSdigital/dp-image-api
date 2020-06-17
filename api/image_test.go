@@ -123,6 +123,18 @@ var createdImage = models.Image{
 	State: models.StateCreated.String(),
 }
 
+var importedImage = models.Image{
+	ID:           testImageID1,
+	CollectionID: testCollectionID1,
+	Filename:     "some-image-name",
+	License: &models.License{
+		Title: "Open Government Licence v3.0",
+		Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+	},
+	Type:  "chart",
+	State: models.StateImported.String(),
+}
+
 var createdImageNoCollectionID = models.Image{
 	ID:       testImageID1,
 	Filename: "some-image-name",
@@ -192,7 +204,7 @@ func TestCreateImageHandler(t *testing.T) {
 		So(err, ShouldBeNil)
 		cfg.IsPublishing = true
 
-		mongoDbMock := &mock.MongoServerMock{
+		mongoDBMock := &mock.MongoServerMock{
 			UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error { return nil },
 		}
 
@@ -203,7 +215,7 @@ func TestCreateImageHandler(t *testing.T) {
 		}
 
 		kafkaProducerMock := kafkatest.NewMessageProducer(true)
-		imageApi := GetAPIWithMocks(cfg, mongoDbMock, authHandlerMock, kafkaProducerMock)
+		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaProducerMock)
 
 		Convey("When a valid new image is posted", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
@@ -295,7 +307,7 @@ func TestCreateImageHandler(t *testing.T) {
 		So(err, ShouldBeNil)
 		cfg.IsPublishing = true
 
-		mongoDbMock := &mock.MongoServerMock{
+		mongoDBMock := &mock.MongoServerMock{
 			UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error { return errMongoDB },
 		}
 
@@ -305,7 +317,7 @@ func TestCreateImageHandler(t *testing.T) {
 			},
 		}
 		kafkaProducerMock := kafkatest.NewMessageProducer(true)
-		imageApi := GetAPIWithMocks(cfg, mongoDbMock, authHandlerMock, kafkaProducerMock)
+		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaProducerMock)
 
 		Convey("When a new image is posted a 501 InternalServerError status code is returned", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
@@ -339,7 +351,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 
 	Convey("And an image API with mongoDB returning 'created' and 'published' images", func() {
 
-		mongoDbMock := &mock.MongoServerMock{
+		mongoDBMock := &mock.MongoServerMock{
 			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testImageID1:
@@ -357,7 +369,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 			},
 		}
 		kafkaProducerMock := kafkatest.NewMessageProducer(true)
-		imageApi := GetAPIWithMocks(cfg, mongoDbMock, authHandlerMock, kafkaProducerMock)
+		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaProducerMock)
 
 		Convey("When an existing 'created' image is requested with the valid Collection-Id context value", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), nil)
@@ -423,7 +435,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 	Convey("And an image API with mongoDB returning the images as expected according to the collectionID filter", func() {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
-		mongoDbMock := &mock.MongoServerMock{
+		mongoDBMock := &mock.MongoServerMock{
 			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
 				if collectionID == testCollectionID1 {
 					return []models.Image{createdImage, publishedImage}, nil
@@ -440,7 +452,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 			},
 		}
 		kafkaProducerMock := kafkatest.NewMessageProducer(true)
-		imageApi := GetAPIWithMocks(cfg, mongoDbMock, authHandlerMock, kafkaProducerMock)
+		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaProducerMock)
 
 		Convey("When existing images are requested with a valid Collection-Id context and query parameter value", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), nil)
@@ -508,7 +520,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 	Convey("And an image API with mongoDB returning an error", func() {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
-		mongoDbMock := &mock.MongoServerMock{
+		mongoDBMock := &mock.MongoServerMock{
 			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
 				return []models.Image{}, errMongoDB
 			},
@@ -519,7 +531,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 			},
 		}
 		kafkaProducerMock := kafkatest.NewMessageProducer(true)
-		imageApi := GetAPIWithMocks(cfg, mongoDbMock, authHandlerMock, kafkaProducerMock)
+		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaProducerMock)
 
 		Convey("Then when images are requested, a 500 error is returned", func() {
 			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images", nil)
@@ -619,7 +631,7 @@ func TestUpdateImageHandler(t *testing.T) {
 				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusConflict)
+				So(w.Code, ShouldEqual, http.StatusForbidden)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
@@ -728,13 +740,13 @@ func TestUpdateImageHandler(t *testing.T) {
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaProducerMock)
 
-			Convey("Calling update image results in 409 response and it is not updated", func() {
+			Convey("Calling update image results in 403 Forbidden response and it is not updated", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testImageID2, models.StatePublished.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusConflict)
+				So(w.Code, ShouldEqual, http.StatusForbidden)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
 			})
@@ -823,20 +835,45 @@ func TestPublishImageHandler(t *testing.T) {
 	Convey("Given an image API with empty mongoDB", t, func() {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
+		mongoDBMock := &mock.MongoServerMock{
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				switch id {
+				case testImageID1:
+					return &importedImage, nil
+				default:
+					return nil, apierrors.ErrImageNotFound
+				}
+			},
+			UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
+				switch id {
+				case testImageID1:
+					return true, nil
+				default:
+					return false, apierrors.ErrImageNotFound
+				}
+			},
+		}
 		authHandlerMock := &mock.AuthHandlerMock{
 			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 		kafkaProducerMock := kafkatest.NewMessageProducer(true)
-		imageApi := GetAPIWithMocks(cfg, &mock.MongoServerMock{}, authHandlerMock, kafkaProducerMock)
+		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaProducerMock)
 
-		Convey("Calling publish image results in 501 NotImplemented", func() {
-			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
+		Convey("An existing image in 'imported' state is successfully published", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
 			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusNotImplemented)
+			So(w.Code, ShouldEqual, http.StatusOK)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(mongoDBMock.UpdateImageCalls()[0].Image.State, ShouldEqual, models.StatePublished.String())
+			// TODO validate kafka message sent
 		})
 	})
 }
