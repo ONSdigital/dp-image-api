@@ -6,7 +6,7 @@ import (
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/models"
 	"github.com/ONSdigital/dp-net/handlers"
-	dpHTTP "github.com/ONSdigital/dp-net/http"
+	dphttp "github.com/ONSdigital/dp-net/http"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
@@ -17,12 +17,13 @@ var NewID = func() string {
 	return uuid.NewV4().String()
 }
 
-// CreateImageHandler is a handler that upserts an image into mongoDB
+// CreateImageHandler is a handler that inserts an image into mongoDB with a newly generated ID
 func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
+	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
-		handlers.CollectionID.Header(): ctx.Value(handlers.CollectionID.Context()),
-		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
+		handlers.CollectionID.Header(): hColID,
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
 	}
 
 	newImageRequest := &models.Image{}
@@ -31,6 +32,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// generate new image from request, mapping only allowed fields at creation time (model newImage in swagger spec)
+	// the image is always created in 'created' state, and it is assigned a newly generated ID
 	newImage := models.Image{
 		ID:           NewID(),
 		CollectionID: newImageRequest.CollectionID,
@@ -46,7 +48,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// check that collectionID is provided
+	// check that collectionID is provided in the request body
 	if newImage.CollectionID == "" {
 		handleError(ctx, w, apierrors.ErrImageNoCollectionID, logdata)
 		return
@@ -73,14 +75,14 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
 	}
 
-	// validate collection ID from header matches collection ID from query param
+	// get collection_id query parameter (optional)
 	colID := req.URL.Query().Get("collection_id")
 	logdata["collection_id"] = colID
 
-	// get images from MongoDB for the requested collection
+	// get images from MongoDB with the requested collection_id filter, if provided.
 	items, err := api.mongoDB.GetImages(ctx, colID)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
@@ -108,7 +110,7 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
 		"image-id":                     id,
 	}
 
@@ -116,12 +118,6 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 	image, err := api.mongoDB.GetImage(req.Context(), id)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	// if image is not published, validate that its collectionID matches the collection-Id header
-	if image.State != models.StatePublished.String() && image.CollectionID != hColID {
-		handleError(ctx, w, apierrors.ErrColIDMismatch, logdata)
 		return
 	}
 
@@ -139,7 +135,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
 		"image-id":                     id,
 	}
 
@@ -161,22 +157,10 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	image.ID = id
 
-	// validate a possible mismatch of collectionID in header and image, if provided in image body
-	if image.CollectionID != "" && image.CollectionID != hColID {
-		handleError(ctx, w, apierrors.ErrWrongColID, logdata)
-		return
-	}
-
 	// get image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	// check that collectionID in header matches the collection ID in mongoDB
-	if existingImage.CollectionID != hColID {
-		handleError(ctx, w, apierrors.ErrWrongColID, logdata)
 		return
 	}
 
@@ -201,6 +185,8 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
+
+	// TODO return updated image body
 }
 
 // PublishImageHandler is a handler that triggers the publishing of an image
@@ -208,7 +194,7 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	logdata := log.Data{
 		handlers.CollectionID.Header(): ctx.Value(handlers.CollectionID.Context()),
-		"request-id":                   ctx.Value(dpHTTP.RequestIdKey),
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
 	}
 	log.Event(ctx, "publish image was called, but it is not implemented yet", log.INFO, logdata)
 	http.Error(w, "Not implemented", http.StatusNotImplemented)
