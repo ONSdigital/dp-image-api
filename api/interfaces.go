@@ -15,10 +15,10 @@ import (
 // MongoServer defines the required methods from MongoDB
 type MongoServer interface {
 	Close(ctx context.Context) error
-	Checker(ctx context.Context, state *healthcheck.CheckState) error
-	GetImages(ctx context.Context, collectionID string) ([]models.Image, error)
-	GetImage(ctx context.Context, id string) (*models.Image, error)
-	UpdateImage(ctx context.Context, id string, image *models.Image) error
+	Checker(ctx context.Context, state *healthcheck.CheckState) (err error)
+	GetImages(ctx context.Context, collectionID string) (images []models.Image, err error)
+	GetImage(ctx context.Context, id string) (image *models.Image, err error)
+	UpdateImage(ctx context.Context, id string, image *models.Image) (didChange bool, err error)
 	UpsertImage(ctx context.Context, id string, image *models.Image) (err error)
 }
 

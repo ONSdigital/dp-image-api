@@ -42,7 +42,7 @@ var _ api.MongoServer = &MongoServerMock{}
 //             GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
 // 	               panic("mock out the GetImages method")
 //             },
-//             UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) error {
+//             UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 // 	               panic("mock out the UpdateImage method")
 //             },
 //             UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error {
@@ -68,7 +68,7 @@ type MongoServerMock struct {
 	GetImagesFunc func(ctx context.Context, collectionID string) ([]models.Image, error)
 
 	// UpdateImageFunc mocks the UpdateImage method.
-	UpdateImageFunc func(ctx context.Context, id string, image *models.Image) error
+	UpdateImageFunc func(ctx context.Context, id string, image *models.Image) (bool, error)
 
 	// UpsertImageFunc mocks the UpsertImage method.
 	UpsertImageFunc func(ctx context.Context, id string, image *models.Image) error
@@ -259,7 +259,7 @@ func (mock *MongoServerMock) GetImagesCalls() []struct {
 }
 
 // UpdateImage calls UpdateImageFunc.
-func (mock *MongoServerMock) UpdateImage(ctx context.Context, id string, image *models.Image) error {
+func (mock *MongoServerMock) UpdateImage(ctx context.Context, id string, image *models.Image) (bool, error) {
 	if mock.UpdateImageFunc == nil {
 		panic("MongoServerMock.UpdateImageFunc: method is nil but MongoServer.UpdateImage was just called")
 	}

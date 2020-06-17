@@ -534,20 +534,24 @@ func TestUpdateImageHandler(t *testing.T) {
 					return &createdImage, nil
 				case testImageID2:
 					return &publishedImage, nil
+				case "idNoop":
+					return &models.Image{}, nil
 				case "idGetImageErr":
 					return nil, errors.New("internal mongoDB error")
 				default:
 					return nil, apierrors.ErrImageNotFound
 				}
 			},
-			UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) error {
+			UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 				switch id {
 				case testImageID1, testImageID2:
-					return nil
+					return true, nil
+				case "idNoop":
+					return false, nil
 				case "idUpdateImageErr":
-					return errors.New("internal mongoDB error")
+					return false, errors.New("internal mongoDB error")
 				default:
-					return apierrors.ErrImageNotFound
+					return false, apierrors.ErrImageNotFound
 				}
 			},
 		}
@@ -564,8 +568,9 @@ func TestUpdateImageHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusOK)
-			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 2)
 			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, createdImage)
@@ -577,23 +582,25 @@ func TestUpdateImageHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusOK)
-			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 2)
+			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, createdImageNoCollectionID)
 		})
 
-		Convey("Calling update image with an image with only an empty upload (which corresponds to a no-op update) results in 200 OK response and nothing is updated in mongoDB", func() {
-			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(emptyUploadPayload))
+		Convey("Calling update image which results in a no-op dynamodb update, results in 200 OK response, nothing is updated in mongoDB, and getImage is called only once", func() {
+			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", "idNoop"), bytes.NewBufferString(emptyUploadPayload))
 			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusOK)
 			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
-			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, "idNoop")
 			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{
-				ID:     testImageID1,
+				ID:     "idNoop",
 				Upload: &models.Upload{},
 			})
 		})
@@ -604,7 +611,9 @@ func TestUpdateImageHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusOK)
-			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 2)
+			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{
@@ -619,7 +628,9 @@ func TestUpdateImageHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusOK)
-			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 2)
+			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{

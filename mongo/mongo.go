@@ -110,7 +110,7 @@ func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) 
 }
 
 // UpdateImage updates an existing image document
-func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image) error {
+func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image) (bool, error) {
 	s := m.Session.Copy()
 	defer s.Close()
 	log.Event(ctx, "updating image", log.Data{"id": id})
@@ -118,18 +118,18 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 	updates := createImageUpdateQuery(ctx, id, image)
 	if len(updates) == 0 {
 		log.Event(ctx, "nothing to update")
-		return nil
+		return false, nil
 	}
 
 	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
 	if err := s.DB(m.Database).C(imagesCol).UpdateId(id, update); err != nil {
 		if err == mgo.ErrNotFound {
-			return errs.ErrImageNotFound
+			return false, errs.ErrImageNotFound
 		}
-		return err
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }
 
 // createImageUpdateQuery generates the bson model to update an image with the provided image update.

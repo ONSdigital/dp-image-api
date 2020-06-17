@@ -28,6 +28,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 
 	newImageRequest := &models.Image{}
 	if err := ReadJSONBody(ctx, req.Body, newImageRequest, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
 		return
 	}
 
@@ -64,6 +65,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	if err := WriteJSONBody(ctx, newImage, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
 		return
 	}
 	log.Event(ctx, "successfully created image", log.INFO, logdata)
@@ -97,9 +99,10 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := WriteJSONBody(ctx, images, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
 		return
 	}
-	log.Event(ctx, "Successfully retrieved images for a collection", log.INFO, logdata)
+	log.Event(ctx, "Successfully retrieved images", log.INFO, logdata)
 }
 
 // GetImageHandler is a handler that gets an image by its id from MongoDB
@@ -122,6 +125,7 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := WriteJSONBody(ctx, image, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
 		return
 	}
 	log.Event(ctx, "Successfully retrieved image", log.INFO, logdata)
@@ -142,6 +146,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	// Unmarshal image from body and validate it
 	image := &models.Image{}
 	if err := ReadJSONBody(ctx, req.Body, image, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
 		return
 	}
 	if err := image.Validate(); err != nil {
@@ -181,12 +186,27 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Update image in mongo DB
-	if err := api.mongoDB.UpdateImage(ctx, id, image); err != nil {
+	didChange, err := api.mongoDB.UpdateImage(ctx, id, image)
+	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
 
-	// TODO return updated image body
+	// get updated image from mongoDB by id (if it changed)
+	updatedImage := existingImage
+	if didChange {
+		updatedImage, err = api.mongoDB.GetImage(req.Context(), id)
+		if err != nil {
+			handleError(ctx, w, err, logdata)
+			return
+		}
+	}
+
+	if err := WriteJSONBody(ctx, updatedImage, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	log.Event(ctx, "Successfully updated image", log.INFO, logdata)
 }
 
 // PublishImageHandler is a handler that triggers the publishing of an image
