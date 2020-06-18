@@ -590,7 +590,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, createdImageNoCollectionID)
 		})
 
-		Convey("Calling update image which results in a no-op dynamodb update, results in 200 OK response, nothing is updated in mongoDB, and getImage is called only once", func() {
+		Convey("Calling update image which results in a no-op mongoDB update, results in 200 OK response, nothing is updated in mongoDB, and getImage is called only once", func() {
 			r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", "idNoop"), bytes.NewBufferString(emptyUploadPayload))
 			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
