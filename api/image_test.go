@@ -536,7 +536,8 @@ func doTestGetImagesHandler(cfg *config.Config) {
 				return handler
 			},
 		}
-		imageApi := GetAPIWithMocks(cfg, mongoDbMock, authHandlerMock)
+		kafkaProducerMock := kafkatest.NewMessageProducer(true)
+		imageApi := GetAPIWithMocks(cfg, mongoDbMock, authHandlerMock, kafkaProducerMock)
 
 		Convey("Then when images are requested, a 500 error is returned", func() {
 			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images", nil)
@@ -765,8 +766,9 @@ func TestUpdateImageHandler(t *testing.T) {
 
 			// validate status code and mongoDB
 			So(w.Code, ShouldEqual, http.StatusOK)
-			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+			So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 2)
 			So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+			So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 			So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 			So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 			So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, uploadedImage)
