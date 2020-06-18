@@ -4,26 +4,24 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/ONSdigital/dp-api-clients-go/health"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
+	kafka "github.com/ONSdigital/dp-kafka"
 )
 
 //go:generate moq -out mock/initialiser.go -pkg mock . Initialiser
-//go:generate moq -out mock/mongo.go -pkg mock . MongoServer
 //go:generate moq -out mock/server.go -pkg mock . HTTPServer
-//go:generate moq -out mock/healthCheck.go -pkg mock . HealthChecker
+//go:generate moq -out mock/healthcheck.go -pkg mock . HealthChecker
 
 // Initialiser defines the methods to initialise external services
 type Initialiser interface {
 	DoGetHTTPServer(bindAddr string, router http.Handler) HTTPServer
-	DoGetMongoDB(ctx context.Context, cfg *config.Config) (MongoServer, error)
+	DoGetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoServer, error)
+	DoGetKafkaProducer(ctx context.Context, cfg *config.Config) (kafka.IProducer, error)
+	DoGetHealthClient(name, url string) *health.Client
 	DoGetHealthCheck(cfg *config.Config, buildTime, gitCommit, version string) (HealthChecker, error)
-}
-
-// MongoServer defines the required methods from MongoDB
-type MongoServer interface {
-	Close(ctx context.Context) error
-	Checker(ctx context.Context, state *healthcheck.CheckState) error
 }
 
 // HTTPServer defines the required methods from the HTTP server

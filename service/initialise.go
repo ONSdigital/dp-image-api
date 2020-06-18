@@ -4,17 +4,21 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/ONSdigital/dp-api-clients-go/health"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/dp-image-api/mongo"
+	kafka "github.com/ONSdigital/dp-kafka"
 	dphttp "github.com/ONSdigital/dp-net/http"
 )
 
 // ExternalServiceList holds the initialiser and initialisation state of external services.
 type ExternalServiceList struct {
-	MongoDB     bool
-	HealthCheck bool
-	Init        Initialiser
+	MongoDB       bool
+	HealthCheck   bool
+	KafkaProducer bool
+	Init          Initialiser
 }
 
 // NewServiceList creates a new service list with the provided initialiser
@@ -36,13 +40,28 @@ func (e *ExternalServiceList) GetHTTPServer(bindAddr string, router http.Handler
 }
 
 // GetMongoDB creates a mongoDB client and sets the Mongo flag to true
-func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config) (MongoServer, error) {
+func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoServer, error) {
 	mongoDB, err := e.Init.DoGetMongoDB(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	e.MongoDB = true
 	return mongoDB, nil
+}
+
+// GetKafkaProducer returns a kafka producer
+func (e *ExternalServiceList) GetKafkaProducer(ctx context.Context, cfg *config.Config) (kafka.IProducer, error) {
+	kafkaProducer, err := e.Init.DoGetKafkaProducer(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	e.KafkaProducer = true
+	return kafkaProducer, nil
+}
+
+// GetHealthClient returns a healthclient for the provided URL
+func (e *ExternalServiceList) GetHealthClient(name, url string) *health.Client {
+	return e.Init.DoGetHealthClient(name, url)
 }
 
 // GetHealthCheck creates a healthcheck with versionInfo and sets teh HealthCheck flag to true
@@ -63,7 +82,7 @@ func (e *Init) DoGetHTTPServer(bindAddr string, router http.Handler) HTTPServer 
 }
 
 // DoGetMongoDB returns a MongoDB
-func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (MongoServer, error) {
+func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoServer, error) {
 	mongodb := &mongo.Mongo{
 		Collection: cfg.MongoConfig.Collection,
 		Database:   cfg.MongoConfig.Database,
@@ -73,6 +92,21 @@ func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (MongoServe
 		return nil, err
 	}
 	return mongodb, nil
+}
+
+// DoGetKafkaProducer creates a kafka producer for the provided broker addresses, topic and envMax values in config
+func (e *Init) DoGetKafkaProducer(ctx context.Context, cfg *config.Config) (kafka.IProducer, error) {
+	producerChannels := kafka.CreateProducerChannels()
+	kafkaProducer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ImageUploadedTopic, cfg.KafkaMaxBytes, producerChannels)
+	if err != nil {
+		return nil, err
+	}
+	return kafkaProducer, nil
+}
+
+// DoGetHealthClient creates a new Health Client for the provided name and url
+func (e *Init) DoGetHealthClient(name, url string) *health.Client {
+	return health.NewClient(name, url)
 }
 
 // DoGetHealthCheck creates a healthcheck with versionInfo

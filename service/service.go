@@ -3,22 +3,28 @@ package service
 import (
 	"context"
 
+	"github.com/ONSdigital/dp-api-clients-go/health"
+	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
+	kafka "github.com/ONSdigital/dp-kafka"
+	"github.com/ONSdigital/dp-net/handlers"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
+	"github.com/justinas/alice"
 	"github.com/pkg/errors"
 )
 
 // Service contains all the configs, server and clients to run the Image API
 type Service struct {
-	config      *config.Config
-	server      HTTPServer
-	router      *mux.Router
-	api         *api.API
-	serviceList *ExternalServiceList
-	healthCheck HealthChecker
-	mongoDB     MongoServer
+	config        *config.Config
+	server        HTTPServer
+	router        *mux.Router
+	api           *api.API
+	serviceList   *ExternalServiceList
+	healthCheck   HealthChecker
+	mongoDB       api.MongoServer
+	kafkaProducer kafka.IProducer
 }
 
 // Run the service
@@ -32,9 +38,18 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	}
 	log.Event(ctx, "got service configuration", log.Data{"config": cfg}, log.INFO)
 
-	// Get HTTP Server
+	// Get HTTP Server with collectionID checkHeader middleware
 	r := mux.NewRouter()
-	s := serviceList.GetHTTPServer(cfg.BindAddr, r)
+	middleware := alice.New(handlers.CheckHeader(handlers.CollectionID))
+	s := serviceList.GetHTTPServer(cfg.BindAddr, middleware.Then(r))
+
+	// Get Health client for Zebedee and permissions only if we are in publishing mode
+	var zc *health.Client
+	var auth api.AuthHandler
+	if cfg.IsPublishing {
+		zc = serviceList.GetHealthClient("Zebedee", cfg.ZebedeeURL)
+		auth = getAuthorisationHandlers(zc)
+	}
 
 	// Get MongoDB client
 	mongoDB, err := serviceList.GetMongoDB(ctx, cfg)
@@ -43,8 +58,15 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 		return nil, err
 	}
 
+	// Get Kafka producer
+	kafkaProducer, err := serviceList.GetKafkaProducer(ctx, cfg)
+	if err != nil {
+		log.Event(ctx, "failed to create a kafka producer", log.FATAL, log.Error(err))
+		return nil, err
+	}
+
 	// Setup the API
-	a := api.Setup(ctx, r)
+	a := api.Setup(ctx, cfg, r, mongoDB, auth)
 
 	// Get HealthCheck
 	hc, err := serviceList.GetHealthCheck(cfg, buildTime, gitCommit, version)
@@ -52,7 +74,7 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 		log.Event(ctx, "could not instantiate healthcheck", log.FATAL, log.Error(err))
 		return nil, err
 	}
-	if err := registerCheckers(ctx, hc, mongoDB); err != nil {
+	if err := registerCheckers(ctx, cfg, hc, mongoDB, kafkaProducer, zc); err != nil {
 		return nil, errors.Wrap(err, "unable to register checkers")
 	}
 
@@ -67,13 +89,14 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	}()
 
 	return &Service{
-		config:      cfg,
-		server:      s,
-		router:      r,
-		api:         a,
-		serviceList: serviceList,
-		healthCheck: hc,
-		mongoDB:     mongoDB,
+		config:        cfg,
+		server:        s,
+		router:        r,
+		api:           a,
+		serviceList:   serviceList,
+		healthCheck:   hc,
+		mongoDB:       mongoDB,
+		kafkaProducer: kafkaProducer,
 	}, nil
 }
 
@@ -115,6 +138,14 @@ func (svc *Service) Close(ctx context.Context) error {
 			}
 		}
 
+		// close kafka producer
+		if svc.serviceList.KafkaProducer {
+			if err := svc.kafkaProducer.Close(ctx); err != nil {
+				log.Event(ctx, "error closing Kafka Producer", log.Error(err), log.ERROR)
+				hasShutdownError = true
+			}
+		}
+
 		if !hasShutdownError {
 			gracefulShutdown = true
 		}
@@ -134,8 +165,11 @@ func (svc *Service) Close(ctx context.Context) error {
 }
 
 func registerCheckers(ctx context.Context,
+	cfg *config.Config,
 	hc HealthChecker,
-	mongoDB MongoServer) (err error) {
+	mongoDB api.MongoServer,
+	kafkaProducer kafka.IProducer,
+	zebedeeClient *health.Client) (err error) {
 
 	hasErrors := false
 
@@ -144,8 +178,39 @@ func registerCheckers(ctx context.Context,
 		log.Event(ctx, "error adding check for mongo db", log.ERROR, log.Error(err))
 	}
 
+	if err = hc.AddCheck("Kafka Producer", kafkaProducer.Checker); err != nil {
+		hasErrors = true
+		log.Event(ctx, "error adding check for kafka producer", log.ERROR, log.Error(err))
+	}
+
+	if cfg.IsPublishing {
+		if err = hc.AddCheck("Zebedee", zebedeeClient.Checker); err != nil {
+			hasErrors = true
+			log.Event(ctx, "error adding check for zebedeee", log.ERROR, log.Error(err))
+		}
+	}
+
 	if hasErrors {
 		return errors.New("Error(s) registering checkers for healthcheck")
 	}
 	return nil
+}
+
+// generate permissions from dp-auth-api, using the provided health client, reusing its http Client
+func getAuthorisationHandlers(zc *health.Client) api.AuthHandler {
+	dpauth.LoggerNamespace("dp-image-api-auth")
+
+	log.Event(nil, "getting Authorisation Handlers", log.Data{"zc_url": zc.URL})
+
+	authClient := dpauth.NewPermissionsClient(zc.Client)
+	authVerifier := dpauth.DefaultPermissionsVerifier()
+
+	// for checking caller permissions when we only have a user/service token
+	permissions := dpauth.NewHandler(
+		dpauth.NewPermissionsRequestBuilder(zc.URL),
+		authClient,
+		authVerifier,
+	)
+
+	return permissions
 }

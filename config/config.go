@@ -9,9 +9,14 @@ import (
 // Config represents service configuration for dp-image-api
 type Config struct {
 	BindAddr                   string        `envconfig:"BIND_ADDR"`
+	Brokers                    []string      `envconfig:"KAFKA_ADDR"`
+	KafkaMaxBytes              int           `envconfig:"KAFKA_MAX_BYTES"`
+	ImageUploadedTopic         string        `envconfig:"IMAGE_UPLOADED_TOPIC"`
 	GracefulShutdownTimeout    time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	HealthCheckInterval        time.Duration `envconfig:"HEALTHCHECK_INTERVAL"`
 	HealthCheckCriticalTimeout time.Duration `envconfig:"HEALTHCHECK_CRITICAL_TIMEOUT"`
+	IsPublishing               bool          `envconfig:"IS_PUBLISHING"`
+	ZebedeeURL                 string        `envconfig:"ZEBEDEE_URL"`
 	MongoConfig                MongoConfig
 }
 
@@ -33,9 +38,14 @@ func Get() (*Config, error) {
 
 	cfg := &Config{
 		BindAddr:                   ":24700",
+		Brokers:                    []string{"localhost:9092"},
+		KafkaMaxBytes:              2000000,
+		ImageUploadedTopic:         "image-uploaded",
 		GracefulShutdownTimeout:    5 * time.Second,
 		HealthCheckInterval:        30 * time.Second,
 		HealthCheckCriticalTimeout: 90 * time.Second,
+		ZebedeeURL:                 "http://localhost:8082",
+		IsPublishing:               true,
 		MongoConfig: MongoConfig{
 			BindAddr:   "localhost:27017",
 			Collection: "images",

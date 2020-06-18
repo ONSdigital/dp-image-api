@@ -19,12 +19,17 @@ func TestConfig(t *testing.T) {
 
 			Convey("Then the values should be set to the expected defaults", func() {
 				So(cfg.BindAddr, ShouldEqual, ":24700")
+				So(cfg.Brokers, ShouldResemble, []string{"localhost:9092"})
+				So(cfg.KafkaMaxBytes, ShouldEqual, 2000000)
+				So(cfg.ImageUploadedTopic, ShouldEqual, "image-uploaded")
 				So(cfg.GracefulShutdownTimeout, ShouldEqual, 5*time.Second)
 				So(cfg.HealthCheckInterval, ShouldEqual, 30*time.Second)
 				So(cfg.HealthCheckCriticalTimeout, ShouldEqual, 90*time.Second)
 				So(cfg.MongoConfig.BindAddr, ShouldEqual, "localhost:27017")
 				So(cfg.MongoConfig.Collection, ShouldEqual, "images")
 				So(cfg.MongoConfig.Database, ShouldEqual, "images")
+				So(cfg.IsPublishing, ShouldBeTrue)
+				So(cfg.ZebedeeURL, ShouldEqual, "http://localhost:8082")
 			})
 
 			Convey("Then a second call to config should return the same config", func() {

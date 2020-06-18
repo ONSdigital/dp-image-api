@@ -23,7 +23,7 @@ paths:
       tags:
       - "image"
       summary: "Get images filtered by collection id"
-      description: "Returns a list of images metadata filtered by a compulsory query parameter defining the collection ID"
+      description: "Returns a list of images metadata filtered by an optional query parameter defining the collection ID"
       parameters:
       - $ref: '#/parameters/collection_id'
       produces:
@@ -32,11 +32,11 @@ paths:
       - FlorenceAPIKey: []
       responses:
         200:
-          description: "A json object containing images which correspond to the provided collection ID"
+          description: "A json object containing a list of images"
           schema:
             $ref: '#/definitions/Images'
         400:
-          description: "Invalid request, collection id was incorrect"
+          description: "Invalid request"
         401:
           $ref: '#/responses/Unauthenticated'
         403:
@@ -47,7 +47,7 @@ paths:
       tags:
       - "image"
       summary: "Create a new image metadata entry"
-      description: "Creates a new image metadata entry corresponding to the provided body in this request."
+      description: "Creates a new image metadata entry corresponding to the provided body in this request. A new ID will be generated for the image, and it will be set to `created` state."
       parameters:
       - $ref: '#/parameters/new_image'
       produces:
@@ -56,9 +56,9 @@ paths:
       - FlorenceAPIKey: []
       responses:
         201:
-          description: "The image metadata was correctly created and a json object containing the new image information is returned, including a newly generated id"
+          description: "The image metadata was correctly created and a json object containing the new image information is returned. The new image will be in 'created' state and its id will be newly generated."
           schema:
-            $ref: '#/definitions/Images'
+            $ref: '#/definitions/Image'
         400:
           description: |
             Invalid request, reasons can be one of the following:
@@ -103,7 +103,7 @@ paths:
       tags:
       - "image"
       summary: "Update an image metadata entry"
-      description: "Updates an image metadata entry whose id matches the id provided as path parameter"
+      description: "Updates an existing image metadata entry whose id matches the id provided as path parameter. Only the provided fields will be used to overwrite an existing image, creating them if they did not already exist, and not overwriting any field that is not provided."
       parameters:
       - $ref: '#/parameters/image_id'
       - $ref: '#/parameters/image'
@@ -120,8 +120,7 @@ paths:
         400:
           description: |
             Invalid request, reasons can be one of the following:
-              * image id was incorrect
-              * collection id was incorrect
+              * image id in body, if provided, did not match the path parameter
               * malformed body
               * provided image had an invalid parameter
         401:
@@ -207,6 +206,8 @@ definitions:
   NewImage:
     type: object
     description: "New Image metadata model, used to create new images. The image ID will be created by image API, and the state will be set to 'created' at creation time."
+    required:
+      - "collection_id"
     properties:
       collection_id:
         type: string
@@ -347,7 +348,6 @@ parameters:
   collection_id:
     name: collection_id
     description: "A unique id for a collection to filter on"
-    required: true
     in: query
     type: string
     
@@ -361,7 +361,7 @@ parameters:
 
   new_image:
     name: new_image
-    description: "A valid image model at creation time, which might define the same fields as an existing image model, except for the id and state"
+    description: "A valid image model at creation time. Only a subset of the full image model will be considered."
     in: body
     required: true
     schema:
