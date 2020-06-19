@@ -36,8 +36,9 @@ func TestSetup(t *testing.T) {
 
 		Convey("When created in Publishing mode", func() {
 			cfg := &config.Config{IsPublishing: true}
-			kafkaProducerMock := kafkatest.NewMessageProducer(true)
-			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, kafkaProducerMock)
+			uploadedKafkaProducer := kafkatest.NewMessageProducer(true)
+			publishedKafkaProducer := kafkatest.NewMessageProducer(true)
+			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer)
 
 			Convey("Then the following routes should have been added", func() {
 				So(hasRoute(api.Router, "/images", http.MethodPost), ShouldBeTrue)
@@ -64,8 +65,9 @@ func TestSetup(t *testing.T) {
 
 		Convey("When created in Web mode", func() {
 			cfg := &config.Config{IsPublishing: false}
-			kafkaProducerMock := kafkatest.NewMessageProducer(true)
-			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, kafkaProducerMock)
+			uploadedKafkaProducer := kafkatest.NewMessageProducer(true)
+			publishedKafkaProducer := kafkatest.NewMessageProducer(true)
+			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer)
 
 			Convey("Then only the get routes should have been added", func() {
 				So(hasRoute(api.Router, "/images", http.MethodGet), ShouldBeTrue)
@@ -86,8 +88,9 @@ func TestClose(t *testing.T) {
 	Convey("Given an API instance", t, func() {
 		r := mux.NewRouter()
 		ctx := context.Background()
-		kafkaProducerMock := kafkatest.NewMessageProducer(true)
-		a := api.Setup(ctx, &config.Config{}, r, &mock.AuthHandlerMock{}, &mock.MongoServerMock{}, kafkaProducerMock)
+		uploadedKafkaProducer := kafkatest.NewMessageProducer(true)
+		publishedKafkaProducer := kafkatest.NewMessageProducer(true)
+		a := api.Setup(ctx, &config.Config{}, r, &mock.AuthHandlerMock{}, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer)
 
 		Convey("When the api is closed any dependencies are closed also", func() {
 			err := a.Close(ctx)
@@ -98,10 +101,10 @@ func TestClose(t *testing.T) {
 }
 
 // GetAPIWithMocks also used in other tests
-func GetAPIWithMocks(cfg *config.Config, mongoDbMock *mock.MongoServerMock, authHandlerMock *mock.AuthHandlerMock, kafkaProducerMock kafka.IProducer) *api.API {
+func GetAPIWithMocks(cfg *config.Config, mongoDbMock *mock.MongoServerMock, authHandlerMock *mock.AuthHandlerMock, uploadedKafkaProducerMock, publishedKafkaProducerMock kafka.IProducer) *api.API {
 	mu.Lock()
 	defer mu.Unlock()
-	return api.Setup(testContext, cfg, mux.NewRouter(), authHandlerMock, mongoDbMock, kafkaProducerMock)
+	return api.Setup(testContext, cfg, mux.NewRouter(), authHandlerMock, mongoDbMock, uploadedKafkaProducerMock, publishedKafkaProducerMock)
 }
 
 func hasRoute(r *mux.Router, path, method string) bool {

@@ -12,7 +12,7 @@ import (
 
 var errMarshal = errors.New("Marshal error")
 
-func TestAvroProducer_ImageUploaded(t *testing.T) {
+func TestAvroProducer(t *testing.T) {
 
 	Convey("Given a successful message producer mock", t, func() {
 
@@ -44,12 +44,39 @@ func TestAvroProducer_ImageUploaded(t *testing.T) {
 			})
 		})
 
+		Convey("when ImagePublished is called with a nil event", func() {
+			err := eventProducer.ImagePublished(nil)
+
+			Convey("then the expected error is returned", func() {
+				So(err.Error(), ShouldEqual, "event required but was nil")
+			})
+
+			Convey("and marshaller is never called", func() {
+				So(len(marshallerMock.MarshalCalls()), ShouldEqual, 0)
+			})
+		})
+
 		Convey("When ImageUploaded is called on the event producer", func() {
 			event := &event.ImageUploaded{
 				ImageID: "myImage",
 				Path:    "myPath",
 			}
 			err := eventProducer.ImageUploaded(event)
+
+			Convey("The expected event is available on the output channel", func() {
+				So(err, ShouldBeNil)
+
+				messageBytes := <-outputChannel
+				close(outputChannel)
+				So(messageBytes, ShouldResemble, avroBytes)
+			})
+		})
+
+		Convey("When ImagePublished is called on the event producer", func() {
+			event := &event.ImagePublished{
+				ImageID: "myImage",
+			}
+			err := eventProducer.ImagePublished(event)
 
 			Convey("The expected event is available on the output channel", func() {
 				So(err, ShouldBeNil)
@@ -79,6 +106,17 @@ func TestAvroProducer_ImageUploaded(t *testing.T) {
 				Path:    "myPath",
 			}
 			err := eventProducer.ImageUploaded(event)
+
+			Convey("The expected error is returned", func() {
+				So(err, ShouldResemble, errMarshal)
+			})
+		})
+
+		Convey("When ImagePublished is called on the event producer", func() {
+			event := &event.ImagePublished{
+				ImageID: "myImage",
+			}
+			err := eventProducer.ImagePublished(event)
 
 			Convey("The expected error is returned", func() {
 				So(err, ShouldResemble, errMarshal)

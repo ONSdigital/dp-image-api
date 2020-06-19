@@ -13,7 +13,20 @@ var imageUploadedEvent = `{
   ]
 }`
 
-// ImageUploadedEvent the Avro schema for Image uploaded messages.
+var imagePublishedEvent = `{
+  "type": "record",
+  "name": "image-published",
+  "fields": [
+    {"name": "image_id", "type": "string", "default": ""}
+  ]
+}`
+
+// ImageUploadedEvent is the Avro schema for Image uploaded messages.
 var ImageUploadedEvent = &avro.Schema{
 	Definition: imageUploadedEvent,
+}
+
+// ImagePublishedEvent is the Avro schema for Image published messages.
+var ImagePublishedEvent = &avro.Schema{
+	Definition: imagePublishedEvent,
 }

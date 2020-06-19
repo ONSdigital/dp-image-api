@@ -72,11 +72,11 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		}
 
 		// Setup the API in publishing
-		a = api.Setup(ctx, cfg, r, auth, mongoDB, uploadedKafkaProducer)
+		a = api.Setup(ctx, cfg, r, auth, mongoDB, uploadedKafkaProducer, publishedKafkaProducer)
 
 	} else {
 		// Setup the API in web mode
-		a = api.Setup(ctx, cfg, r, auth, mongoDB, nil)
+		a = api.Setup(ctx, cfg, r, auth, mongoDB, nil, nil)
 	}
 
 	// Get HealthCheck

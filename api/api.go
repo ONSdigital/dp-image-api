@@ -19,14 +19,15 @@ import (
 
 //API provides a struct to wrap the api around
 type API struct {
-	Router   *mux.Router
-	mongoDB  MongoServer
-	auth     AuthHandler
-	producer *event.AvroProducer
+	Router            *mux.Router
+	mongoDB           MongoServer
+	auth              AuthHandler
+	uploadProducer    *event.AvroProducer
+	publishedProducer *event.AvroProducer
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
-func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, kafkaProducer kafka.IProducer) *API {
+func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer) *API {
 
 	api := &API{
 		Router:  r,
@@ -35,7 +36,8 @@ func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHand
 	}
 
 	if cfg.IsPublishing {
-		api.producer = event.NewAvroProducer(kafkaProducer.Channels().Output, schema.ImageUploadedEvent)
+		api.uploadProducer = event.NewAvroProducer(uploadedKafkaProducer.Channels().Output, schema.ImageUploadedEvent)
+		api.publishedProducer = event.NewAvroProducer(publishedKafkaProducer.Channels().Output, schema.ImagePublishedEvent)
 		r.HandleFunc("/images", auth.Require(dpauth.Permissions{Create: true}, api.CreateImageHandler)).Methods(http.MethodPost)
 		r.HandleFunc("/images", auth.Require(dpauth.Permissions{Read: true}, api.GetImagesHandler)).Methods(http.MethodGet)
 		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Read: true}, api.GetImageHandler)).Methods(http.MethodGet)

@@ -168,6 +168,12 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	image.ID = id
 
+	// If caller tries to publish using this endpoint, return an error (publish endpoint must be used instead)
+	if image.State == models.StatePublished.String() {
+		handleError(ctx, w, apierrors.ErrImagePublishWrongEndpoint, logdata)
+		return
+	}
+
 	// get existing image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
 	if err != nil {
@@ -205,7 +211,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 			ImageID: image.ID,
 			Path:    image.Upload.Path,
 		}
-		api.producer.ImageUploaded(&event)
+		api.uploadProducer.ImageUploaded(&event)
 	}
 
 	// get updated image from mongoDB by id (if it changed)
@@ -262,5 +268,10 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TODO Send kafka message
+	// Send 'image published' kafka message
+	log.Event(ctx, "sending image published message", log.INFO, logdata)
+	event := event.ImagePublished{
+		ImageID: id,
+	}
+	api.publishedProducer.ImagePublished(&event)
 }
