@@ -255,12 +255,12 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TODO Send kafka message
-
 	// Update image in mongo DB
 	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
+
+	// TODO Send kafka message
 }
