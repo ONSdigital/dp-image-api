@@ -132,6 +132,11 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 	log.Event(ctx, "Successfully retrieved image", log.INFO, logdata)
 }
 
+// isUploadOperation returns true if the provided imageUpdate defines an upload operation (i.e. Upload path provided)
+func isUploadOperation(imageUpdate *models.Image) bool {
+	return imageUpdate.Upload != nil && imageUpdate.Upload.Path != ""
+}
+
 // UpdateImageHandler is a handler that updates an existing image in MongoDB
 func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
@@ -163,7 +168,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	image.ID = id
 
-	// get image from mongoDB by id
+	// get existing image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
@@ -193,6 +198,16 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// If it is an upload operation, generate the kafka event to trigger it
+	if isUploadOperation(image) {
+		log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
+		event := event.ImageUploaded{
+			ImageID: image.ID,
+			Path:    image.Upload.Path,
+		}
+		api.producer.ImageUploaded(&event)
+	}
+
 	// get updated image from mongoDB by id (if it changed)
 	updatedImage := existingImage
 	if didChange {
@@ -209,15 +224,6 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	log.Event(ctx, "successfully updated image", log.INFO, logdata)
 
-	// If Uploaded was provided, generate the kafka event to trigger it
-	if image.Upload != nil && image.Upload.Path != "" {
-		log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
-		event := event.ImageUploaded{
-			ImageID: image.ID,
-			Path:    image.Upload.Path,
-		}
-		api.producer.ImageUploaded(&event)
-	}
 }
 
 // PublishImageHandler is a handler that triggers the publishing of an image
