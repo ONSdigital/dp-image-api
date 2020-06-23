@@ -45,7 +45,7 @@ func TestSetup(t *testing.T) {
 				So(hasRoute(api.Router, "/images", http.MethodGet), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}", http.MethodGet), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}", http.MethodPut), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPut), ShouldBeTrue)
+				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPost), ShouldBeTrue)
 			})
 
 			Convey("And auth handler is called once per route with the expected permissions", func() {

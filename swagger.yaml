@@ -133,7 +133,7 @@ paths:
           $ref: '#/responses/InternalError'
 
   /images/{image_id}/publish:
-    put:
+    post:
       tags:
       - "image"
       summary: "Publish an image"
