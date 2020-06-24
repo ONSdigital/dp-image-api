@@ -248,9 +248,13 @@ definitions:
         enum:
           - created
           - uploaded
-          - publishing
+          - importing
+          - imported
           - published
+          - completed
           - deleted
+          - failed_import
+          - failed_publish
         description: "The state of the image"
         example: "published"
       filename:
