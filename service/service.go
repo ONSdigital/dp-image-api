@@ -17,39 +17,25 @@ import (
 
 // Service contains all the configs, server and clients to run the Image API
 type Service struct {
-	config        *config.Config
-	server        HTTPServer
-	router        *mux.Router
-	api           *api.API
-	serviceList   *ExternalServiceList
-	healthCheck   HealthChecker
-	mongoDB       api.MongoServer
-	kafkaProducer kafka.IProducer
+	config                 *config.Config
+	server                 HTTPServer
+	router                 *mux.Router
+	api                    *api.API
+	serviceList            *ExternalServiceList
+	healthCheck            HealthChecker
+	mongoDB                api.MongoServer
+	uploadedKafkaProducer  kafka.IProducer
+	publishedKafkaProducer kafka.IProducer
 }
 
 // Run the service
-func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCommit, version string, svcErrors chan error) (*Service, error) {
+func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceList, buildTime, gitCommit, version string, svcErrors chan error) (*Service, error) {
 	log.Event(ctx, "running service", log.INFO)
-
-	// Read config
-	cfg, err := config.Get()
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to retrieve service configuration")
-	}
-	log.Event(ctx, "got service configuration", log.Data{"config": cfg}, log.INFO)
 
 	// Get HTTP Server with collectionID checkHeader middleware
 	r := mux.NewRouter()
 	middleware := alice.New(handlers.CheckHeader(handlers.CollectionID))
 	s := serviceList.GetHTTPServer(cfg.BindAddr, middleware.Then(r))
-
-	// Get Health client for Zebedee and permissions only if we are in publishing mode
-	var zc *health.Client
-	var auth api.AuthHandler
-	if cfg.IsPublishing {
-		zc = serviceList.GetHealthClient("Zebedee", cfg.ZebedeeURL)
-		auth = getAuthorisationHandlers(zc)
-	}
 
 	// Get MongoDB client
 	mongoDB, err := serviceList.GetMongoDB(ctx, cfg)
@@ -58,15 +44,40 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 		return nil, err
 	}
 
-	// Get Kafka producer
-	kafkaProducer, err := serviceList.GetKafkaProducer(ctx, cfg)
-	if err != nil {
-		log.Event(ctx, "failed to create a kafka producer", log.FATAL, log.Error(err))
-		return nil, err
-	}
+	var a *api.API
 
-	// Setup the API
-	a := api.Setup(ctx, cfg, r, mongoDB, auth)
+	// The following dependencies will only be initialised if we are in publishing mode
+	var zc *health.Client
+	var auth api.AuthHandler
+	var uploadedKafkaProducer kafka.IProducer
+	var publishedKafkaProducer kafka.IProducer
+	if cfg.IsPublishing {
+
+		// Get Health client for Zebedee and permissions
+		zc = serviceList.GetHealthClient("Zebedee", cfg.ZebedeeURL)
+		auth = getAuthorisationHandlers(zc)
+
+		// Get Uploaded Kafka producer
+		uploadedKafkaProducer, err = serviceList.GetKafkaProducer(ctx, cfg, KafkaProducerUploaded)
+		if err != nil {
+			log.Event(ctx, "failed to create image-uploaded kafka producer", log.FATAL, log.Error(err))
+			return nil, err
+		}
+
+		// Get Published Kafka producer
+		publishedKafkaProducer, err = serviceList.GetKafkaProducer(ctx, cfg, KafkaProducerPublished)
+		if err != nil {
+			log.Event(ctx, "failed to create image-published kafka producer", log.FATAL, log.Error(err))
+			return nil, err
+		}
+
+		// Setup the API in publishing
+		a = api.Setup(ctx, cfg, r, auth, mongoDB, uploadedKafkaProducer, publishedKafkaProducer)
+
+	} else {
+		// Setup the API in web mode
+		a = api.Setup(ctx, cfg, r, auth, mongoDB, nil, nil)
+	}
 
 	// Get HealthCheck
 	hc, err := serviceList.GetHealthCheck(cfg, buildTime, gitCommit, version)
@@ -74,12 +85,18 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 		log.Event(ctx, "could not instantiate healthcheck", log.FATAL, log.Error(err))
 		return nil, err
 	}
-	if err := registerCheckers(ctx, cfg, hc, mongoDB, kafkaProducer, zc); err != nil {
+	if err := registerCheckers(ctx, cfg, hc, mongoDB, uploadedKafkaProducer, publishedKafkaProducer, zc); err != nil {
 		return nil, errors.Wrap(err, "unable to register checkers")
 	}
 
 	r.StrictSlash(true).Path("/health").HandlerFunc(hc.Handler)
 	hc.Start(ctx)
+
+	if cfg.IsPublishing {
+		// kafka error channel logging go-routines
+		uploadedKafkaProducer.Channels().LogErrors(ctx, "kafka Uploaded Producer")
+		publishedKafkaProducer.Channels().LogErrors(ctx, "Kafka Published Producer")
+	}
 
 	// Run the http server in a new go-routine
 	go func() {
@@ -89,14 +106,15 @@ func Run(ctx context.Context, serviceList *ExternalServiceList, buildTime, gitCo
 	}()
 
 	return &Service{
-		config:        cfg,
-		server:        s,
-		router:        r,
-		api:           a,
-		serviceList:   serviceList,
-		healthCheck:   hc,
-		mongoDB:       mongoDB,
-		kafkaProducer: kafkaProducer,
+		config:                 cfg,
+		server:                 s,
+		router:                 r,
+		api:                    a,
+		serviceList:            serviceList,
+		healthCheck:            hc,
+		mongoDB:                mongoDB,
+		uploadedKafkaProducer:  uploadedKafkaProducer,
+		publishedKafkaProducer: publishedKafkaProducer,
 	}, nil
 }
 
@@ -138,10 +156,18 @@ func (svc *Service) Close(ctx context.Context) error {
 			}
 		}
 
-		// close kafka producer
-		if svc.serviceList.KafkaProducer {
-			if err := svc.kafkaProducer.Close(ctx); err != nil {
-				log.Event(ctx, "error closing Kafka Producer", log.Error(err), log.ERROR)
+		// close kafka uploaded producer
+		if svc.serviceList.KafkaProducerUploaded {
+			if err := svc.uploadedKafkaProducer.Close(ctx); err != nil {
+				log.Event(ctx, "error closing Uploaded Kafka Producer", log.Error(err), log.ERROR)
+				hasShutdownError = true
+			}
+		}
+
+		// close kafka published producer
+		if svc.serviceList.KafkaProducerUploaded {
+			if err := svc.publishedKafkaProducer.Close(ctx); err != nil {
+				log.Event(ctx, "error closing Published Kafka Producer", log.Error(err), log.ERROR)
 				hasShutdownError = true
 			}
 		}
@@ -168,7 +194,7 @@ func registerCheckers(ctx context.Context,
 	cfg *config.Config,
 	hc HealthChecker,
 	mongoDB api.MongoServer,
-	kafkaProducer kafka.IProducer,
+	uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer,
 	zebedeeClient *health.Client) (err error) {
 
 	hasErrors := false
@@ -178,12 +204,17 @@ func registerCheckers(ctx context.Context,
 		log.Event(ctx, "error adding check for mongo db", log.ERROR, log.Error(err))
 	}
 
-	if err = hc.AddCheck("Kafka Producer", kafkaProducer.Checker); err != nil {
-		hasErrors = true
-		log.Event(ctx, "error adding check for kafka producer", log.ERROR, log.Error(err))
-	}
-
 	if cfg.IsPublishing {
+		if err = hc.AddCheck("Uploaded Kafka Producer", uploadedKafkaProducer.Checker); err != nil {
+			hasErrors = true
+			log.Event(ctx, "error adding check for uploaded kafka producer", log.ERROR, log.Error(err), log.Data{"topic": cfg.ImageUploadedTopic})
+		}
+
+		if err = hc.AddCheck("Published Kafka Producer", publishedKafkaProducer.Checker); err != nil {
+			hasErrors = true
+			log.Event(ctx, "error adding check for published kafka producer", log.ERROR, log.Error(err), log.Data{"topic": cfg.StaticFilePublishedTopic})
+		}
+
 		if err = hc.AddCheck("Zebedee", zebedeeClient.Checker); err != nil {
 			hasErrors = true
 			log.Event(ctx, "error adding check for zebedeee", log.ERROR, log.Error(err))

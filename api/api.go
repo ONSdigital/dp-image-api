@@ -10,26 +10,34 @@ import (
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/config"
+	"github.com/ONSdigital/dp-image-api/event"
+	"github.com/ONSdigital/dp-image-api/schema"
+	kafka "github.com/ONSdigital/dp-kafka"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
 )
 
 //API provides a struct to wrap the api around
 type API struct {
-	Router  *mux.Router
-	mongoDB MongoServer
-	auth    AuthHandler
+	Router            *mux.Router
+	mongoDB           MongoServer
+	auth              AuthHandler
+	uploadProducer    *event.AvroProducer
+	publishedProducer *event.AvroProducer
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
-func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, mongoDB MongoServer, auth AuthHandler) *API {
+func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer) *API {
+
 	api := &API{
 		Router:  r,
-		mongoDB: mongoDB,
 		auth:    auth,
+		mongoDB: mongoDB,
 	}
 
 	if cfg.IsPublishing {
+		api.uploadProducer = event.NewAvroProducer(uploadedKafkaProducer.Channels().Output, schema.ImageUploadedEvent)
+		api.publishedProducer = event.NewAvroProducer(publishedKafkaProducer.Channels().Output, schema.ImagePublishedEvent)
 		r.HandleFunc("/images", auth.Require(dpauth.Permissions{Create: true}, api.CreateImageHandler)).Methods(http.MethodPost)
 		r.HandleFunc("/images", auth.Require(dpauth.Permissions{Read: true}, api.GetImagesHandler)).Methods(http.MethodGet)
 		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Read: true}, api.GetImageHandler)).Methods(http.MethodGet)
@@ -99,8 +107,6 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 		switch err {
 		case apierrors.ErrImageNotFound:
 			status = http.StatusNotFound
-		case apierrors.ErrResourceState:
-			status = http.StatusConflict
 		case apierrors.ErrUnableToReadMessage,
 			apierrors.ErrColIDMismatch,
 			apierrors.ErrUnableToParseJSON,
@@ -110,9 +116,11 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			apierrors.ErrImageInvalidState,
 			apierrors.ErrImageIDMismatch:
 			status = http.StatusBadRequest
-		case apierrors.ErrImageAlreadyPublished,
-			apierrors.ErrImageStateTransitionNotAllowed:
-			status = http.StatusConflict
+		case apierrors.ErrResourceState,
+			apierrors.ErrImageAlreadyPublished,
+			apierrors.ErrImageStateTransitionNotAllowed,
+			apierrors.ErrImagePublishWrongEndpoint:
+			status = http.StatusForbidden
 		default:
 			status = http.StatusInternalServerError
 		}

@@ -126,11 +126,9 @@ paths:
         401:
           $ref: '#/responses/Unauthenticated'
         403:
-          description: "Unauthorised to update image metadata"
+          description: "Unauthorised to update image or cannot be updated because the state transition is not allowed"
         404:
           $ref: '#/responses/NotFound'
-        409:
-          description: "Cannot update an image for the provided collection ID because it is already published"
         500:
           $ref: '#/responses/InternalError'
 
@@ -154,11 +152,9 @@ paths:
         401:
           $ref: '#/responses/Unauthenticated'
         403:
-          description: "Unauthorised to publish image"
+          description: "Unauthorised to publish image or it is in wrong state to be published"
         404:
           $ref: '#/responses/NotFound'
-        409:
-          description: "Cannot publish the image because it is not uploaded yet, or it is has already been published"
         500:
           $ref: '#/responses/InternalError'
 
@@ -252,9 +248,13 @@ definitions:
         enum:
           - created
           - uploaded
-          - publishing
+          - importing
+          - imported
           - published
+          - completed
           - deleted
+          - failed_import
+          - failed_publish
         description: "The state of the image"
         example: "published"
       filename:
