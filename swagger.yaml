@@ -288,18 +288,22 @@ definitions:
         example: "chart"
       downloads:
         type: object
-        description: "All available formats and variants for this image. Note that this spec does not define all cases, and depending on the image type, we can have multiple formats as well as multiple variants."
+        description: "All available variants for this image. Note that this spec is not a comprehensive list of cases; it only shows a few examples of possible image variant keys."
         properties:
+          original:
+            $ref: '#/definitions/ImageDownload'
           png:
-            type: object
-            description: "All available download variants for this image format, keyed by resolution (in WxH pixels) or with some other identifier."
-            properties:
-              1920x1080:
-                $ref: '#/definitions/ImageDownload'
-              1280x720:
-                $ref: '#/definitions/ImageDownload'
-              thumbnail:
-                $ref: '#/definitions/ImageDownload'
+            $ref: '#/definitions/ImageDownload'
+          svg:
+            $ref: '#/definitions/ImageDownload'
+          png_w500:
+            $ref: '#/definitions/ImageDownload'
+          svg_w500:
+            $ref: '#/definitions/ImageDownload'
+          png_bw:
+            $ref: '#/definitions/ImageDownload'
+          png_w500_bw:
+            $ref: '#/definitions/ImageDownload'
 
   ImageDownload:
     type: object
@@ -308,19 +312,66 @@ definitions:
       size:
         type: integer
         description: "File size in number of bytes"
-        example: 1024
+        example: 1024000
+      type:
+        type: string
+        description: "Type of download corresponding to this variant"
+        example: "png"
+      width:
+        type: integer
+        description: "Image width, in number of pixels"
+        example: 1920
+      height:
+        type: integer
+        description: "Image height, in number of pixels"
+        example: 1080
+      public:
+        type: boolean
+        description: "Determines if this image variant is public (i.e. it can be accessed under static.ons.gov.uk)"
+        example: true
       href:
         type: string
         description: "Full URL pointing to the image in download service"
         example: "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png"
-      public:
+      public_bucket:
         type: string
         description: "S3 Public bucket name"
         example: "my-pubic-bucket"
-      private:
+      private_bucket:
         type: string
         description: "S3 Private bucket name"
         example: "my-private-bucket"
+      state:
+        type: string
+        description: "The state of this download variant. The high level image will change its state to imported only when all variants are in imported state."
+        enum:
+          - pending
+          - importing
+          - imported
+          - published
+          - completed
+          - failed
+        example: "published"
+      error:
+        type: string
+        description: "Any error information, if there was an error with this image variant"
+        example: "import process failed"
+      import_started:
+        type: integer
+        description: "Timestamp (since unix epoch) for the importing process start"
+        example: 1593000000
+      import_completed:
+        type: integer
+        description: "Timestamp (since unix epoch) for the importing process completion"
+        example: 1593000010
+      publish_started:
+        type: integer
+        description: "Timestamp (since unix epoch) for the publishing process start"
+        example: 1593000020
+      publish_completed:
+        type: integer
+        description: "Timestamp (since unix epoch) for the publishing process completion"
+        example: 1593000030
 
 securityDefinitions:
 
