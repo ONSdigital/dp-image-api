@@ -99,6 +99,9 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 		Limit:      len(items),
 	}
 
+	// refresh to populate any fields that are not stored in mongoDB
+	images.Refresh()
+
 	if err := WriteJSONBody(ctx, images, w, logdata); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
@@ -124,6 +127,9 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
+
+	// refresh to populate any fields that are not stored in mongoDB
+	image.Refresh()
 
 	if err := WriteJSONBody(ctx, image, w, logdata); err != nil {
 		handleError(ctx, w, err, logdata)

@@ -129,75 +129,110 @@ var (
 	fullImagePayload = fmt.Sprintf(fullImagePayloadFmt, testImageID2, testCollectionID1, models.StatePublished.String())
 )
 
-var createdImage = models.Image{
-	ID:           testImageID1,
-	CollectionID: testCollectionID1,
-	Filename:     "some-image-name",
-	License: &models.License{
-		Title: "Open Government Licence v3.0",
-		Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
-	},
-	Type:  "chart",
-	State: models.StateCreated.String(),
-}
-
-var importedImage = models.Image{
-	ID:           testImageID1,
-	CollectionID: testCollectionID1,
-	Filename:     "some-image-name",
-	License: &models.License{
-		Title: "Open Government Licence v3.0",
-		Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
-	},
-	Type:  "chart",
-	State: models.StateImported.String(),
-}
-
-var createdImageNoCollectionID = models.Image{
-	ID:       testImageID1,
-	Filename: "some-image-name",
-	License: &models.License{
-		Title: "Open Government Licence v3.0",
-		Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
-	},
-	Type:  "chart",
-	State: models.StateCreated.String(),
-}
-
-var publishedImage = models.Image{
-	ID:           testImageID2,
-	CollectionID: testCollectionID1,
-	Filename:     "some-image-name",
-	License: &models.License{
-		Title: "Open Government Licence v3.0",
-		Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
-	},
-	Type: "chart",
-	Upload: &models.Upload{
-		Path: "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png",
-	},
-	Downloads: map[string]models.Download{
-		"original": {
-			Size:             &testSize,
-			Type:             "originally uploaded file",
-			Width:            &testWidth,
-			Height:           &testHeight,
-			Public:           true,
-			Href:             "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png",
-			Private:          "my-private-bucket",
-			State:            models.StateDownloadPublished.String(),
-			Error:            "",
-			ImportStarted:    &testImportStarted,
-			ImportCompleted:  &testImportCompleted,
-			PublishStarted:   &testPublishStarted,
-			PublishCompleted: &testPublishCompleted,
+// DB model corresponding to an image in created state
+func dbCreatedImage() *models.Image {
+	return &models.Image{
+		ID:           testImageID1,
+		CollectionID: testCollectionID1,
+		Filename:     "some-image-name",
+		License: &models.License{
+			Title: "Open Government Licence v3.0",
+			Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
 		},
-	},
-	State: models.StatePublished.String(),
+		Type:  "chart",
+		State: models.StateCreated.String(),
+	}
+}
+
+// API model corresponding to dbCreatedImage
+func createdImage() *models.Image {
+	return dbCreatedImage()
+}
+
+// DB model corresponding to an image in imported state
+func dbImportedImage() *models.Image {
+	return &models.Image{
+		ID:           testImageID1,
+		CollectionID: testCollectionID1,
+		Filename:     "some-image-name",
+		License: &models.License{
+			Title: "Open Government Licence v3.0",
+			Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+		},
+		Type:  "chart",
+		State: models.StateImported.String(),
+	}
+}
+
+// API model corresponding to dbImportedImage
+func importedImage() *models.Image {
+	return dbImportedImage()
+}
+
+// DB model corresponding to an image in created state without collectionID
+func dbCreatedImageNoCollectionID() *models.Image {
+	return &models.Image{
+		ID:       testImageID1,
+		Filename: "some-image-name",
+		License: &models.License{
+			Title: "Open Government Licence v3.0",
+			Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+		},
+		Type:  "chart",
+		State: models.StateCreated.String(),
+	}
+}
+
+// API model corresponding to dbCreatedImageNoCollectionID
+func createdImageNoCollectionID() *models.Image {
+	return dbCreatedImageNoCollectionID()
+}
+
+// DB model corresponding to an image in published state
+func dbPublishedImage() *models.Image {
+	return &models.Image{
+		ID:           testImageID2,
+		CollectionID: testCollectionID1,
+		Filename:     "some-image-name",
+		License: &models.License{
+			Title: "Open Government Licence v3.0",
+			Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+		},
+		Type: "chart",
+		Upload: &models.Upload{
+			Path: "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png",
+		},
+		Downloads: map[string]models.Download{
+			"original": {
+				Size:             &testSize,
+				Type:             "originally uploaded file",
+				Width:            &testWidth,
+				Height:           &testHeight,
+				Private:          "my-private-bucket",
+				State:            models.StateDownloadPublished.String(),
+				Error:            "",
+				ImportStarted:    &testImportStarted,
+				ImportCompleted:  &testImportCompleted,
+				PublishStarted:   &testPublishStarted,
+				PublishCompleted: &testPublishCompleted,
+			},
+		},
+		State: models.StatePublished.String(),
+	}
+}
+
+// API model corresponding to dbPublishedImage (where download variant href and public is populated)
+func publishedImage() *models.Image {
+	publishedImage := dbPublishedImage()
+	original := publishedImage.Downloads["original"]
+	original.Href = fmt.Sprintf("http://download.ons.gov.uk/images/%s/original/some-image-name", testImageID2)
+	original.Public = false
+	publishedImage.Downloads["original"] = original
+	return publishedImage
 }
 
 var imagesWithCollectionID1 = models.Images{
-	Items:      []models.Image{createdImage, importedImage, publishedImage},
+	Items:      []models.Image{*createdImage(), *importedImage(), *publishedImage()},
 	Count:      3,
 	Limit:      3,
 	TotalCount: 3,
@@ -205,7 +240,7 @@ var imagesWithCollectionID1 = models.Images{
 }
 
 var allImages = models.Images{
-	Items:      []models.Image{createdImage, createdImageNoCollectionID, importedImage, publishedImage},
+	Items:      []models.Image{*createdImage(), *createdImageNoCollectionID(), *importedImage(), *publishedImage()},
 	Count:      4,
 	Limit:      4,
 	TotalCount: 4,
@@ -263,7 +298,7 @@ func TestCreateImageHandler(t *testing.T) {
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
 				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, createdImage)
+				So(retImage, ShouldResemble, *createdImage())
 			})
 		})
 
@@ -279,7 +314,7 @@ func TestCreateImageHandler(t *testing.T) {
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
 				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, createdImage)
+				So(retImage, ShouldResemble, *createdImage())
 			})
 		})
 
@@ -296,7 +331,7 @@ func TestCreateImageHandler(t *testing.T) {
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
 				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, createdImage)
+				So(retImage, ShouldResemble, *createdImage())
 			})
 		})
 
@@ -386,9 +421,9 @@ func doTestGetImageHandler(cfg *config.Config) {
 			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testImageID1:
-					return &createdImage, nil
+					return dbCreatedImage(), nil
 				case testImageID2:
-					return &publishedImage, nil
+					return dbPublishedImage(), nil
 				default:
 					return nil, apierrors.ErrImageNotFound
 				}
@@ -413,7 +448,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
 				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, createdImage)
+				So(retImage, ShouldResemble, *createdImage())
 			})
 		})
 
@@ -429,7 +464,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
 				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, publishedImage)
+				So(retImage, ShouldResemble, *publishedImage())
 			})
 		})
 
@@ -468,9 +503,9 @@ func doTestGetImagesHandler(cfg *config.Config) {
 		mongoDBMock := &mock.MongoServerMock{
 			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
 				if collectionID == testCollectionID1 {
-					return []models.Image{createdImage, importedImage, publishedImage}, nil
+					return []models.Image{*dbCreatedImage(), *dbImportedImage(), *dbPublishedImage()}, nil
 				} else if collectionID == "" {
-					return []models.Image{createdImage, createdImageNoCollectionID, importedImage, publishedImage}, nil
+					return []models.Image{*dbCreatedImage(), *dbCreatedImageNoCollectionID(), *dbImportedImage(), *dbPublishedImage()}, nil
 				} else {
 					return []models.Image{}, nil
 				}
@@ -614,7 +649,7 @@ func TestUpdateImageHandler(t *testing.T) {
 		Convey("And an image in created state in MongoDB", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return &createdImage, nil
+					return dbCreatedImage(), nil
 				},
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
@@ -634,7 +669,7 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, createdImage)
+				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *createdImage())
 			})
 
 			Convey("Calling update image with an image without collectionID results in 200 OK response, and only the provided fields are updated", func() {
@@ -649,7 +684,7 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, createdImageNoCollectionID)
+				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *createdImageNoCollectionID())
 			})
 
 			Convey("Trying to publish an image via update image endpint results in 403 response", func() {
@@ -719,7 +754,7 @@ func TestUpdateImageHandler(t *testing.T) {
 		Convey("And an API with a mongoDB containing an image that does not change on update", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return &createdImage, nil
+					return dbCreatedImage(), nil
 				},
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return false, nil
@@ -748,7 +783,7 @@ func TestUpdateImageHandler(t *testing.T) {
 		Convey("And an API with a mongoDB containing an image that fails to update", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return &createdImage, nil
+					return dbCreatedImage(), nil
 				},
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return false, errors.New("internal mongoDB error")
@@ -773,7 +808,7 @@ func TestUpdateImageHandler(t *testing.T) {
 		Convey("And an image in published state in MongoDB", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return &publishedImage, nil
+					return dbPublishedImage(), nil
 				},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
@@ -807,7 +842,7 @@ func TestUpdateImageHandlerUpload(t *testing.T) {
 		Convey("And an image in created state in MongoDB", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return &createdImage, nil
+					return dbCreatedImage(), nil
 				},
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
@@ -862,7 +897,7 @@ func TestPublishImageHandler(t *testing.T) {
 		Convey("And an image in 'imported' state in MongoDB", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return &importedImage, nil
+					return dbImportedImage(), nil
 				},
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
@@ -897,7 +932,7 @@ func TestPublishImageHandler(t *testing.T) {
 		Convey("And an image in 'created' state in MongoDB (non-publishable)", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return &createdImage, nil
+					return dbCreatedImage(), nil
 				},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
@@ -936,7 +971,7 @@ func TestPublishImageHandler(t *testing.T) {
 		Convey("And an API with a mongoDB containing an imported image that fails to update", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return &importedImage, nil
+					return dbImportedImage(), nil
 				},
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return false, errors.New("internal mongoDB error")
