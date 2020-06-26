@@ -46,8 +46,8 @@ func TestImageValidation(t *testing.T) {
 				Path: "image-upload-path",
 			},
 			Type: "icon",
-			Downloads: map[string]map[string]models.Download{
-				"png": {"resolution": {}},
+			Downloads: map[string]models.Download{
+				"original": {},
 			},
 		}
 		err := image.Validate()
@@ -61,21 +61,23 @@ func TestImageStateTransitionAllowed(t *testing.T) {
 		image := models.Image{
 			State: models.StateCreated.String(),
 		}
-		validateTransitionsFromCreated(image)
+		validateTransitionsToCreated(image)
 	})
 
 	Convey("Given an image with a wrong state value, then no transition is allowed", t, func() {
 		image := models.Image{State: "wrong"}
-		validateTransitionsFromCreated(image)
+		validateTransitionsToCreated(image)
 	})
 
 	Convey("Given an image without state, then created state is assumed when checking for transitions", t, func() {
 		image := models.Image{}
-		validateTransitionsFromCreated(image)
+		validateTransitionsToCreated(image)
 	})
 }
 
-func validateTransitionsFromCreated(image models.Image) {
+// validateTransitionsToCreated validates that the provided image can transition to created state,
+// and not to any forbidden of invalid state
+func validateTransitionsToCreated(image models.Image) {
 	Convey("Then an allowed transition is successfully checked", func() {
 		So(image.StateTransitionAllowed(models.StateCreated.String()), ShouldBeTrue)
 	})
@@ -84,5 +86,36 @@ func validateTransitionsFromCreated(image models.Image) {
 	})
 	Convey("Then a transition to an invalid state is not allowed", func() {
 		So(image.StateTransitionAllowed("wrong"), ShouldBeFalse)
+	})
+}
+
+func TestDownloadStateTransitionAllowed(t *testing.T) {
+	Convey("Given an image download variant in pending state", t, func() {
+		download := models.Download{
+			State: models.StateDownloadPending.String(),
+		}
+		validateDownloadTransitionsToPending(download)
+	})
+
+	Convey("Given an image download varian with a wrong state value, then no transition is allowed", t, func() {
+		download := models.Download{State: "wrong"}
+		validateDownloadTransitionsToPending(download)
+	})
+
+	Convey("Given an image download variant without state, then pending state is assumed when checking for transitions", t, func() {
+		download := models.Download{}
+		validateDownloadTransitionsToPending(download)
+	})
+}
+
+func validateDownloadTransitionsToPending(download models.Download) {
+	Convey("Then an allowed transition is successfully checked", func() {
+		So(download.StateTransitionAllowed(models.StateDownloadPending.String()), ShouldBeTrue)
+	})
+	Convey("Then a forbidden transition to a valid state is not allowed", func() {
+		So(download.StateTransitionAllowed(models.StateDownloadPublished.String()), ShouldBeFalse)
+	})
+	Convey("Then a transition to an invalid state is not allowed", func() {
+		So(download.StateTransitionAllowed("wrong"), ShouldBeFalse)
 	})
 }

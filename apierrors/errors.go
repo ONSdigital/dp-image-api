@@ -20,4 +20,5 @@ var (
 	ErrImageInvalidState              = errors.New("image state is not a valid state name")
 	ErrImageStateTransitionNotAllowed = errors.New("image state transition not allowed")
 	ErrImagePublishWrongEndpoint      = errors.New("wrong endpoint to publish images. Please use 'POST /images/{id}/publish' instead")
+	ErrImageDownloadInvalidState      = errors.New("image download state is not a valid state name")
 )

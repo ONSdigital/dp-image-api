@@ -1,7 +1,7 @@
 github.com/ONSdigital/dp-api-clients-go v1.1.0/go.mod h1:9lqor0I7caCnRWr04gU/r7x5dqxgoODob8L48q+cE4E=
 github.com/ONSdigital/dp-api-clients-go v1.9.0/go.mod h1:SM0b/NXDWndJ9EulmAGdfDY4DxPxK+pNsP8eZlIWiqM=
-github.com/ONSdigital/dp-api-clients-go v1.11.0 h1:xMhvxKcm744MKeqO3U+3xR5tFKOhrlyQetgAjZflDpo=
-github.com/ONSdigital/dp-api-clients-go v1.11.0/go.mod h1:pLIrakQgoa+W23OodCaSI8RHOYaEnxd4kb1bk5LWXtw=
+github.com/ONSdigital/dp-api-clients-go v1.14.0 h1:QPWy2MzCdhFw4tEyrlfmQ5zgCP1+NDiyRuHLKqQXgWs=
+github.com/ONSdigital/dp-api-clients-go v1.14.0/go.mod h1:pLIrakQgoa+W23OodCaSI8RHOYaEnxd4kb1bk5LWXtw=
 github.com/ONSdigital/dp-authorisation v0.1.0 h1:HzYwJdvk7ZAeB56KMAH6MP5+5uZuuJnEyGq6CViDoCg=
 github.com/ONSdigital/dp-authorisation v0.1.0/go.mod h1:rT81tcvWto5/cUWUFd0Q6gTqBoRfQmD6Qp0sq7FyiMg=
 github.com/ONSdigital/dp-frontend-models v1.1.0/go.mod h1:TT96P7Mi69N3Tc/jFNdbjiwG4GAaMjP26HLotFQ6BPw=
@@ -15,8 +15,8 @@ github.com/ONSdigital/dp-mocking v0.0.0-20190905163309-fee2702ad1b9/go.mod h1:Bc
 github.com/ONSdigital/dp-mongodb v1.2.0 h1:WFE4p2cJPgTLMICuvU9y4n+3hcbP4WSDeOGz0rwe0lQ=
 github.com/ONSdigital/dp-mongodb v1.2.0/go.mod h1:Yq2GazmrVEn1GEZ0Qw/Igmeo3mzsmKAJst1s7EbSkOo=
 github.com/ONSdigital/dp-net v1.0.2/go.mod h1:wDVhk2pYosQ1q6PXxuFIRYhYk2XX5+1CeRRnXpSczPY=
-github.com/ONSdigital/dp-net v1.0.4-0.20200521155446-34cf3d4fece1 h1:QR2j7KNU6DOfQj9F4wVQ8DOIrDNuyuEt6kJ2YTm5nSM=
-github.com/ONSdigital/dp-net v1.0.4-0.20200521155446-34cf3d4fece1/go.mod h1:wDVhk2pYosQ1q6PXxuFIRYhYk2XX5+1CeRRnXpSczPY=
+github.com/ONSdigital/dp-net v1.0.4 h1:wqu2YnCFc0L70wBiJygkWqyP8te6xMzwgpO5UMxlOdM=
+github.com/ONSdigital/dp-net v1.0.4/go.mod h1:wDVhk2pYosQ1q6PXxuFIRYhYk2XX5+1CeRRnXpSczPY=
 github.com/ONSdigital/dp-rchttp v0.0.0-20190919143000-bb5699e6fd59/go.mod h1:KkW68U3FPuivW4ogi9L8CPKNj9ZxGko4qcUY7KoAAkQ=
 github.com/ONSdigital/dp-rchttp v0.0.0-20200114090501-463a529590e8/go.mod h1:821jZtK0oBsV8hjIkNr8vhAWuv0FxJBPJuAHa2B70Gk=
 github.com/ONSdigital/dp-rchttp v1.0.0 h1:K/1/gDtfMZCX1Mbmq80nZxzDirzneqA1c89ea26FqP4=

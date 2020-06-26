@@ -168,24 +168,42 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 	}
 
 	if image.Downloads != nil {
-		for variantKey, variant := range image.Downloads {
-			for resolutionKey, download := range variant {
-				if download.Size != nil {
-					updates[fmt.Sprintf("downloads.%s.%s.size", variantKey, resolutionKey)] = download.Size
-				}
-				if download.Href != "" {
-					updates[fmt.Sprintf("downloads.%s.%s.href", variantKey, resolutionKey)] = download.Href
-				}
-				if download.Public != "" {
-					updates[fmt.Sprintf("downloads.%s.%s.public", variantKey, resolutionKey)] = download.Public
-				}
-				if download.Private != "" {
-					updates[fmt.Sprintf("downloads.%s.%s.private", variantKey, resolutionKey)] = download.Private
-				}
+		for variant, download := range image.Downloads {
+			if download.Size != nil {
+				updates[fmt.Sprintf("downloads.%s.size", variant)] = download.Size
+			}
+			if download.Type != "" {
+				updates[fmt.Sprintf("downloads.%s.type", variant)] = download.Type
+			}
+			if download.Width != nil {
+				updates[fmt.Sprintf("downloads.%s.width", variant)] = download.Width
+			}
+			if download.Height != nil {
+				updates[fmt.Sprintf("downloads.%s.height", variant)] = download.Height
+			}
+			if download.Private != "" {
+				updates[fmt.Sprintf("downloads.%s.private_bucket", variant)] = download.Private
+			}
+			if download.State != "" {
+				updates[fmt.Sprintf("downloads.%s.state", variant)] = download.State
+			}
+			if download.Error != "" {
+				updates[fmt.Sprintf("downloads.%s.error", variant)] = download.Error
+			}
+			if download.ImportStarted != nil {
+				updates[fmt.Sprintf("downloads.%s.import_started", variant)] = download.ImportStarted
+			}
+			if download.ImportCompleted != nil {
+				updates[fmt.Sprintf("downloads.%s.import_completed", variant)] = download.ImportCompleted
+			}
+			if download.PublishStarted != nil {
+				updates[fmt.Sprintf("downloads.%s.publish_started", variant)] = download.PublishStarted
+			}
+			if download.PublishCompleted != nil {
+				updates[fmt.Sprintf("downloads.%s.publish_completed", variant)] = download.PublishCompleted
 			}
 		}
 	}
-
 	return updates
 }
 

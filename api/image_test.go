@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/api"
@@ -39,8 +40,17 @@ const (
 	longName          = "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch"
 )
 
+var (
+	testSize             = 1024
+	testWidth            = 123
+	testHeight           = 321
+	testImportStarted    = time.Date(2020, time.April, 26, 8, 5, 52, 0, time.UTC)
+	testImportCompleted  = time.Date(2020, time.April, 26, 8, 7, 32, 0, time.UTC)
+	testPublishStarted   = time.Date(2020, time.April, 26, 9, 51, 3, 0, time.UTC)
+	testPublishCompleted = time.Date(2020, time.April, 26, 10, 1, 28, 0, time.UTC)
+)
+
 var errMongoDB = errors.New("MongoDB generic error")
-var testSize = 1024
 
 // Empty JSON Payload
 var emptyJsonPayload = `{}`
@@ -99,13 +109,20 @@ var (
 			"path": "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png"
 		},
 		"downloads": {
-			"png": {
-				"1920x1080": {
-					"size": 1024,
-					"href": "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png",
-					"public": "my-public-bucket",
-					"private": "my-private-bucket"
-				}
+			"original": {
+				"size": 1024,
+				"type": "originally uploaded file",
+				"width": 123,
+				"height": 321,
+				"public": true,
+				"href": "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png",
+				"private": "my-private-bucket",
+				"state": "published",
+				"error": "",
+				"import_started": "2020-04-26T08:05:52Z",
+				"import_completed": "2020-04-26T08:07:32+00:00",
+				"publish_started": "2020-04-26T09:51:03-00:00",
+				"publish_completed": "2020-04-26T10:01:28Z"
 			}
 		}
 	}`
@@ -159,32 +176,39 @@ var publishedImage = models.Image{
 	Upload: &models.Upload{
 		Path: "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png",
 	},
-	Downloads: map[string]map[string]models.Download{
-		"png": {
-			"1920x1080": models.Download{
-				Size:    &testSize,
-				Href:    "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png",
-				Public:  "my-public-bucket",
-				Private: "my-private-bucket",
-			},
+	Downloads: map[string]models.Download{
+		"original": {
+			Size:             &testSize,
+			Type:             "originally uploaded file",
+			Width:            &testWidth,
+			Height:           &testHeight,
+			Public:           true,
+			Href:             "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png",
+			Private:          "my-private-bucket",
+			State:            models.StateDownloadPublished.String(),
+			Error:            "",
+			ImportStarted:    &testImportStarted,
+			ImportCompleted:  &testImportCompleted,
+			PublishStarted:   &testPublishStarted,
+			PublishCompleted: &testPublishCompleted,
 		},
 	},
 	State: models.StatePublished.String(),
 }
 
 var imagesWithCollectionID1 = models.Images{
-	Items:      []models.Image{createdImage, publishedImage},
-	Count:      2,
-	Limit:      2,
-	TotalCount: 2,
+	Items:      []models.Image{createdImage, importedImage, publishedImage},
+	Count:      3,
+	Limit:      3,
+	TotalCount: 3,
 	Offset:     0,
 }
 
 var allImages = models.Images{
-	Items:      []models.Image{createdImage, createdImageNoCollectionID, publishedImage},
-	Count:      3,
-	Limit:      3,
-	TotalCount: 3,
+	Items:      []models.Image{createdImage, createdImageNoCollectionID, importedImage, publishedImage},
+	Count:      4,
+	Limit:      4,
+	TotalCount: 4,
 	Offset:     0,
 }
 
@@ -444,9 +468,9 @@ func doTestGetImagesHandler(cfg *config.Config) {
 		mongoDBMock := &mock.MongoServerMock{
 			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
 				if collectionID == testCollectionID1 {
-					return []models.Image{createdImage, publishedImage}, nil
+					return []models.Image{createdImage, importedImage, publishedImage}, nil
 				} else if collectionID == "" {
-					return []models.Image{createdImage, createdImageNoCollectionID, publishedImage}, nil
+					return []models.Image{createdImage, createdImageNoCollectionID, importedImage, publishedImage}, nil
 				} else {
 					return []models.Image{}, nil
 				}
@@ -716,7 +740,7 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{
 					ID:        testImageID1,
-					Downloads: map[string]map[string]models.Download{}},
+					Downloads: map[string]models.Download{}},
 				)
 			})
 		})

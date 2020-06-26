@@ -333,11 +333,7 @@ definitions:
         type: string
         description: "Full URL pointing to the image in download service"
         example: "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png"
-      public_bucket:
-        type: string
-        description: "S3 Public bucket name"
-        example: "my-pubic-bucket"
-      private_bucket:
+      private:
         type: string
         description: "S3 Private bucket name"
         example: "my-private-bucket"
@@ -357,21 +353,21 @@ definitions:
         description: "Any error information, if there was an error with this image variant"
         example: "import process failed"
       import_started:
-        type: integer
-        description: "Timestamp (since unix epoch) for the importing process start"
-        example: 1593000000
+        type: string
+        description: "Timestamp representation for the importing process start, formatted according to RFC3339"
+        example: "2020-04-26T08:05:52Z"
       import_completed:
-        type: integer
-        description: "Timestamp (since unix epoch) for the importing process completion"
-        example: 1593000010
+        type: string
+        description: "Timestamp representation for the importing process completion, formatted according to RFC3339"
+        example: "2020-04-26T08:07:32+00:00"
       publish_started:
-        type: integer
-        description: "Timestamp (since unix epoch) for the publishing process start"
-        example: 1593000020
+        type: string
+        description: "Timestamp representation for the publishing process start, formatted according to RFC3339"
+        example: "2020-04-26T09:51:03-00:00"
       publish_completed:
-        type: integer
-        description: "Timestamp (since unix epoch) for the publishing process completion"
-        example: 1593000030
+        type: string
+        description: "Timestamp representation for the publishing process completion, formatted according to RFC3339"
+        example: "2020-04-26T10:01:28Z"
 
 securityDefinitions:
 

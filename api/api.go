@@ -119,7 +119,8 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 		case apierrors.ErrResourceState,
 			apierrors.ErrImageAlreadyPublished,
 			apierrors.ErrImageStateTransitionNotAllowed,
-			apierrors.ErrImagePublishWrongEndpoint:
+			apierrors.ErrImagePublishWrongEndpoint,
+			apierrors.ErrImageDownloadInvalidState:
 			status = http.StatusForbidden
 		default:
 			status = http.StatusInternalServerError
