@@ -17,6 +17,7 @@ var (
 	ErrUnableToParseJSON                = errors.New("failed to parse json body")
 	ErrImageFilenameTooLong             = errors.New("image filename is too long")
 	ErrImageNoCollectionID              = errors.New("image does not have a collectionID")
+	ErrImageAlreadyPublished            = errors.New("image is already published")
 	ErrImageAlreadyCompleted            = errors.New("image is already completed")
 	ErrImageInvalidState                = errors.New("image state is not a valid state name")
 	ErrImageStateTransitionNotAllowed   = errors.New("image state transition not allowed")
