@@ -184,6 +184,33 @@ paths:
           $ref: '#/responses/NotFound'
         500:
           $ref: '#/responses/InternalError'
+    
+  /images/{image_id}/downloads/{variant}/import:
+    post:
+      tags:
+      - "image"
+      summary: "Import an image download variant"
+      description: "Update an image download variant state to 'importing' state, just before the variant is generated."
+      parameters:
+      - $ref: '#/parameters/image_id'
+      - $ref: '#/parameters/variant'
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
+      responses:
+        200:
+          description: "The image download variant was successfully updated to 'importing' state."
+        400:
+          description: "Invalid request"
+        401:
+          $ref: '#/responses/Unauthenticated'
+        403:
+          description: "Unauthorised to import image download variant or the image or download variant is in wrong state to be imported"
+        404:
+          $ref: '#/responses/NotFound'
+        500:
+          $ref: '#/responses/InternalError'
 
 responses:
 
@@ -419,6 +446,13 @@ parameters:
   image_id:
     name: image_id
     description: "A unique id for an image metadata entry"
+    required: true
+    in: path
+    type: string
+  
+  variant:
+    name: variant
+    description: "A unique image download variant identifier"
     required: true
     in: path
     type: string
