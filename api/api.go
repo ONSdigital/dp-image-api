@@ -44,6 +44,7 @@ func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHand
 		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Update: true}, api.UpdateImageHandler)).Methods(http.MethodPut)
 		r.HandleFunc("/images/{id}/upload", auth.Require(dpauth.Permissions{Update: true}, api.UploadImageHandler)).Methods(http.MethodPost)
 		r.HandleFunc("/images/{id}/publish", auth.Require(dpauth.Permissions{Update: true}, api.PublishImageHandler)).Methods(http.MethodPost)
+		r.HandleFunc("/images/{id}/downloads/{variant}/import", auth.Require(dpauth.Permissions{Update: true}, api.ImportVariantHandler)).Methods(http.MethodPost)
 	} else {
 		r.HandleFunc("/images", api.GetImagesHandler).Methods(http.MethodGet)
 		r.HandleFunc("/images/{id}", api.GetImageHandler).Methods(http.MethodGet)
@@ -106,7 +107,8 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 	var status int
 	if err != nil {
 		switch err {
-		case apierrors.ErrImageNotFound:
+		case apierrors.ErrImageNotFound,
+			apierrors.ErrVariantNotFound:
 			status = http.StatusNotFound
 		case apierrors.ErrUnableToReadMessage,
 			apierrors.ErrColIDMismatch,
@@ -118,8 +120,10 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			apierrors.ErrImageIDMismatch:
 			status = http.StatusBadRequest
 		case apierrors.ErrResourceState,
-			apierrors.ErrImageAlreadyPublished,
+			apierrors.ErrImageAlreadyCompleted,
 			apierrors.ErrImageStateTransitionNotAllowed,
+			apierrors.ErrVariantStateTransitionNotAllowed,
+			apierrors.ErrImagePublishWrongEndpoint,
 			apierrors.ErrImageDownloadInvalidState:
 			status = http.StatusForbidden
 		default:

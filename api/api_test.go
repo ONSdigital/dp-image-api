@@ -47,6 +47,7 @@ func TestSetup(t *testing.T) {
 				So(hasRoute(api.Router, "/images/{id}", http.MethodPut), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}/upload", http.MethodPost), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPost), ShouldBeTrue)
+				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}/import", http.MethodPost), ShouldBeTrue)
 			})
 
 			Convey("And auth handler is called once per route with the expected permissions", func() {
@@ -63,6 +64,8 @@ func TestSetup(t *testing.T) {
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/upload
 				So(authHandlerMock.RequireCalls()[5].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/publish
+				So(authHandlerMock.RequireCalls()[5].Required, ShouldResemble, dpauth.Permissions{
+					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/downloads/{variant}/import
 			})
 		})
 
