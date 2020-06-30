@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/event"
@@ -22,6 +23,7 @@ var NewID = func() string {
 // CreateImageHandler is a handler that inserts an image into mongoDB with a newly generated ID
 func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
+
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
@@ -173,6 +175,14 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	image.ID = id
+
+	// If caller tries to publish using this endpoint, return an error (publish endpoint must be used instead)
+	if image.State == models.StatePublished.String() {
+		handleError(ctx, w, apierrors.ErrImagePublishWrongEndpoint, logdata)
+		return
+	}
+
+	// TODO lock with defer unlock
 
 	// get existing image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
@@ -363,5 +373,71 @@ var ImagePublishedEvent = func(path string) *event.ImagePublished {
 	return &event.ImagePublished{
 		SrcPath: path,
 		DstPath: path,
+	}
+}
+
+// ImportVariantHandler is a handler that imports a download variant for an image
+func (api *API) ImportVariantHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
+	variant := vars["variant"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
+	logdata := log.Data{
+		handlers.CollectionID.Header(): hColID,
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"image-id":                     id,
+		"download-variant":             variant,
+	}
+
+	// image import to perform
+	now := time.Now()
+	imageUpdate := &models.Image{
+		State: models.StateImporting.String(),
+		Downloads: map[string]models.Download{
+			variant: {
+				State:         models.StateDownloadImporting.String(),
+				ImportStarted: &now,
+			},
+		},
+	}
+
+	// TODO lock mongoDB with defer unlock
+
+	// get image from mongoDB by id
+	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// get requested variant
+	downloadVariant, found := existingImage.Downloads[variant]
+	if !found {
+		handleError(ctx, w, apierrors.ErrVariantNotFound, logdata)
+		return
+	}
+
+	// validate that the high level importing transition state is allowed
+	if !existingImage.StateTransitionAllowed(models.StateImporting.String()) {
+		logdata["current_state"] = existingImage.State
+		logdata["target_state"] = imageUpdate.State
+		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
+		return
+	}
+
+	// validate that the download variant state transition is allowed
+	if !downloadVariant.StateTransitionAllowed(models.StateDownloadImporting.String()) {
+		logdata["current_state"] = existingImage.State
+		logdata["target_state"] = imageUpdate.State
+		handleError(ctx, w, apierrors.ErrVariantStateTransitionNotAllowed, logdata)
+		return
+	}
+
+	// Update image in mongo DB
+	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
 	}
 }
