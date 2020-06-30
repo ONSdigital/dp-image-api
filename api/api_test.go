@@ -64,7 +64,7 @@ func TestSetup(t *testing.T) {
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/upload
 				So(authHandlerMock.RequireCalls()[5].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/publish
-				So(authHandlerMock.RequireCalls()[5].Required, ShouldResemble, dpauth.Permissions{
+				So(authHandlerMock.RequireCalls()[6].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/downloads/{variant}/import
 			})
 		})

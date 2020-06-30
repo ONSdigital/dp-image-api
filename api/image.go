@@ -23,7 +23,10 @@ var NewID = func() string {
 // CreateImageHandler is a handler that inserts an image into mongoDB with a newly generated ID
 func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
+<<<<<<< HEAD
 
+=======
+>>>>>>> Added unit tests for Import variant
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
@@ -175,12 +178,6 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	image.ID = id
-
-	// If caller tries to publish using this endpoint, return an error (publish endpoint must be used instead)
-	if image.State == models.StatePublished.String() {
-		handleError(ctx, w, apierrors.ErrImagePublishWrongEndpoint, logdata)
-		return
-	}
 
 	// TODO lock with defer unlock
 
