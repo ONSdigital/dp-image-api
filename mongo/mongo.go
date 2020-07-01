@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
@@ -14,18 +15,33 @@ import (
 	"github.com/ONSdigital/log.go/log"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+	lock "github.com/square/mongo-lock"
 )
 
+// images collection name
 const imagesCol = "images"
+
+// Time to live for a lock, in seconds
+const lockTTL = 30
+
+// Time period between expired lock purges
+const purgerPeriod = 10 * time.Second
+
+// Time period between acquire lock retries
+const acquirePeriod = 100 * time.Millisecond
 
 // Mongo represents a simplistic MongoDB configuration.
 type Mongo struct {
-	Collection   string
-	Database     string
-	Session      *mgo.Session
-	URI          string
-	client       *dpMongoHealth.Client
-	healthClient *dpMongoHealth.CheckMongoClient
+	Collection    string
+	Database      string
+	Session       *mgo.Session
+	URI           string
+	client        *dpMongoHealth.Client
+	healthClient  *dpMongoHealth.CheckMongoClient
+	lockClient    *lock.Client
+	closerChannel chan struct{}
+	lockPurger    lock.Purger
+	lockWaitgroup *sync.WaitGroup
 }
 
 // Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
@@ -47,11 +63,66 @@ func (m *Mongo) Init() (err error) {
 		Client:      *m.client,
 		Healthcheck: m.client.Healthcheck,
 	}
+
+	// Create MongoDB lock client with the required and recommended indexes
+	m.lockClient = lock.NewClient(m.Session, m.Database, m.Collection)
+	m.lockClient.CreateIndexes()
+	m.lockPurger = lock.NewPurger(m.lockClient)
+	m.closerChannel = make(chan struct{})
+	m.lockWaitgroup = &sync.WaitGroup{}
+	m.lockWaitgroup.Add(1)
+	go func() {
+		m.lockWaitgroup.Done()
+		for {
+			select {
+			case <-m.closerChannel:
+				log.Event(nil, "closing mongo db lock purger go-routine", log.INFO)
+				break
+			case <-time.After(purgerPeriod):
+				log.Event(nil, "purging expired mongoDB locks", log.INFO, log.Data{"resource": "image"})
+				m.lockPurger.Purge()
+			}
+		}
+	}()
 	return nil
+}
+
+// LockImage acquires an exclusive mongoDB lock for the provided image id, with the default TTL value. If the image is already locked, an error will be returned
+func (m *Mongo) LockImage(id string) error {
+	return m.lockClient.XLock(id, fmt.Sprintf("image-%s", id), lock.LockDetails{
+		TTL: lockTTL,
+	})
+}
+
+// AcquireImageLock tries to lock the provided imageID.
+// If the image is already locked, this function will block until it's released,
+// at which point we acquire the lock and return.
+func (m *Mongo) AcquireImageLock(id string) error {
+	for {
+		if err := m.LockImage(id); err != lock.ErrAlreadyLocked {
+			return err
+		}
+		select {
+		case <-time.After(acquirePeriod):
+			log.Event(nil, "check lock again", log.INFO)
+		case <-m.closerChannel:
+			log.Event(nil, "stop acquiring lock. Mongo db is being closed", log.INFO)
+			return errors.New("mongo db is being closed")
+
+		}
+	}
+}
+
+// UnlockImage releases an exclusive mongoDB lock for the provided image id (if it exists)
+func (m *Mongo) UnlockImage(id string) error {
+	_, err := m.lockClient.Unlock(fmt.Sprintf("image-%s", id))
+	return err
 }
 
 // Close closes the mongo session and returns any error
 func (m *Mongo) Close(ctx context.Context) error {
+	close(m.closerChannel)
+	m.lockWaitgroup.Wait()
 	return dpMongodb.Close(ctx, m.Session)
 }
 
