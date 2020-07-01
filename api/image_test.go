@@ -216,6 +216,8 @@ func dbCreatedImageNoCollectionID() *models.Image {
 func createdImageNoCollectionID() *models.Image {
 	return dbCreatedImageNoCollectionID()
 }
+
+// API model corresponding to dbCreatedImageNoCollectionID, without a state value
 func updateImageNoCollectionID() *models.Image {
 	image := *dbCreatedImageNoCollectionID()
 	image.State = ""
@@ -619,7 +621,8 @@ func TestUpdateImageHandler(t *testing.T) {
 		}
 
 		Convey("And an empty MongoDB mock", func() {
-			imageApi := GetAPIWithMocks(cfg, &mock.MongoServerMock{}, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			mongoMock := &mock.MongoServerMock{}
+			imageApi := GetAPIWithMocks(cfg, mongoMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
 			Convey("Calling update image with an invalid body results in 400 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString("wrong"))
@@ -655,6 +658,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -671,6 +676,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *updateImage())
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 
 			Convey("Calling update image with an image without collectionID results in 200 OK response, and only the provided fields are updated", func() {
@@ -686,6 +693,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *updateImageNoCollectionID())
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -694,6 +703,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return nil, apierrors.ErrImageNotFound
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -706,6 +717,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(w.Code, ShouldEqual, http.StatusNotFound)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, "inexistent")
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -714,6 +727,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return nil, errors.New("internal mongoDB error")
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -726,6 +741,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -737,6 +754,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return false, nil
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -755,6 +774,8 @@ func TestUpdateImageHandler(t *testing.T) {
 					ID:        testImageID1,
 					Downloads: map[string]models.Download{}},
 				)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -766,6 +787,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return false, errors.New("internal mongoDB error")
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -780,6 +803,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -788,6 +813,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImage(models.StatePublished), nil
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -800,6 +827,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(w.Code, ShouldEqual, http.StatusForbidden)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 	})
@@ -825,6 +854,8 @@ func TestUploadImageHandler(t *testing.T) {
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, uploadedProducer, kafkaStubProducer)
 
@@ -846,6 +877,8 @@ func TestUploadImageHandler(t *testing.T) {
 					},
 					State: "uploaded",
 				})
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 
 				Convey("And the expected avro event is sent to the corresponding kafka output channel", func() {
 					expectedBytes, err := schema.ImageUploadedEvent.Marshal(&event.ImageUploaded{
@@ -879,6 +912,8 @@ func TestUploadImageHandler(t *testing.T) {
 					GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 						return dbUploadedImage(), nil
 					},
+					AcquireImageLockFunc: func(id string) error { return nil },
+					UnlockImageFunc:      func(id string) error { return nil },
 				}
 				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -923,6 +958,8 @@ func TestPublishImageHandler(t *testing.T) {
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 
 			Convey("Calling 'publish image' results in 200 OK response with the expected image state update to mongoDB and the message sent to kafka producer", func() {
@@ -939,6 +976,8 @@ func TestPublishImageHandler(t *testing.T) {
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(mongoDBMock.UpdateImageCalls()[0].Image.State, ShouldEqual, models.StatePublished.String())
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 
 				Convey("And the expected avro event is sent to the corresponding kafka output channel, with the expected source and dest paths", func() {
 					// Note: the paths correspond to the path part of DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
@@ -1004,6 +1043,8 @@ func TestPublishImageHandler(t *testing.T) {
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImage(models.StateCreated), nil
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1016,6 +1057,8 @@ func TestPublishImageHandler(t *testing.T) {
 				So(w.Code, ShouldEqual, http.StatusForbidden)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -1024,6 +1067,8 @@ func TestPublishImageHandler(t *testing.T) {
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return nil, errors.New("internal mongoDB error")
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1035,6 +1080,8 @@ func TestPublishImageHandler(t *testing.T) {
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -1046,6 +1093,8 @@ func TestPublishImageHandler(t *testing.T) {
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return false, errors.New("internal mongoDB error")
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1061,6 +1110,8 @@ func TestPublishImageHandler(t *testing.T) {
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(mongoDBMock.UpdateImageCalls()[0].Image.State, ShouldEqual, models.StatePublished.String())
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 	})
@@ -1085,6 +1136,8 @@ func TestImportVariantHandler(t *testing.T) {
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1104,6 +1157,8 @@ func TestImportVariantHandler(t *testing.T) {
 				So(update.State, ShouldResemble, models.StateImporting.String())
 				So(update.Downloads[testVariantOriginal].State, ShouldResemble, models.StateDownloadImporting.String())
 				So(*update.Downloads[testVariantOriginal].ImportStarted, ShouldHappenOnOrBetween, t0, time.Now())
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -1112,6 +1167,8 @@ func TestImportVariantHandler(t *testing.T) {
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImage(models.StateUploaded), nil
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1124,6 +1181,8 @@ func TestImportVariantHandler(t *testing.T) {
 				So(w.Code, ShouldEqual, http.StatusNotFound)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -1132,6 +1191,8 @@ func TestImportVariantHandler(t *testing.T) {
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return nil, errMongoDB
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1144,6 +1205,8 @@ func TestImportVariantHandler(t *testing.T) {
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -1155,6 +1218,8 @@ func TestImportVariantHandler(t *testing.T) {
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return false, errMongoDB
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1169,6 +1234,8 @@ func TestImportVariantHandler(t *testing.T) {
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -1177,6 +1244,8 @@ func TestImportVariantHandler(t *testing.T) {
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbFullImage(models.StateUploaded, models.StateDownloadPublished), nil
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1189,6 +1258,8 @@ func TestImportVariantHandler(t *testing.T) {
 				So(w.Code, ShouldEqual, http.StatusForbidden)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 
@@ -1197,6 +1268,8 @@ func TestImportVariantHandler(t *testing.T) {
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbFullImage(models.StateCreated, models.StateDownloadPending), nil
 				},
+				AcquireImageLockFunc: func(id string) error { return nil },
+				UnlockImageFunc:      func(id string) error { return nil },
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1209,6 +1282,8 @@ func TestImportVariantHandler(t *testing.T) {
 				So(w.Code, ShouldEqual, http.StatusForbidden)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
 		})
 	})
