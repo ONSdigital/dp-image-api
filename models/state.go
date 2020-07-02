@@ -40,56 +40,56 @@ func (s State) TransitionAllowed(target State) bool {
 	switch s {
 	case StateCreated:
 		switch target {
-		case StateCreated, StateUploaded, StateDeleted:
+		case StateUploaded, StateDeleted:
 			return true
 		default:
 			return false
 		}
 	case StateUploaded:
 		switch target {
-		case StateUploaded, StateImporting, StateDeleted:
+		case StateImporting, StateDeleted:
 			return true
 		default:
 			return false
 		}
 	case StateImporting:
 		switch target {
-		case StateImporting, StateImported, StateFailedImport, StateDeleted:
+		case StateImported, StateFailedImport, StateDeleted:
 			return true
 		default:
 			return false
 		}
 	case StateImported:
 		switch target {
-		case StateImported, StatePublished, StateDeleted:
+		case StatePublished, StateDeleted:
 			return true
 		default:
 			return false
 		}
 	case StatePublished:
 		switch target {
-		case StatePublished, StateCompleted, StateFailedPublish, StateDeleted:
+		case StateCompleted, StateFailedPublish, StateDeleted:
 			return true
 		default:
 			return false
 		}
 	case StateCompleted:
 		switch target {
-		case StateCompleted, StateDeleted:
+		case StateDeleted:
 			return true
 		default:
 			return false
 		}
 	case StateFailedImport:
 		switch target {
-		case StateFailedImport, StateDeleted:
+		case StateDeleted:
 			return true
 		default:
 			return false
 		}
 	case StateFailedPublish:
 		switch target {
-		case StateFailedPublish, StateDeleted:
+		case StateDeleted:
 			return true
 		default:
 			return false

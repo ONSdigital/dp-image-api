@@ -138,11 +138,6 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 	log.Event(ctx, "Successfully retrieved image", log.INFO, logdata)
 }
 
-// isUploadOperation returns true if the provided imageUpdate defines an upload operation (i.e. Upload path provided)
-func isUploadOperation(imageUpdate *models.Image) bool {
-	return imageUpdate.Upload != nil && imageUpdate.Upload.Path != ""
-}
-
 // UpdateImageHandler is a handler that updates an existing image in MongoDB
 func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
@@ -161,6 +156,10 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
+
+	// PUT should not affect the state so clear it if it is supplied
+	image.State = ""
+
 	if err := image.Validate(); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
@@ -173,12 +172,6 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	image.ID = id
-
-	// If caller tries to publish using this endpoint, return an error (publish endpoint must be used instead)
-	if image.State == models.StatePublished.String() {
-		handleError(ctx, w, apierrors.ErrImagePublishWrongEndpoint, logdata)
-		return
-	}
 
 	// get existing image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
@@ -203,21 +196,17 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// if the image is already completed, it cannot be updated
+	if existingImage.State == models.StateCompleted.String() {
+		handleError(ctx, w, apierrors.ErrImageAlreadyCompleted, logdata)
+		return
+	}
+
 	// Update image in mongo DB
 	didChange, err := api.mongoDB.UpdateImage(ctx, id, image)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
-	}
-
-	// If it is an upload operation, generate the kafka event to trigger it
-	if isUploadOperation(image) {
-		log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
-		event := event.ImageUploaded{
-			ImageID: image.ID,
-			Path:    image.Upload.Path,
-		}
-		api.uploadProducer.ImageUploaded(&event)
 	}
 
 	// get updated image from mongoDB by id (if it changed)
@@ -235,6 +224,61 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	log.Event(ctx, "successfully updated image", log.INFO, logdata)
+
+}
+
+func (api *API) UploadImageHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
+	logdata := log.Data{
+		handlers.CollectionID.Header(): hColID,
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"image-id":                     id,
+	}
+
+	// Unmarshal upload from body and validate it
+	upload := &models.Upload{}
+	if err := ReadJSONBody(ctx, req.Body, upload, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	imageUpdate := &models.Image{
+		State:  models.StateUploaded.String(),
+		Upload: upload,
+	}
+
+	// get existing image from mongoDB by id
+	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// validate that the uploaded transition state is allowed
+	if !existingImage.StateTransitionAllowed(imageUpdate.State) {
+		logdata["current_state"] = existingImage.State
+		logdata["target_state"] = imageUpdate.State
+		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
+		return
+	}
+
+	// Update image in mongo DB
+	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// Generate the kafka event to trigger the upload
+	log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
+	event := event.ImageUploaded{
+		ImageID: id,
+		Path:    upload.Path,
+	}
+	api.uploadProducer.ImageUploaded(&event)
 
 }
 

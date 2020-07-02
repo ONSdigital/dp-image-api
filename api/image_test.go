@@ -80,9 +80,7 @@ var newImageWithStatePayloadFmt = `{
 
 // Image Upload Payload without any extra field.
 var imageUploadPayloadFmt = `{
-	"upload": {
-		"path": "%s"
-	}
+	"path": "%s"
 }`
 
 // Image Upload Payload with extra state field.
@@ -149,6 +147,13 @@ func createdImage() *models.Image {
 	return dbCreatedImage()
 }
 
+// API model with state removed
+func updateImage() *models.Image {
+	image := *dbCreatedImage()
+	image.State = ""
+	return &image
+}
+
 // DB model corresponding to an image in imported state
 func dbImportedImage() *models.Image {
 	return &models.Image{
@@ -161,6 +166,22 @@ func dbImportedImage() *models.Image {
 		},
 		Type:  "chart",
 		State: models.StateImported.String(),
+	}
+}
+
+// DB model corresponding to an image in uploaded state
+func dbUploadedImage() *models.Image {
+	return &models.Image{
+		ID:           testImageID1,
+		CollectionID: testCollectionID1,
+		Filename:     "some-image-name",
+		License: &models.License{
+			Title: "Open Government Licence v3.0",
+			Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+		},
+		Type:   "chart",
+		State:  models.StateUploaded.String(),
+		Upload: &models.Upload{Path: testUploadPath},
 	}
 }
 
@@ -186,6 +207,11 @@ func dbCreatedImageNoCollectionID() *models.Image {
 // API model corresponding to dbCreatedImageNoCollectionID
 func createdImageNoCollectionID() *models.Image {
 	return dbCreatedImageNoCollectionID()
+}
+func updateImageNoCollectionID() *models.Image {
+	image := *dbCreatedImageNoCollectionID()
+	image.State = ""
+	return &image
 }
 
 // DB model corresponding to an image in published state
@@ -669,7 +695,7 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *createdImage())
+				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *updateImage())
 			})
 
 			Convey("Calling update image with an image without collectionID results in 200 OK response, and only the provided fields are updated", func() {
@@ -684,30 +710,7 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *createdImageNoCollectionID())
-			})
-
-			Convey("Trying to publish an image via update image endpint results in 403 response", func() {
-				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
-					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StatePublished.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
-				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusForbidden)
-				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 0)
-				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
-			})
-
-			Convey("Calling update with a forbidden state transition", func() {
-				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
-					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateImported.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
-				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusForbidden)
-				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 0)
+				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *updateImageNoCollectionID())
 			})
 		})
 
@@ -827,7 +830,7 @@ func TestUpdateImageHandler(t *testing.T) {
 	})
 }
 
-func TestUpdateImageHandlerUpload(t *testing.T) {
+func TestUploadImageHandler(t *testing.T) {
 
 	Convey("Given a valid config, auth handler, kafka producer", t, func() {
 		cfg, err := config.Get()
@@ -850,24 +853,23 @@ func TestUpdateImageHandlerUpload(t *testing.T) {
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, uploadedProducer, kafkaStubProducer)
 
-			Convey("Calling update image with a valid image upload results in 200 OK response with the expected image provided to mongoDB and the message sent to kafka producer", func() {
-				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
+			Convey("Calling image upload with a valid image upload results in 200 OK response with the expected image provided to mongoDB and the message sent to kafka producer", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/upload", testImageID1), bytes.NewBufferString(
 					fmt.Sprintf(imageUploadPayloadFmt, testUploadPath)))
 				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 
 				sentBytes := serveHTTPAndReadKafka(w, r, imageApi, uploadedProducer)
 				So(w.Code, ShouldEqual, http.StatusOK)
-				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 2)
+				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{
-					ID: testImageID1,
 					Upload: &models.Upload{
 						Path: testUploadPath,
 					},
+					State: "uploaded",
 				})
 
 				Convey("And the expected avro event is sent to the corresponding kafka output channel", func() {
@@ -877,6 +879,27 @@ func TestUpdateImageHandlerUpload(t *testing.T) {
 					})
 					So(err, ShouldBeNil)
 					So(expectedBytes, ShouldResemble, sentBytes)
+				})
+			})
+
+			Convey("Calling image upload on an image that is already uploaded returns a 403 response.", func() {
+				mongoDBMock := &mock.MongoServerMock{
+					GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+						return dbUploadedImage(), nil
+					},
+				}
+				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+				Convey("Calling 'publish image' results in 403 Forbidden response", func() {
+					r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/upload", testImageID1), bytes.NewBufferString(
+						fmt.Sprintf(imageUploadPayloadFmt, testUploadPath)))
+					r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+					r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+					w := httptest.NewRecorder()
+					imageApi.Router.ServeHTTP(w, r)
+					So(w.Code, ShouldEqual, http.StatusForbidden)
+					So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+					So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
 				})
 			})
 		})

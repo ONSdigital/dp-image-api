@@ -9,8 +9,8 @@ import (
 
 func TestStateValidation(t *testing.T) {
 
-	Convey("Given a Created State, then only transitions to created, uploaded and deleted are allowed", t, func() {
-		So(models.StateCreated.TransitionAllowed(models.StateCreated), ShouldBeTrue)
+	Convey("Given a Created State, then only transitions to uploaded and deleted are allowed", t, func() {
+		So(models.StateCreated.TransitionAllowed(models.StateCreated), ShouldBeFalse)
 		So(models.StateCreated.TransitionAllowed(models.StateUploaded), ShouldBeTrue)
 		So(models.StateCreated.TransitionAllowed(models.StateImporting), ShouldBeFalse)
 		So(models.StateCreated.TransitionAllowed(models.StateImported), ShouldBeFalse)
@@ -21,9 +21,9 @@ func TestStateValidation(t *testing.T) {
 		So(models.StateCreated.TransitionAllowed(models.StateFailedPublish), ShouldBeFalse)
 	})
 
-	Convey("Given a Uploaded State, then only transitions to uploaded, importing and deleted are allowed", t, func() {
+	Convey("Given a Uploaded State, then only transitions to importing and deleted are allowed", t, func() {
 		So(models.StateUploaded.TransitionAllowed(models.StateCreated), ShouldBeFalse)
-		So(models.StateUploaded.TransitionAllowed(models.StateUploaded), ShouldBeTrue)
+		So(models.StateUploaded.TransitionAllowed(models.StateUploaded), ShouldBeFalse)
 		So(models.StateUploaded.TransitionAllowed(models.StateImporting), ShouldBeTrue)
 		So(models.StateUploaded.TransitionAllowed(models.StateImported), ShouldBeFalse)
 		So(models.StateUploaded.TransitionAllowed(models.StatePublished), ShouldBeFalse)
@@ -33,10 +33,10 @@ func TestStateValidation(t *testing.T) {
 		So(models.StateUploaded.TransitionAllowed(models.StateFailedPublish), ShouldBeFalse)
 	})
 
-	Convey("Given an Importing State, then only transitions to importing, imported, failedImport and deleted are allowed", t, func() {
+	Convey("Given an Importing State, then only transitions to imported, failedImport and deleted are allowed", t, func() {
 		So(models.StateImporting.TransitionAllowed(models.StateCreated), ShouldBeFalse)
 		So(models.StateImporting.TransitionAllowed(models.StateUploaded), ShouldBeFalse)
-		So(models.StateImporting.TransitionAllowed(models.StateImporting), ShouldBeTrue)
+		So(models.StateImporting.TransitionAllowed(models.StateImporting), ShouldBeFalse)
 		So(models.StateImporting.TransitionAllowed(models.StateImported), ShouldBeTrue)
 		So(models.StateImporting.TransitionAllowed(models.StatePublished), ShouldBeFalse)
 		So(models.StateImporting.TransitionAllowed(models.StateCompleted), ShouldBeFalse)
@@ -45,11 +45,11 @@ func TestStateValidation(t *testing.T) {
 		So(models.StateImporting.TransitionAllowed(models.StateFailedPublish), ShouldBeFalse)
 	})
 
-	Convey("Given an Imported State, then only transitions to imported, published and deleted are allowed", t, func() {
+	Convey("Given an Imported State, then only transitions to published and deleted are allowed", t, func() {
 		So(models.StateImported.TransitionAllowed(models.StateCreated), ShouldBeFalse)
 		So(models.StateImported.TransitionAllowed(models.StateUploaded), ShouldBeFalse)
 		So(models.StateImported.TransitionAllowed(models.StateImporting), ShouldBeFalse)
-		So(models.StateImported.TransitionAllowed(models.StateImported), ShouldBeTrue)
+		So(models.StateImported.TransitionAllowed(models.StateImported), ShouldBeFalse)
 		So(models.StateImported.TransitionAllowed(models.StatePublished), ShouldBeTrue)
 		So(models.StateImported.TransitionAllowed(models.StateCompleted), ShouldBeFalse)
 		So(models.StateImported.TransitionAllowed(models.StateDeleted), ShouldBeTrue)
@@ -57,25 +57,25 @@ func TestStateValidation(t *testing.T) {
 		So(models.StateImported.TransitionAllowed(models.StateFailedPublish), ShouldBeFalse)
 	})
 
-	Convey("Given a Published State, then only transitions to published, failedPublish, completed and deleted are allowed", t, func() {
+	Convey("Given a Published State, then only transitions to failedPublish, completed and deleted are allowed", t, func() {
 		So(models.StatePublished.TransitionAllowed(models.StateCreated), ShouldBeFalse)
 		So(models.StatePublished.TransitionAllowed(models.StateUploaded), ShouldBeFalse)
 		So(models.StatePublished.TransitionAllowed(models.StateImporting), ShouldBeFalse)
 		So(models.StatePublished.TransitionAllowed(models.StateImported), ShouldBeFalse)
-		So(models.StatePublished.TransitionAllowed(models.StatePublished), ShouldBeTrue)
+		So(models.StatePublished.TransitionAllowed(models.StatePublished), ShouldBeFalse)
 		So(models.StatePublished.TransitionAllowed(models.StateCompleted), ShouldBeTrue)
 		So(models.StatePublished.TransitionAllowed(models.StateDeleted), ShouldBeTrue)
 		So(models.StatePublished.TransitionAllowed(models.StateFailedImport), ShouldBeFalse)
 		So(models.StatePublished.TransitionAllowed(models.StateFailedPublish), ShouldBeTrue)
 	})
 
-	Convey("Given a Completed State, then only transitions to completed and deleted are allowed", t, func() {
+	Convey("Given a Completed State, then only transitions to deleted are allowed", t, func() {
 		So(models.StateCompleted.TransitionAllowed(models.StateCreated), ShouldBeFalse)
 		So(models.StateCompleted.TransitionAllowed(models.StateUploaded), ShouldBeFalse)
 		So(models.StateCompleted.TransitionAllowed(models.StateImporting), ShouldBeFalse)
 		So(models.StateCompleted.TransitionAllowed(models.StateImported), ShouldBeFalse)
 		So(models.StateCompleted.TransitionAllowed(models.StatePublished), ShouldBeFalse)
-		So(models.StateCompleted.TransitionAllowed(models.StateCompleted), ShouldBeTrue)
+		So(models.StateCompleted.TransitionAllowed(models.StateCompleted), ShouldBeFalse)
 		So(models.StateCompleted.TransitionAllowed(models.StateDeleted), ShouldBeTrue)
 		So(models.StateCompleted.TransitionAllowed(models.StateFailedImport), ShouldBeFalse)
 		So(models.StateCompleted.TransitionAllowed(models.StateFailedPublish), ShouldBeFalse)
@@ -93,7 +93,7 @@ func TestStateValidation(t *testing.T) {
 		So(models.StateDeleted.TransitionAllowed(models.StateFailedPublish), ShouldBeFalse)
 	})
 
-	Convey("Given a FailedImport State, then only transitions to FailedImport and deleted are allowed", t, func() {
+	Convey("Given a FailedImport State, then only transitions to deleted are allowed", t, func() {
 		So(models.StateFailedImport.TransitionAllowed(models.StateCreated), ShouldBeFalse)
 		So(models.StateFailedImport.TransitionAllowed(models.StateUploaded), ShouldBeFalse)
 		So(models.StateFailedImport.TransitionAllowed(models.StateImporting), ShouldBeFalse)
@@ -101,11 +101,11 @@ func TestStateValidation(t *testing.T) {
 		So(models.StateFailedImport.TransitionAllowed(models.StatePublished), ShouldBeFalse)
 		So(models.StateFailedImport.TransitionAllowed(models.StateCompleted), ShouldBeFalse)
 		So(models.StateFailedImport.TransitionAllowed(models.StateDeleted), ShouldBeTrue)
-		So(models.StateFailedImport.TransitionAllowed(models.StateFailedImport), ShouldBeTrue)
+		So(models.StateFailedImport.TransitionAllowed(models.StateFailedImport), ShouldBeFalse)
 		So(models.StateFailedImport.TransitionAllowed(models.StateFailedPublish), ShouldBeFalse)
 	})
 
-	Convey("Given a FailedPublish State, then only transitions to FailedPublish and deleted are allowed", t, func() {
+	Convey("Given a FailedPublish State, then only transitions to deleted are allowed", t, func() {
 		So(models.StateFailedPublish.TransitionAllowed(models.StateCreated), ShouldBeFalse)
 		So(models.StateFailedPublish.TransitionAllowed(models.StateUploaded), ShouldBeFalse)
 		So(models.StateFailedPublish.TransitionAllowed(models.StateImporting), ShouldBeFalse)
@@ -114,6 +114,6 @@ func TestStateValidation(t *testing.T) {
 		So(models.StateFailedPublish.TransitionAllowed(models.StateCompleted), ShouldBeFalse)
 		So(models.StateFailedPublish.TransitionAllowed(models.StateDeleted), ShouldBeTrue)
 		So(models.StateFailedPublish.TransitionAllowed(models.StateFailedImport), ShouldBeFalse)
-		So(models.StateFailedPublish.TransitionAllowed(models.StateFailedPublish), ShouldBeTrue)
+		So(models.StateFailedPublish.TransitionAllowed(models.StateFailedPublish), ShouldBeFalse)
 	})
 }

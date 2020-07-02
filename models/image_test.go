@@ -168,7 +168,7 @@ func TestImageStateTransitionAllowed(t *testing.T) {
 // and not to any forbidden of invalid state
 func validateTransitionsToCreated(image models.Image) {
 	Convey("Then an allowed transition is successfully checked", func() {
-		So(image.StateTransitionAllowed(models.StateCreated.String()), ShouldBeTrue)
+		So(image.StateTransitionAllowed(models.StateUploaded.String()), ShouldBeTrue)
 	})
 	Convey("Then a forbidden transition to a valid state is not allowed", func() {
 		So(image.StateTransitionAllowed(models.StatePublished.String()), ShouldBeFalse)
