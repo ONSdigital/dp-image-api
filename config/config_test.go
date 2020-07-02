@@ -18,7 +18,7 @@ func TestConfig(t *testing.T) {
 			})
 
 			Convey("Then the values should be set to the expected defaults", func() {
-				So(cfg.BindAddr, ShouldEqual, ":24700")
+				So(cfg.BindAddr, ShouldEqual, "localhost:24700")
 				So(cfg.Brokers, ShouldResemble, []string{"localhost:9092"})
 				So(cfg.KafkaMaxBytes, ShouldEqual, 2000000)
 				So(cfg.ImageUploadedTopic, ShouldEqual, "image-uploaded")
