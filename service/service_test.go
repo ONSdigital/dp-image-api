@@ -265,7 +265,7 @@ func TestRunPublishing(t *testing.T) {
 				So(hcMock.AddCheckCalls()[2].Name, ShouldResemble, "Published Kafka Producer")
 				So(hcMock.AddCheckCalls()[3].Name, ShouldEqual, "Zebedee")
 				So(len(initMock.DoGetHTTPServerCalls()), ShouldEqual, 1)
-				So(initMock.DoGetHTTPServerCalls()[0].BindAddr, ShouldEqual, ":24700")
+				So(initMock.DoGetHTTPServerCalls()[0].BindAddr, ShouldEqual, "localhost:24700")
 				So(len(hcMock.StartCalls()), ShouldEqual, 1)
 				serverWg.Wait() // Wait for HTTP server go-routine to finish
 				So(len(serverMock.ListenAndServeCalls()), ShouldEqual, 1)

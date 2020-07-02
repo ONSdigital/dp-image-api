@@ -137,7 +137,7 @@ paths:
       tags:
         - "image"
       summary: "Upload an image"
-      description: ". This call sets the image state to 'uploaded'."
+      description: "Supplies the uploaded file location and requests that the image be imported. This call sets the image state to 'uploaded'."
       parameters:
         - $ref: '#/parameters/image_id'
         - $ref: '#/parameters/upload_image'
