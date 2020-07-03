@@ -111,20 +111,16 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			apierrors.ErrVariantNotFound:
 			status = http.StatusNotFound
 		case apierrors.ErrUnableToReadMessage,
-			apierrors.ErrColIDMismatch,
 			apierrors.ErrUnableToParseJSON,
-			apierrors.ErrWrongColID,
 			apierrors.ErrImageFilenameTooLong,
 			apierrors.ErrImageNoCollectionID,
 			apierrors.ErrImageInvalidState,
 			apierrors.ErrImageIDMismatch:
 			status = http.StatusBadRequest
-		case apierrors.ErrResourceState,
-			apierrors.ErrImageAlreadyPublished,
+		case apierrors.ErrImageAlreadyPublished,
 			apierrors.ErrImageAlreadyCompleted,
 			apierrors.ErrImageStateTransitionNotAllowed,
 			apierrors.ErrVariantStateTransitionNotAllowed,
-			apierrors.ErrImagePublishWrongEndpoint,
 			apierrors.ErrImageDownloadInvalidState:
 			status = http.StatusForbidden
 		default:

@@ -175,11 +175,12 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	image.ID = id
 
 	// Acquire lock for image ID, and defer unlocking
-	if err := api.mongoDB.AcquireImageLock(id); err != nil {
+	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
+	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	defer api.mongoDB.UnlockImage(id)
+	defer api.mongoDB.UnlockImage(lockID)
 
 	// get existing image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
@@ -260,11 +261,12 @@ func (api *API) UploadImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Acquire lock for image ID, and defer unlocking
-	if err := api.mongoDB.AcquireImageLock(id); err != nil {
+	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
+	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	defer api.mongoDB.UnlockImage(id)
+	defer api.mongoDB.UnlockImage(lockID)
 
 	// get existing image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
@@ -313,11 +315,12 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 	imageUpdate := &models.Image{State: models.StatePublished.String()}
 
 	// Acquire lock for image ID, and defer unlocking
-	if err := api.mongoDB.AcquireImageLock(id); err != nil {
+	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
+	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	defer api.mongoDB.UnlockImage(id)
+	defer api.mongoDB.UnlockImage(lockID)
 
 	// get image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
@@ -376,11 +379,12 @@ func (api *API) ImportVariantHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Acquire lock for image ID, and defer unlocking
-	if err := api.mongoDB.AcquireImageLock(id); err != nil {
+	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
+	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	defer api.mongoDB.UnlockImage(id)
+	defer api.mongoDB.UnlockImage(lockID)
 
 	// get image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
