@@ -10,7 +10,7 @@ import (
 func TestDownloadStateValidation(t *testing.T) {
 
 	Convey("Given a Pending download state, then only transitions to pending and importing are allowed", t, func() {
-		So(models.StateDownloadPending.TransitionAllowed(models.StateDownloadPending), ShouldBeTrue)
+		So(models.StateDownloadPending.TransitionAllowed(models.StateDownloadPending), ShouldBeFalse)
 		So(models.StateDownloadPending.TransitionAllowed(models.StateDownloadImporting), ShouldBeTrue)
 		So(models.StateDownloadPending.TransitionAllowed(models.StateDownloadImported), ShouldBeFalse)
 		So(models.StateDownloadPending.TransitionAllowed(models.StateDownloadPublished), ShouldBeFalse)
@@ -20,7 +20,7 @@ func TestDownloadStateValidation(t *testing.T) {
 
 	Convey("Given a Importing download state, then only transitions to importing, imported and failed are allowed", t, func() {
 		So(models.StateDownloadImporting.TransitionAllowed(models.StateDownloadPending), ShouldBeFalse)
-		So(models.StateDownloadImporting.TransitionAllowed(models.StateDownloadImporting), ShouldBeTrue)
+		So(models.StateDownloadImporting.TransitionAllowed(models.StateDownloadImporting), ShouldBeFalse)
 		So(models.StateDownloadImporting.TransitionAllowed(models.StateDownloadImported), ShouldBeTrue)
 		So(models.StateDownloadImporting.TransitionAllowed(models.StateDownloadPublished), ShouldBeFalse)
 		So(models.StateDownloadImporting.TransitionAllowed(models.StateDownloadCompleted), ShouldBeFalse)
@@ -30,7 +30,7 @@ func TestDownloadStateValidation(t *testing.T) {
 	Convey("Given a Imported download state, then only transitions to imported and published are allowed", t, func() {
 		So(models.StateDownloadImported.TransitionAllowed(models.StateDownloadPending), ShouldBeFalse)
 		So(models.StateDownloadImported.TransitionAllowed(models.StateDownloadImporting), ShouldBeFalse)
-		So(models.StateDownloadImported.TransitionAllowed(models.StateDownloadImported), ShouldBeTrue)
+		So(models.StateDownloadImported.TransitionAllowed(models.StateDownloadImported), ShouldBeFalse)
 		So(models.StateDownloadImported.TransitionAllowed(models.StateDownloadPublished), ShouldBeTrue)
 		So(models.StateDownloadImported.TransitionAllowed(models.StateDownloadCompleted), ShouldBeFalse)
 		So(models.StateDownloadImported.TransitionAllowed(models.StateDownloadFailed), ShouldBeFalse)
@@ -40,7 +40,7 @@ func TestDownloadStateValidation(t *testing.T) {
 		So(models.StateDownloadPublished.TransitionAllowed(models.StateDownloadPending), ShouldBeFalse)
 		So(models.StateDownloadPublished.TransitionAllowed(models.StateDownloadImporting), ShouldBeFalse)
 		So(models.StateDownloadPublished.TransitionAllowed(models.StateDownloadImported), ShouldBeFalse)
-		So(models.StateDownloadPublished.TransitionAllowed(models.StateDownloadPublished), ShouldBeTrue)
+		So(models.StateDownloadPublished.TransitionAllowed(models.StateDownloadPublished), ShouldBeFalse)
 		So(models.StateDownloadPublished.TransitionAllowed(models.StateDownloadCompleted), ShouldBeTrue)
 		So(models.StateDownloadPublished.TransitionAllowed(models.StateDownloadFailed), ShouldBeFalse)
 	})
@@ -50,7 +50,7 @@ func TestDownloadStateValidation(t *testing.T) {
 		So(models.StateDownloadCompleted.TransitionAllowed(models.StateDownloadImporting), ShouldBeFalse)
 		So(models.StateDownloadCompleted.TransitionAllowed(models.StateDownloadImported), ShouldBeFalse)
 		So(models.StateDownloadCompleted.TransitionAllowed(models.StateDownloadPublished), ShouldBeFalse)
-		So(models.StateDownloadCompleted.TransitionAllowed(models.StateDownloadCompleted), ShouldBeTrue)
+		So(models.StateDownloadCompleted.TransitionAllowed(models.StateDownloadCompleted), ShouldBeFalse)
 		So(models.StateDownloadCompleted.TransitionAllowed(models.StateDownloadFailed), ShouldBeFalse)
 	})
 
@@ -60,6 +60,6 @@ func TestDownloadStateValidation(t *testing.T) {
 		So(models.StateDownloadFailed.TransitionAllowed(models.StateDownloadImported), ShouldBeFalse)
 		So(models.StateDownloadFailed.TransitionAllowed(models.StateDownloadPublished), ShouldBeFalse)
 		So(models.StateDownloadFailed.TransitionAllowed(models.StateDownloadCompleted), ShouldBeFalse)
-		So(models.StateDownloadFailed.TransitionAllowed(models.StateDownloadFailed), ShouldBeTrue)
+		So(models.StateDownloadFailed.TransitionAllowed(models.StateDownloadFailed), ShouldBeFalse)
 	})
 }

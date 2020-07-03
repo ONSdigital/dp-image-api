@@ -54,7 +54,7 @@ func (s State) TransitionAllowed(target State) bool {
 		}
 	case StateImporting:
 		switch target {
-		case StateImported, StateFailedImport, StateDeleted:
+		case StateImporting, StateImported, StateFailedImport, StateDeleted:
 			return true
 		default:
 			return false

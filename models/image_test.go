@@ -261,7 +261,7 @@ func TestDownloadStateTransitionAllowed(t *testing.T) {
 
 func validateDownloadTransitionsToPending(download models.Download) {
 	Convey("Then an allowed transition is successfully checked", func() {
-		So(download.StateTransitionAllowed(models.StateDownloadPending.String()), ShouldBeTrue)
+		So(download.StateTransitionAllowed(models.StateImporting.String()), ShouldBeTrue)
 	})
 	Convey("Then a forbidden transition to a valid state is not allowed", func() {
 		So(download.StateTransitionAllowed(models.StateDownloadPublished.String()), ShouldBeFalse)
