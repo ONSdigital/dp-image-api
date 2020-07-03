@@ -37,46 +37,36 @@ func (ds DownloadState) TransitionAllowed(target DownloadState) bool {
 	switch ds {
 	case StateDownloadPending:
 		switch target {
-		case StateDownloadPending, StateDownloadImporting:
+		case StateDownloadImporting:
 			return true
 		default:
 			return false
 		}
 	case StateDownloadImporting:
 		switch target {
-		case StateDownloadImporting, StateDownloadImported, StateDownloadFailed:
+		case StateDownloadImported, StateDownloadFailed:
 			return true
 		default:
 			return false
 		}
 	case StateDownloadImported:
 		switch target {
-		case StateDownloadImported, StateDownloadPublished:
+		case StateDownloadPublished:
 			return true
 		default:
 			return false
 		}
 	case StateDownloadPublished:
 		switch target {
-		case StateDownloadPublished, StateDownloadCompleted:
-			return true
-		default:
-			return false
-		}
-	case StateDownloadCompleted:
-		switch target {
 		case StateDownloadCompleted:
 			return true
 		default:
 			return false
 		}
+	case StateDownloadCompleted:
+		return false
 	case StateDownloadFailed:
-		switch target {
-		case StateDownloadFailed:
-			return true
-		default:
-			return false
-		}
+		return false
 	default:
 		return false
 	}
