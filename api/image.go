@@ -423,3 +423,89 @@ func (api *API) ImportVariantHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 }
+
+// CompleteVariantHandler is a handler that completes a download variant for an image,
+// and it also completes the image if all its variants have been completed.
+func (api *API) CompleteVariantHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
+	variant := vars["variant"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
+	logdata := log.Data{
+		handlers.CollectionID.Header(): hColID,
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"image-id":                     id,
+		"download-variant":             variant,
+	}
+
+	// complete update
+	now := time.Now()
+	imageUpdate := &models.Image{
+		Downloads: map[string]models.Download{
+			variant: {
+				State:            models.StateDownloadCompleted.String(),
+				PublishCompleted: &now,
+			},
+		},
+	}
+
+	// Acquire lock for image ID, and defer unlocking
+	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	defer api.mongoDB.UnlockImage(lockID)
+
+	// get image from mongoDB by id
+	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// get requested variant
+	downloadVariant, found := existingImage.Downloads[variant]
+	if !found {
+		handleError(ctx, w, apierrors.ErrVariantNotFound, logdata)
+		return
+	}
+
+	// The high level image needs to be in 'published' state to allow a complete variant operation
+	if existingImage.State != models.StatePublished.String() {
+		handleError(ctx, w, apierrors.ErrImageNotPublished, logdata)
+		return
+	}
+
+	// validate that the download variant state transition is allowed
+	if !downloadVariant.StateTransitionAllowed(models.StateDownloadCompleted.String()) {
+		logdata["current_state"] = existingImage.State
+		logdata["target_state"] = imageUpdate.State
+		handleError(ctx, w, apierrors.ErrVariantStateTransitionNotAllowed, logdata)
+		return
+	}
+
+	// if all downloads are completed, then set the high level state to completed
+	if existingImage.AllOtherDownloadsCompleted(variant) {
+		imageUpdate.State = models.StateCompleted.String()
+	}
+
+	// if any download failed, then set the high level state to failed_publish and if all of them are completed, set it to completed.
+	if existingImage.AnyDownloadFailed() {
+		log.Event(ctx, "setting high level image state to 'failed_publish' because at least one of the "+
+			"other download variants for this image failed to import", log.WARN, logdata)
+		imageUpdate.State = models.StateFailedPublish.String()
+	} else if existingImage.AllOtherDownloadsCompleted(variant) {
+		log.Event(ctx, "setting high level image state to 'completed' because all download variants have been completed", log.INFO, logdata)
+		imageUpdate.State = models.StateCompleted.String()
+	}
+
+	// Update image in mongo DB
+	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+}

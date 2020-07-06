@@ -1237,3 +1237,207 @@ func serveHTTPAndReadKafka(w *httptest.ResponseRecorder, r *http.Request, imageA
 	wg.Wait()
 	return sentBytes
 }
+
+func TestCompleteVariantHandler(t *testing.T) {
+
+	Convey("Given a valid config, auth handler", t, func() {
+		cfg, err := config.Get()
+		So(err, ShouldBeNil)
+		authHandlerMock := &mock.AuthHandlerMock{
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+				return handler
+			},
+		}
+		mongoDBMock := &mock.MongoServerMock{
+			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+			UnlockImageFunc:      func(id string) error { return nil },
+		}
+
+		Convey("And an image in 'published' state in MongoDB, with a download variant in 'published' state", func() {
+			mongoDBMock.GetImageFunc = func(ctx context.Context, id string) (*models.Image, error) {
+				return dbFullImage(models.StatePublished, models.StateDownloadPublished), nil
+			}
+			mongoDBMock.UpdateImageFunc = func(ctx context.Context, id string, image *models.Image) (bool, error) { return true, nil }
+			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling 'complete variant' for the image results in 200 OK response and the image is completed", func() {
+				t0 := time.Now()
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s/complete", testImageID2, testVariantOriginal), nil)
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusOK)
+				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
+				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldResemble, testImageID2)
+				update := mongoDBMock.UpdateImageCalls()[0].Image
+				So(update.State, ShouldResemble, models.StateCompleted.String())
+				So(update.Downloads[testVariantOriginal].State, ShouldResemble, models.StateDownloadCompleted.String())
+				So(*update.Downloads[testVariantOriginal].PublishCompleted, ShouldHappenOnOrBetween, t0, time.Now())
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
+			})
+		})
+
+		Convey("And an image in 'published' state in MongoDB, with 2 download variants in 'published' state", func() {
+			mongoDBMock.GetImageFunc = func(ctx context.Context, id string) (*models.Image, error) {
+				i := dbFullImage(models.StatePublished, models.StateDownloadPublished)
+				i.Downloads["png_w500"] = models.Download{State: models.StateDownloadPublished.String()}
+				return i, nil
+			}
+			mongoDBMock.UpdateImageFunc = func(ctx context.Context, id string, image *models.Image) (bool, error) { return true, nil }
+			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling 'complete variant' for the image results in 200 OK response, the variant is completed, but the image is not", func() {
+				t0 := time.Now()
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s/complete", testImageID2, testVariantOriginal), nil)
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusOK)
+				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
+				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldResemble, testImageID2)
+				update := mongoDBMock.UpdateImageCalls()[0].Image
+				So(update.State, ShouldResemble, "")
+				So(update.Downloads[testVariantOriginal].State, ShouldResemble, models.StateDownloadCompleted.String())
+				So(*update.Downloads[testVariantOriginal].PublishCompleted, ShouldHappenOnOrBetween, t0, time.Now())
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
+			})
+		})
+
+		Convey("And an image in 'published' state in MongoDB, with a download variants in 'published' state and another in 'failed' state", func() {
+			mongoDBMock.GetImageFunc = func(ctx context.Context, id string) (*models.Image, error) {
+				i := dbFullImage(models.StatePublished, models.StateDownloadPublished)
+				i.Downloads["png_w500"] = models.Download{State: models.StateDownloadFailed.String()}
+				return i, nil
+			}
+			mongoDBMock.UpdateImageFunc = func(ctx context.Context, id string, image *models.Image) (bool, error) { return true, nil }
+			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling 'complete variant' for the published variant results in 200 OK response, the variant is completed, but the image is set to 'import_failed' state", func() {
+				t0 := time.Now()
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s/complete", testImageID2, testVariantOriginal), nil)
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusOK)
+				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
+				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldResemble, testImageID2)
+				update := mongoDBMock.UpdateImageCalls()[0].Image
+				So(update.State, ShouldResemble, models.StateFailedPublish.String())
+				So(update.Downloads[testVariantOriginal].State, ShouldResemble, models.StateDownloadCompleted.String())
+				So(*update.Downloads[testVariantOriginal].PublishCompleted, ShouldHappenOnOrBetween, t0, time.Now())
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
+			})
+		})
+
+		Convey("And an image in a state in 'created' state", func() {
+			mongoDBMock.GetImageFunc = func(ctx context.Context, id string) (*models.Image, error) {
+				return dbFullImage(models.StateCreated, models.StateDownloadPending), nil
+			}
+			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling 'complete variant' for the image results in 403 Forbidden response and nothing is updated", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s/complete", testImageID2, testVariantOriginal), nil)
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusForbidden)
+				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
+			})
+		})
+
+		Convey("And an image in 'published' state in MongoDB, with a download variants in 'pending' state (unexpected)", func() {
+			mongoDBMock.GetImageFunc = func(ctx context.Context, id string) (*models.Image, error) {
+				return dbFullImage(models.StatePublished, models.StateDownloadPending), nil
+			}
+			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling 'complete variant' for the variant results in 403 Forbiden response and nothing is updated", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s/complete", testImageID2, testVariantOriginal), nil)
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusForbidden)
+				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
+			})
+		})
+
+		Convey("And a MongoDB mock that fails to lock", func() {
+			mongoDBMock := &mock.MongoServerMock{
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return "", errMongoDB },
+			}
+			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling 'complete variant' for the variant results in 500 StatusInternalServerError response", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s/complete", testImageID2, testVariantOriginal), nil)
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusInternalServerError)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+			})
+		})
+
+		Convey("And a MongoDB mock that returns an error on GetImage", func() {
+			mongoDBMock.GetImageFunc = func(ctx context.Context, id string) (*models.Image, error) {
+				return nil, errMongoDB
+			}
+			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling 'complete variant' for the variant results in 500 StatusInternalServerError response", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s/complete", testImageID2, testVariantOriginal), nil)
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusInternalServerError)
+				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
+			})
+		})
+
+		Convey("And a MongoDB mock that returns an error on UpdateImage", func() {
+			mongoDBMock.GetImageFunc = func(ctx context.Context, id string) (*models.Image, error) {
+				return dbFullImage(models.StatePublished, models.StateDownloadPublished), nil
+			}
+			mongoDBMock.UpdateImageFunc = func(ctx context.Context, id string, image *models.Image) (bool, error) { return false, errMongoDB }
+			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling 'complete variant' for the variant results in 500 StatusInternalServerError response", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s/complete", testImageID2, testVariantOriginal), nil)
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusInternalServerError)
+				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
+				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
+			})
+		})
+	})
+}
