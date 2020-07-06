@@ -36,7 +36,7 @@ func TestStateValidation(t *testing.T) {
 	Convey("Given an Importing State, then only transitions to importing, imported, failedImport and deleted are allowed", t, func() {
 		So(models.StateImporting.TransitionAllowed(models.StateCreated), ShouldBeFalse)
 		So(models.StateImporting.TransitionAllowed(models.StateUploaded), ShouldBeFalse)
-		So(models.StateImporting.TransitionAllowed(models.StateImporting), ShouldBeTrue)
+		So(models.StateImporting.TransitionAllowed(models.StateImporting), ShouldBeFalse)
 		So(models.StateImporting.TransitionAllowed(models.StateImported), ShouldBeTrue)
 		So(models.StateImporting.TransitionAllowed(models.StatePublished), ShouldBeFalse)
 		So(models.StateImporting.TransitionAllowed(models.StateCompleted), ShouldBeFalse)

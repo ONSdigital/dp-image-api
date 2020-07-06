@@ -440,8 +440,8 @@ func (api *API) ImportVariantHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// validate that the high level importing transition state is allowed
-	if !existingImage.StateTransitionAllowed(models.StateImporting.String()) {
+	// if the high level image is not already in importing state, validate that the transition is allowed
+	if existingImage.State != models.StateImporting.String() && !existingImage.StateTransitionAllowed(models.StateImporting.String()) {
 		logdata["current_state"] = existingImage.State
 		logdata["target_state"] = imageUpdate.State
 		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
