@@ -8,6 +8,55 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func TestImageAllOtherDownloadsCompleted(t *testing.T) {
+	Convey("Given an image with all download variants in completed state except the original", t, func() {
+		image := models.Image{
+			Downloads: map[string]models.Download{
+				"original": {State: models.StatePublished.String()},
+				"var1":     {State: models.StateDownloadCompleted.String()},
+				"var2":     {State: models.StateDownloadCompleted.String()},
+			},
+		}
+		Convey("Then AllOtherDownloadsCompleted for the original returns true", func() {
+			So(image.AllOtherDownloadsCompleted("original"), ShouldBeTrue)
+		})
+		Convey("Then AllOtherDownloadsCompleted for var1 returns false", func() {
+			So(image.AllOtherDownloadsCompleted("var1"), ShouldBeFalse)
+		})
+		Convey("Then AllOtherDownloadsCompleted for an inexistent variant returns false", func() {
+			So(image.AllOtherDownloadsCompleted("wrong"), ShouldBeFalse)
+		})
+	})
+}
+
+func TestImageAnyDownloadFailed(t *testing.T) {
+	Convey("Given an image with all download variants in non-failed state", t, func() {
+		image := models.Image{
+			Downloads: map[string]models.Download{
+				"original": {State: models.StateDownloadCompleted.String()},
+				"var1":     {State: models.StateDownloadPublished.String()},
+				"var2":     {State: models.StateDownloadCompleted.String()},
+			},
+		}
+		Convey("Then AnyDownloadFailed returns false", func() {
+			So(image.AnyDownloadFailed(), ShouldBeFalse)
+		})
+	})
+
+	Convey("Given an image with all download variants in valid state except the original, which is in failed state", t, func() {
+		image := models.Image{
+			Downloads: map[string]models.Download{
+				"original": {State: models.StateDownloadFailed.String()},
+				"var1":     {State: models.StatePublished.String()},
+				"var2":     {State: models.StateDownloadCompleted.String()},
+			},
+		}
+		Convey("Then AnyDownloadFailed returns true", func() {
+			So(image.AnyDownloadFailed(), ShouldBeTrue)
+		})
+	})
+}
+
 func TestImagesRefresh(t *testing.T) {
 	Convey("Given an images struct with an image that contains a download variant", t, func() {
 		images := models.Images{

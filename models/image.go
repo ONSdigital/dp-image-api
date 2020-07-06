@@ -118,6 +118,27 @@ func (i *Image) StateTransitionAllowed(target string) bool {
 	return currentState.TransitionAllowed(targetState)
 }
 
+// AnyDownloadFailed returns true if any image download variant is in failed state
+func (i *Image) AnyDownloadFailed() bool {
+	for _, download := range i.Downloads {
+		if download.State == StateDownloadFailed.String() {
+			return true
+		}
+	}
+	return false
+}
+
+// AllOtherDownloadsCompleted returns true if all download variants are in completed state,
+// ignoring the provided variantToIgnore (if it exists)
+func (i *Image) AllOtherDownloadsCompleted(variantToIgnore string) bool {
+	for v, download := range i.Downloads {
+		if v != variantToIgnore && download.State != StateDownloadCompleted.String() {
+			return false
+		}
+	}
+	return true
+}
+
 // Validate checks that an image struct complies with the state name constraint, if provided.
 func (d *Download) Validate() error {
 	if d.State != "" {

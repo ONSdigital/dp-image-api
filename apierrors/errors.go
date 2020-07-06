@@ -18,6 +18,7 @@ var (
 	ErrImageAlreadyCompleted            = errors.New("image is already completed")
 	ErrImageInvalidState                = errors.New("image state is not a valid state name")
 	ErrImageStateTransitionNotAllowed   = errors.New("image state transition not allowed")
+	ErrImageNotPublished                = errors.New("image is not published")
 	ErrVariantStateTransitionNotAllowed = errors.New("image download variant state transition not allowed")
 	ErrImageDownloadInvalidState        = errors.New("image download state is not a valid state name")
 )
