@@ -211,6 +211,31 @@ paths:
           $ref: '#/responses/NotFound'
         500:
           $ref: '#/responses/InternalError'
+  
+  /images/{image_id}/downloads/{variant}/complete:
+    post:
+      tags:
+      - "image"
+      summary: "Complete an image download variant"
+      description: "Update an image download variant to 'completed' state. If all download variants have been completed, the high level image state will also be updated to 'completed'. If any download variant failed to publish, the high level image state will be updated to 'failed_publish'."
+      parameters:
+      - $ref: '#/parameters/image_id'
+      - $ref: '#/parameters/variant'
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
+      responses:
+        200:
+          description: "The image download variant was successfully updated to 'completed' state."
+        401:
+          $ref: '#/responses/Unauthenticated'
+        403:
+          description: "Unauthorised to complete image download variant or the image or download variant is in wrong state to be completed"
+        404:
+          $ref: '#/responses/NotFound'
+        500:
+          $ref: '#/responses/InternalError'
 
 responses:
 
