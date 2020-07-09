@@ -920,7 +920,9 @@ func TestPublishImageHandler(t *testing.T) {
 		Convey("And an image in 'imported' state in MongoDB", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return dbImportedImage(), nil
+					image := dbImportedImage()
+					image.Downloads = map[string]models.Download{"original": {}, "png_w500": {}}
+					return image, nil
 				},
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
@@ -942,9 +944,21 @@ func TestPublishImageHandler(t *testing.T) {
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(mongoDBMock.UpdateImageCalls()[0].Image.State, ShouldEqual, models.StatePublished.String())
 
-				Convey("And the expected avro event is sent to the corresponding kafka output channel", func() {
+				Convey("And the expected avro event is sent to the corresponding kafka output channel, with the expected source and dest paths", func() {
+					// Note: the paths can be understood from the DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
+					expectedPathOriginal := fmt.Sprintf("/images/%s/original/some-image-name", testImageID1)
+					expectedPathPngW500 := fmt.Sprintf("/images/%s/png_w500/some-image-name", testImageID1)
 					expectedBytes, err := schema.ImagePublishedEvent.Marshal(&event.ImagePublished{
-						ImageID: testImageID1,
+						Downloads: []event.ImageDownloadPublished{
+							{
+								SrcPath: expectedPathOriginal,
+								DstPath: expectedPathOriginal,
+							},
+							{
+								SrcPath: expectedPathPngW500,
+								DstPath: expectedPathPngW500,
+							},
+						},
 					})
 					So(err, ShouldBeNil)
 					So(expectedBytes, ShouldResemble, sentBytes)

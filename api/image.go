@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/event"
@@ -311,6 +312,13 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// generate imagePublished kafka event before updating mongoDB, in case it fails
+	e, err := generateImagePublishEvent(existingImage)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
 	// Update image in mongo DB
 	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
 	if err != nil {
@@ -318,10 +326,26 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Send 'image published' kafka message
+	// Send 'image published' kafka message with all the download variants
 	log.Event(ctx, "sending image published message", log.INFO, logdata)
-	event := event.ImagePublished{
-		ImageID: id,
+	api.publishedProducer.ImagePublished(e)
+}
+
+// generateImagePublishEvent creates a kafka 'image-published' event, with all the sources and destination for download variants.
+// Note that the private and public paths will be the same, according to the way the URLs are constructed in 'Refresh()' method,
+// using DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
+func generateImagePublishEvent(image *models.Image) (e *event.ImagePublished, err error) {
+	image.Refresh()
+	e = &event.ImagePublished{Downloads: []event.ImageDownloadPublished{}}
+	for _, variant := range image.Downloads {
+		imgURL, err := url.Parse(variant.Href)
+		if err != nil {
+			return nil, err
+		}
+		e.Downloads = append(e.Downloads, event.ImageDownloadPublished{
+			SrcPath: imgURL.Path,
+			DstPath: imgURL.Path,
+		})
 	}
-	api.publishedProducer.ImagePublished(&event)
+	return e, nil
 }
