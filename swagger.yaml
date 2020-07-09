@@ -308,7 +308,6 @@ definitions:
         description: "S3 object key (without bucket name) where the originally uploaded image is stored"
         example: "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png"
 
-
   Image:
     type: object
     description: "Existing Image metadata model"
@@ -403,7 +402,6 @@ definitions:
         type: string
         description: "the variant"
         example: "original"
-      
       links:
         type: object
         properties:
@@ -481,7 +479,6 @@ definitions:
         type: string
         description: "the variant"
         example: "original"
-      
       links:
         type: object
         properties:
@@ -536,7 +533,14 @@ parameters:
     required: true
     in: path
     type: string
-    
+
+  variant:
+    name: variant
+    description: "A unique image download variant identifier"
+    required: true
+    in: path
+    type: string
+
   collection_id:
     name: collection_id
     description: "A unique id for a collection to filter on"
@@ -582,9 +586,3 @@ parameters:
     required: true
     schema:
       $ref: '#/definitions/ImageUpload'
-      
-  variant:
-    name: variant
-    required: true
-    type: string
-    in: path
