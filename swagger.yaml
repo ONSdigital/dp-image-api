@@ -132,32 +132,67 @@ paths:
         500:
           $ref: '#/responses/InternalError'
 
-  /images/{image_id}/upload:
-    post:
+  /images/{image_id}/downloads:
+    get:
       tags:
-        - "image"
-      summary: "Upload an image"
-      description: "Supplies the uploaded file location and requests that the image be imported. This call sets the image state to 'uploaded'."
+      - "image"
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
       parameters:
         - $ref: '#/parameters/image_id'
-        - $ref: '#/parameters/upload_image'
-      produces:
-        - "application/json"
-      security:
-        - FlorenceAPIKey: []
       responses:
         200:
-          description: "The image upload was successfully requested to the image importer."
-        400:
-          description: "Invalid request, image id was incorrect"
-        401:
-          $ref: '#/responses/Unauthenticated'
-        403:
-          description: "Unauthorised to upload image or it is in wrong state to be uploaded"
-        404:
-          $ref: '#/responses/NotFound'
-        500:
-          $ref: '#/responses/InternalError'
+          description: "Successfully got download variant."
+          schema:
+            $ref: '#/definitions/ImageDownloads'
+    post:
+      tags:
+      - "image"
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
+      parameters:
+        - $ref: '#/parameters/image_id'
+        - $ref: '#/parameters/new_image_download'
+      responses:
+        200:
+          description: "Successfully created download variants."
+            
+  /images/{image_id}/downloads/{variant}:
+    get:
+      tags:
+      - "image"
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
+      parameters:
+        - $ref: '#/parameters/image_id'
+        - $ref: '#/parameters/variant'
+      responses:
+        200:
+          description: "Successfully updated download variant."
+          schema:
+            $ref: '#/definitions/ImageDownload'
+    put:
+      tags:
+      - "image"
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
+      parameters:
+        - $ref: '#/parameters/image_id'
+        - $ref: '#/parameters/variant'
+        - $ref: '#/parameters/image_download'
+      responses:
+        200:
+          description: "Successfully got download variant."
+          schema:
+            $ref: '#/definitions/ImageDownload'
 
   /images/{image_id}/publish:
     post:
@@ -232,6 +267,12 @@ definitions:
     required:
       - "collection_id"
     properties:
+      state:
+        type: string
+        enum:
+          - created
+        description: "The state of the image"
+        example: "created"
       collection_id:
         type: string
         description: "Collection unique identifier corresponding to this image"
@@ -311,35 +352,66 @@ definitions:
             type: string
             description: "Link to the license content"
             example: "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+      links:
+        $ref: '#/definitions/ImageLinks'
       upload:
         $ref: '#/definitions/ImageUpload'
       type:
         type: string
         description: "Type of image, which might define a set of possible formats and variants or resolutions."
         example: "chart"
+
+  ImageLinks:
+    type: object
+    properties:
+      self:
+        type: string
       downloads:
-        type: object
-        description: "All available variants for this image. Note that this spec is not a comprehensive list of cases; it only shows a few examples of possible image variant keys."
-        properties:
-          original:
-            $ref: '#/definitions/ImageDownload'
-          png:
-            $ref: '#/definitions/ImageDownload'
-          svg:
-            $ref: '#/definitions/ImageDownload'
-          png_w500:
-            $ref: '#/definitions/ImageDownload'
-          svg_w500:
-            $ref: '#/definitions/ImageDownload'
-          png_bw:
-            $ref: '#/definitions/ImageDownload'
-          png_w500_bw:
-            $ref: '#/definitions/ImageDownload'
+        type: string
+        example: "https://localhost:100000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/downloads"
+
+  ImageDownloads:
+    description: "A list of image download variants"
+    type: object
+    properties:
+      count:
+        description: "The number of image downloads returned"
+        readOnly: true
+        type: integer
+        example: 1
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/ImageDownload'
+      limit:
+        description: "The number of image downloads requested"
+        type: integer
+      offset:
+        description: "The first row of image downloads to retrieve, starting at 0. Use this parameter as a pagination mechanism along with the limit parameter"
+        type: integer
+      total_count:
+        description: "The total number of image downloads"
+        readOnly: true
+        type: integer
+        example: 1
 
   ImageDownload:
     type: object
     description: "Download information for a particular image variant and resolution"
     properties:
+      id:
+        type: string
+        description: "the variant"
+        example: "original"
+      
+      links:
+        type: object
+        properties:
+          self:
+            type: string
+          image:
+            type: string
+            example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35"
       size:
         type: integer
         description: "File size in number of bytes"
@@ -400,6 +472,48 @@ definitions:
         description: "Timestamp representation for the publishing process completion, formatted according to RFC3339"
         example: "2020-04-26T10:01:28Z"
 
+
+  NewImageDownload:
+    type: object
+    description: "New download information for a particular image variant and resolution"
+    properties:
+      id:
+        type: string
+        description: "the variant"
+        example: "original"
+      
+      links:
+        type: object
+        properties:
+          self:
+            type: string
+          image:
+            type: string
+            example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35"
+      type:
+        type: string
+        description: "Type of download corresponding to this variant"
+        example: "png"
+      width:
+        type: integer
+        description: "Image width, in number of pixels"
+        example: 1920
+      height:
+        type: integer
+        description: "Image height, in number of pixels"
+        example: 1080
+      state:
+        type: string
+        description: "The state of this download variant. The high level image will change its state to imported only when all variants are in imported state."
+        enum:
+          - pending
+          - importing
+          - imported
+          - published
+          - completed
+          - failed
+        example: "published"
+
 securityDefinitions:
 
   FlorenceAPIKey:
@@ -437,6 +551,22 @@ parameters:
     schema:
       $ref: '#/definitions/Image'
 
+  image_download:
+    name: image_download
+    description: "A valid image download model, which already exists"
+    in: body
+    required: true
+    schema:
+      $ref: '#/definitions/ImageDownload'
+
+  new_image_download:
+    name: new_image_download
+    description: "A valid new image download"
+    in: body
+    required: true
+    schema:
+      $ref: '#/definitions/NewImageDownload'
+
   new_image:
     name: new_image
     description: "A valid image model at creation time. Only a subset of the full image model will be considered."
@@ -452,3 +582,9 @@ parameters:
     required: true
     schema:
       $ref: '#/definitions/ImageUpload'
+      
+  variant:
+    name: variant
+    required: true
+    type: string
+    in: path
