@@ -312,8 +312,8 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// generate imagePublished kafka event before updating mongoDB, in case it fails
-	e, err := generateImagePublishEvent(existingImage)
+	// generate imagePublished kafka events before updating mongoDB, in case there is a parsing error
+	events, err := generateImagePublishEvents(existingImage)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
@@ -326,26 +326,27 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Send 'image published' kafka message with all the download variants
-	log.Event(ctx, "sending image published message", log.INFO, logdata)
-	api.publishedProducer.ImagePublished(e)
+	// Send 'image published' kafka messages corresponding to all the download variants
+	log.Event(ctx, "sending image published messages", log.INFO, logdata)
+	for _, e := range events {
+		api.publishedProducer.ImagePublished(e)
+	}
 }
 
-// generateImagePublishEvent creates a kafka 'image-published' event, with all the sources and destination for download variants.
+// generateImagePublishEvents creates a kafka 'image-published' event for each download variant for the provided image.
 // Note that the private and public paths will be the same, according to the way the URLs are constructed in 'Refresh()' method,
 // using DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
-func generateImagePublishEvent(image *models.Image) (e *event.ImagePublished, err error) {
+func generateImagePublishEvents(image *models.Image) (events []*event.ImagePublished, err error) {
 	image.Refresh()
-	e = &event.ImagePublished{Downloads: []event.ImageDownloadPublished{}}
 	for _, variant := range image.Downloads {
 		imgURL, err := url.Parse(variant.Href)
 		if err != nil {
 			return nil, err
 		}
-		e.Downloads = append(e.Downloads, event.ImageDownloadPublished{
+		events = append(events, &event.ImagePublished{
 			SrcPath: imgURL.Path,
 			DstPath: imgURL.Path,
 		})
 	}
-	return e, nil
+	return events, nil
 }

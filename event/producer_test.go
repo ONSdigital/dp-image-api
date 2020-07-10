@@ -74,12 +74,8 @@ func TestAvroProducer(t *testing.T) {
 
 		Convey("When ImagePublished is called on the event producer", func() {
 			event := &event.ImagePublished{
-				Downloads: []event.ImageDownloadPublished{
-					{
-						SrcPath: "path/private/image.png",
-						DstPath: "path/public/img.png",
-					},
-				},
+				SrcPath: "path/private/image.png",
+				DstPath: "path/public/img.png",
 			}
 			err := eventProducer.ImagePublished(event)
 
@@ -119,12 +115,8 @@ func TestAvroProducer(t *testing.T) {
 
 		Convey("When ImagePublished is called on the event producer", func() {
 			event := &event.ImagePublished{
-				Downloads: []event.ImageDownloadPublished{
-					{
-						SrcPath: "path/private/image.png",
-						DstPath: "path/public/img.png",
-					},
-				},
+				SrcPath: "path/private/image.png",
+				DstPath: "path/public/img.png",
 			}
 			err := eventProducer.ImagePublished(event)
 
