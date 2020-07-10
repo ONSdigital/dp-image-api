@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -180,7 +181,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	defer api.mongoDB.UnlockImage(lockID)
+	defer api.unlockImage(ctx, lockID)
 
 	// get existing image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
@@ -266,7 +267,7 @@ func (api *API) UploadImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	defer api.mongoDB.UnlockImage(lockID)
+	defer api.unlockImage(ctx, lockID)
 
 	// get existing image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
@@ -320,7 +321,7 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	defer api.mongoDB.UnlockImage(lockID)
+	defer api.unlockImage(ctx, lockID)
 
 	// get image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
@@ -384,7 +385,7 @@ func (api *API) ImportVariantHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	defer api.mongoDB.UnlockImage(lockID)
+	defer api.unlockImage(ctx, lockID)
 
 	// get image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
@@ -456,7 +457,7 @@ func (api *API) CompleteVariantHandler(w http.ResponseWriter, req *http.Request)
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	defer api.mongoDB.UnlockImage(lockID)
+	defer api.unlockImage(ctx, lockID)
 
 	// get image from mongoDB by id
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
@@ -508,4 +509,11 @@ func (api *API) CompleteVariantHandler(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+}
+
+// unlockImage unlocks the provided image lockID and logs any error with WARN state
+func (api *API) unlockImage(ctx context.Context, lockID string) {
+	if err := api.mongoDB.UnlockImage(lockID); err != nil {
+		log.Event(ctx, "error unlocking mongoDB lock for an image resource", log.WARN, log.Data{"lockID": lockID})
+	}
 }
