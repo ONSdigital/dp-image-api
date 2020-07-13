@@ -266,21 +266,20 @@ func (api *API) UploadImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Generate and send the kafka event to trigger the upload
+	log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
+	event := ImageUploadedEvent(id, upload.Path)
+	if err := api.uploadProducer.ImageUploaded(event); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
 	// Update image in mongo DB
 	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-
-	// Generate the kafka event to trigger the upload
-	log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
-	event := event.ImageUploaded{
-		ImageID: id,
-		Path:    upload.Path,
-	}
-	api.uploadProducer.ImageUploaded(&event)
-
 }
 
 // PublishImageHandler is a handler that triggers the publishing of an image
@@ -312,15 +311,8 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// generate imagePublished kafka events before updating mongoDB, in case there is a parsing error
+	// Generate 'image published' events for all download variants
 	events, err := generateImagePublishEvents(existingImage)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	// Update image in mongo DB
-	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
@@ -329,7 +321,17 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 	// Send 'image published' kafka messages corresponding to all the download variants
 	log.Event(ctx, "sending image published messages", log.INFO, logdata)
 	for _, e := range events {
-		api.publishedProducer.ImagePublished(e)
+		if err := api.publishedProducer.ImagePublished(e); err != nil {
+			handleError(ctx, w, err, logdata)
+			return
+		}
+	}
+
+	// Update image in mongo DB
+	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
 	}
 }
 
@@ -343,10 +345,23 @@ func generateImagePublishEvents(image *models.Image) (events []*event.ImagePubli
 		if err != nil {
 			return nil, err
 		}
-		events = append(events, &event.ImagePublished{
-			SrcPath: imgURL.Path,
-			DstPath: imgURL.Path,
-		})
+		events = append(events, ImagePublishedEvent(imgURL.Path))
 	}
 	return events, nil
+}
+
+//ImageUploadedEvent returns an ImageUploaded event for the provided image ID and upload path
+var ImageUploadedEvent = func(imageID, uploadPath string) *event.ImageUploaded {
+	return &event.ImageUploaded{
+		ImageID: imageID,
+		Path:    uploadPath,
+	}
+}
+
+// ImagePublishedEvent returns an ImagePublished event for the provided path
+var ImagePublishedEvent = func(path string) *event.ImagePublished {
+	return &event.ImagePublished{
+		SrcPath: path,
+		DstPath: path,
+	}
 }
