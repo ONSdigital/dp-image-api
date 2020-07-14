@@ -44,6 +44,7 @@ func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHand
 		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Update: true}, api.UpdateImageHandler)).Methods(http.MethodPut)
 		r.HandleFunc("/images/{id}/upload", auth.Require(dpauth.Permissions{Update: true}, api.UploadImageHandler)).Methods(http.MethodPost)
 		r.HandleFunc("/images/{id}/publish", auth.Require(dpauth.Permissions{Update: true}, api.PublishImageHandler)).Methods(http.MethodPost)
+		r.HandleFunc("/images/{id}/downloads/{variant}", auth.Require(dpauth.Permissions{Update: true}, api.UpdateVariantHandler)).Methods(http.MethodPut)
 		r.HandleFunc("/images/{id}/downloads/{variant}/import", auth.Require(dpauth.Permissions{Update: true}, api.ImportVariantHandler)).Methods(http.MethodPost)
 		r.HandleFunc("/images/{id}/downloads/{variant}/complete", auth.Require(dpauth.Permissions{Update: true}, api.CompleteVariantHandler)).Methods(http.MethodPost)
 	} else {

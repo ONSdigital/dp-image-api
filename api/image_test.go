@@ -93,6 +93,23 @@ var imageUploadWithStatePayloadFmt = `{
 	"state": "%s"
 }`
 
+// Image Download Payload with all possible fields.
+var imageDownloadPayload = `{
+	"size": 1024,
+	"type": "originally uploaded file",
+	"width": 123,
+	"height": 321,
+	"public": false,
+	"href": "http://someURL.com",
+	"private": "my-private-bucket",
+	"state": "published",
+	"error": "someError",
+	"import_started": "2020-04-26T08:05:52Z",
+	"import_completed": "2020-04-26T08:07:32+00:00",
+	"publish_started": "2020-04-26T09:51:03-00:00",
+	"publish_completed": "2020-04-26T10:01:28Z"
+}`
+
 // Full Image payload, containing all possible fields
 var (
 	fullImagePayloadFmt = `{
@@ -144,6 +161,38 @@ func dbImage(state models.State) *models.Image {
 	}
 }
 
+// dbDownloadUpdate is the model corresponding to an image download variant update
+func dbDownloadUpdate() *models.Image {
+	return &models.Image{
+		ID: testImageID1,
+		Downloads: map[string]models.Download{
+			testVariantOriginal: {
+				Size:    &testSize,
+				Type:    "originally uploaded file",
+				Width:   &testWidth,
+				Height:  &testHeight,
+				Private: "my-private-bucket",
+			},
+		},
+	}
+}
+
+func dbDownload(variantState models.DownloadState) models.Download {
+	return models.Download{
+		Size:             &testSize,
+		Type:             "originally uploaded file",
+		Width:            &testWidth,
+		Height:           &testHeight,
+		Private:          "my-private-bucket",
+		State:            variantState.String(),
+		Error:            "",
+		ImportStarted:    &testImportStarted,
+		ImportCompleted:  &testImportCompleted,
+		PublishStarted:   &testPublishStarted,
+		PublishCompleted: &testPublishCompleted,
+	}
+}
+
 // API model with state removed
 func updateImage() *models.Image {
 	image := dbImage(models.StateCreated)
@@ -167,19 +216,7 @@ func dbFullImage(state models.State, variantState models.DownloadState) *models.
 			Path: "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png",
 		},
 		Downloads: map[string]models.Download{
-			testVariantOriginal: {
-				Size:             &testSize,
-				Type:             "originally uploaded file",
-				Width:            &testWidth,
-				Height:           &testHeight,
-				Private:          "my-private-bucket",
-				State:            variantState.String(),
-				Error:            "",
-				ImportStarted:    &testImportStarted,
-				ImportCompleted:  &testImportCompleted,
-				PublishStarted:   &testPublishStarted,
-				PublishCompleted: &testPublishCompleted,
-			},
+			testVariantOriginal: dbDownload(variantState),
 		},
 	}
 }
@@ -664,7 +701,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling update image providing a valid image results in 200 OK response with the expected image provided to mongoDB", func() {
+			Convey("Calling update image providing a valid image results in 200 OK response with the expected image updated to mongoDB, and the full image returned in the response body", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateCreated.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
@@ -676,13 +713,18 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *updateImage())
+				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *updateImage()) // Image without state
 				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
 				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UnlockImageCalls()[0].LockID, ShouldEqual, testLockID)
+
+				retImage := &models.Image{}
+				err := json.Unmarshal(w.Body.Bytes(), retImage)
+				So(err, ShouldBeNil)
+				So(*retImage, ShouldResemble, *dbImage(models.StateCreated)) // full image with state
 			})
 
-			Convey("Calling update image with an image without collectionID results in 200 OK response, and only the provided fields are updated", func() {
+			Convey("Calling update image with an image without collectionID results in 200 OK response, only the provided fields are updated, and the full image is", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, "", models.StateCreated.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
@@ -697,6 +739,11 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *updateImageNoCollectionID())
 				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
 				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
+
+				retImage := &models.Image{}
+				err := json.Unmarshal(w.Body.Bytes(), retImage)
+				So(err, ShouldBeNil)
+				So(*retImage, ShouldResemble, *dbImage(models.StateCreated)) // full image with state and collectionID
 			})
 		})
 
@@ -1544,6 +1591,68 @@ func TestCompleteVariantHandler(t *testing.T) {
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
 				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
+			})
+		})
+	})
+}
+
+func TestUpdateDownloadVariantHandler(t *testing.T) {
+
+	Convey("Given a valid config, auth handler", t, func() {
+		cfg, err := config.Get()
+		So(err, ShouldBeNil)
+		authHandlerMock := &mock.AuthHandlerMock{
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+				return handler
+			},
+		}
+		mongoDBMock := &mock.MongoServerMock{
+			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+			UnlockImageFunc:      func(id string) error { return nil },
+		}
+
+		Convey("And an empty MongoDB mock", func() {
+			mongoMock := &mock.MongoServerMock{}
+			imageApi := GetAPIWithMocks(cfg, mongoMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling update image with an invalid body results in 400 response", func() {
+				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID1, testVariantOriginal),
+					bytes.NewBufferString("wrong"))
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusBadRequest)
+			})
+		})
+
+		Convey("And an image in 'created' state in MongoDB with a download variant in pending state", func() {
+			mongoDBMock.GetImageFunc = func(ctx context.Context, id string) (*models.Image, error) {
+				return dbFullImage(models.StateCreated, models.StateDownloadPending), nil
+			}
+			mongoDBMock.UpdateImageFunc = func(ctx context.Context, id string, image *models.Image) (bool, error) { return true, nil }
+			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling update variant providing a valid download results in 200 OK response with the expected image update to mongoDB and the full updated image returned", func() {
+				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID1, testVariantOriginal),
+					bytes.NewBufferString(imageDownloadPayload))
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusOK)
+				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 2)
+				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
+				So(mongoDBMock.GetImageCalls()[1].ID, ShouldEqual, testImageID1)
+				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
+				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, *dbDownloadUpdate())
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.UnlockImageCalls()[0].LockID, ShouldEqual, testLockID)
+
+				retDownload := &models.Download{}
+				err := json.Unmarshal(w.Body.Bytes(), retDownload)
+				So(err, ShouldBeNil)
+				So(*retDownload, ShouldResemble, dbDownload(models.StateDownloadPending)) // full image download
 			})
 		})
 	})

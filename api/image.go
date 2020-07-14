@@ -163,16 +163,30 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	// PUT should not affect the state so clear it if it is supplied
 	image.State = ""
 
+	// apply the update
+	if updatedImage := api.doUpdateImage(w, req, id, image, logdata); updatedImage != nil {
+		if err := WriteJSONBody(ctx, updatedImage, w, logdata); err != nil {
+			handleError(ctx, w, err, logdata)
+			return
+		}
+		log.Event(ctx, "successfully updated image", log.INFO, logdata)
+	}
+}
+
+// doUpdateImage is a function to apply the provided image update after doing all the necessary validations, it returns the updated image, or nil if it was not updated
+func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id string, image *models.Image, logdata log.Data) (updatedImage *models.Image) {
+	ctx := req.Context()
+
 	if err := image.Validate(); err != nil {
 		handleError(ctx, w, err, logdata)
-		return
+		return nil
 	}
 	log.Event(ctx, "updating image", log.INFO, log.Data{"image": image})
 
 	// Validate a possible mismatch of image id, if provided in image body
 	if image.ID != "" && image.ID != id {
 		handleError(ctx, w, apierrors.ErrImageIDMismatch, logdata)
-		return
+		return nil
 	}
 	image.ID = id
 
@@ -180,7 +194,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
-		return
+		return nil
 	}
 	defer api.unlockImage(ctx, lockID)
 
@@ -188,7 +202,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
-		return
+		return nil
 	}
 
 	// check that state transition is allowed, only if state is provided
@@ -197,45 +211,39 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 			logdata["current_state"] = existingImage.State
 			logdata["target_state"] = image.State
 			handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
-			return
+			return nil
 		}
 	}
 
 	// if the image is already published, it cannot be updated
 	if existingImage.State == models.StatePublished.String() {
 		handleError(ctx, w, apierrors.ErrImageAlreadyPublished, logdata)
-		return
+		return nil
 	}
 
 	// if the image is already completed, it cannot be updated
 	if existingImage.State == models.StateCompleted.String() {
 		handleError(ctx, w, apierrors.ErrImageAlreadyCompleted, logdata)
-		return
+		return nil
 	}
 
 	// Update image in mongo DB
 	didChange, err := api.mongoDB.UpdateImage(ctx, id, image)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
-		return
+		return nil
 	}
 
 	// get updated image from mongoDB by id (if it changed)
-	updatedImage := existingImage
+	updatedImage = existingImage
 	if didChange {
 		updatedImage, err = api.mongoDB.GetImage(req.Context(), id)
 		if err != nil {
 			handleError(ctx, w, err, logdata)
-			return
+			return nil
 		}
 	}
-
-	if err := WriteJSONBody(ctx, updatedImage, w, logdata); err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-	log.Event(ctx, "successfully updated image", log.INFO, logdata)
-
+	return updatedImage
 }
 
 // UploadImageHandler updates the image with the provided upload path and sends a kafka 'image uploaded' message
@@ -390,6 +398,50 @@ var ImagePublishedEvent = func(path string) *event.ImagePublished {
 	return &event.ImagePublished{
 		SrcPath: path,
 		DstPath: path,
+	}
+}
+
+// UpdateVariantHandler is a handler to update an image download variant
+func (api *API) UpdateVariantHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
+	variant := vars["variant"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
+	logdata := log.Data{
+		handlers.CollectionID.Header(): hColID,
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"image-id":                     id,
+		"download-variant":             variant,
+	}
+
+	// Unmarshal download variant from body and validate it
+	download := &models.Download{}
+	if err := ReadJSONBody(ctx, req.Body, download, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// create image update with the allowed field. Public, state, href, error or timepstamps can't be provided by the caller.
+	imageUpdate := &models.Image{
+		Downloads: map[string]models.Download{
+			variant: {
+				Size:    download.Size,
+				Type:    download.Type,
+				Width:   download.Width,
+				Height:  download.Height,
+				Private: download.Private,
+			},
+		},
+	}
+
+	// apply the update with the provided image download variant
+	if updatedImage := api.doUpdateImage(w, req, id, imageUpdate, logdata); updatedImage != nil {
+		if err := WriteJSONBody(ctx, updatedImage.Downloads[variant], w, logdata); err != nil {
+			handleError(ctx, w, err, logdata)
+			return
+		}
+		log.Event(ctx, "successfully updated image", log.INFO, logdata)
 	}
 }
 

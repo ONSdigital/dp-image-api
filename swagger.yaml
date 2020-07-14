@@ -184,7 +184,42 @@ paths:
           $ref: '#/responses/NotFound'
         500:
           $ref: '#/responses/InternalError'
-    
+
+  /images/{image_id}/downloads/{variant}:
+    put:
+      tags:
+      - "image"
+      summary: "Update an image download variant"
+      description: "Update the image download fields for the provided variant of the provided image."
+      parameters:
+      - $ref: '#/parameters/image_id'
+      - $ref: '#/parameters/variant'
+      - $ref: '#/parameters/update_download'
+      produces:
+      - "application/json"
+      security:
+      - FlorenceAPIKey: []
+      - ServiceAPIKey: []
+      responses:
+        200:
+          description: "A json with the download varint afeter veing updated"
+          schema:
+            $ref: '#/definitions/ImageDownload'
+        400:
+          description: |
+            Invalid request, reasons can be one of the following:
+              * malformed body
+              * provided download variant had an invalid parameter
+        401:
+          $ref: '#/responses/Unauthenticated'
+        403:
+          description: "Unauthorised to update image download variant or cannot be updated because the state of the image does not allow it to be updated"
+        404:
+          $ref: '#/responses/NotFound'
+        500:
+          $ref: '#/responses/InternalError'
+
+
   /images/{image_id}/downloads/{variant}/import:
     post:
       tags:
@@ -319,7 +354,6 @@ definitions:
         description: "S3 object key (without bucket name) where the originally uploaded image is stored"
         example: "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png"
 
-
   Image:
     type: object
     description: "Existing Image metadata model"
@@ -451,6 +485,31 @@ definitions:
         type: string
         description: "Timestamp representation for the publishing process completion, formatted according to RFC3339"
         example: "2020-04-26T10:01:28Z"
+        
+  ImageDownloadUpdate:
+    type: object
+    description: "Subset of ImageDownload variant that can be updated by a caller"
+    properties:
+      size:
+        type: integer
+        description: "File size in number of bytes"
+        example: 1024000
+      type:
+        type: string
+        description: "Type of download corresponding to this variant"
+        example: "png"
+      width:
+        type: integer
+        description: "Image width, in number of pixels"
+        example: 1920
+      height:
+        type: integer
+        description: "Image height, in number of pixels"
+        example: 1080
+      private:
+        type: string
+        description: "S3 Private bucket name"
+        example: "my-private-bucket"
 
 securityDefinitions:
 
@@ -511,3 +570,12 @@ parameters:
     required: true
     schema:
       $ref: '#/definitions/ImageUpload'
+
+  update_download:
+    name: update_download
+    description: "A subset of the download data model, containing only the fields that can be updated by an API caller."
+    in: body
+    required: true
+    schema:
+      $ref: '#/definitions/ImageDownloadUpdate'
+  
