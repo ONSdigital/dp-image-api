@@ -1652,7 +1652,10 @@ func TestUpdateDownloadVariantHandler(t *testing.T) {
 				retDownload := &models.Download{}
 				err := json.Unmarshal(w.Body.Bytes(), retDownload)
 				So(err, ShouldBeNil)
-				So(*retDownload, ShouldResemble, dbDownload(models.StateDownloadPending)) // full image download
+				expected := dbDownload(models.StateDownloadPending) // full image download, with refreshed fields
+				expected.Href = "http://download.ons.gov.uk/images/imageImageID2/original/some-image-name"
+				expected.Public = false
+				So(*retDownload, ShouldResemble, expected)
 			})
 		})
 	})

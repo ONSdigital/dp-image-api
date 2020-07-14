@@ -243,6 +243,7 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 			return nil
 		}
 	}
+	updatedImage.Refresh()
 	return updatedImage
 }
 
