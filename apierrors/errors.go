@@ -7,13 +7,13 @@ import (
 // A list of error messages for Image API
 var (
 	ErrImageNotFound                    = errors.New("image not found")
-	ErrVariantNotFound                  = errors.New("Image download variant not found")
+	ErrVariantNotFound                  = errors.New("image download variant not found")
 	ErrInternalServer                   = errors.New("internal error")
 	ErrUnableToReadMessage              = errors.New("failed to read message body")
-	ErrImageIDMismatch                  = errors.New("Image id provided in body does not match 'id' path parameter")
+	ErrImageIDMismatch                  = errors.New("image id provided in body does not match 'id' path parameter")
 	ErrUnableToParseJSON                = errors.New("failed to parse json body")
 	ErrImageFilenameTooLong             = errors.New("image filename is too long")
-	ErrImageNoCollectionID              = errors.New("image does not have a collectionID")
+	ErrImageNoCollectionID              = errors.New("image does not have a collection id")
 	ErrImageAlreadyPublished            = errors.New("image is already published")
 	ErrImageAlreadyCompleted            = errors.New("image is already completed")
 	ErrImageInvalidState                = errors.New("image state is not a valid state name")
