@@ -98,6 +98,7 @@ var imageUploadWithStatePayloadFmt = `{
 var (
 	imageDownloadPayloadFmt = `{
 		"size": 1024,
+		"palette": "bw",
 		"type": "%s",
 		"width": 123,
 		"height": 321,
@@ -132,6 +133,7 @@ var (
 		"downloads": {
 			"original": {
 				"size": 1024,
+				"palette": "bw",
 				"type": "originally uploaded file",
 				"width": 123,
 				"height": 321,

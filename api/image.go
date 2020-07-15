@@ -429,6 +429,7 @@ func (api *API) UpdateVariantHandler(w http.ResponseWriter, req *http.Request) {
 		Downloads: map[string]models.Download{
 			variant: {
 				Size:            download.Size,
+				Palette:         download.Palette,
 				Type:            download.Type,
 				Width:           download.Width,
 				Height:          download.Height,

@@ -52,6 +52,7 @@ type Upload struct {
 // Download represents a download variant model
 type Download struct {
 	Size             *int       `bson:"size,omitempty"               json:"size,omitempty"`
+	Palette          string     `bson:"palette,omitempty"            json:"palette,omitempty"`
 	Type             string     `bson:"type,omitempty"               json:"type,omitempty"`
 	Width            *int       `bson:"width,omitempty"              json:"width,omitempty"`
 	Height           *int       `bson:"height,omitempty"             json:"height,omitempty"`

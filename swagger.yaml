@@ -494,6 +494,10 @@ definitions:
         type: integer
         description: "File size in number of bytes"
         example: 1024000
+      palette:
+        type: string
+        description: "Image palette"
+        example: "bw"
       type:
         type: string
         description: "Type of download corresponding to this variant"
