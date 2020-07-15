@@ -29,6 +29,27 @@ func TestImageAllOtherDownloadsCompleted(t *testing.T) {
 	})
 }
 
+func TestImageAllOtherDownloadsImported(t *testing.T) {
+	Convey("Given an image with all download variants in imported state except the original", t, func() {
+		image := models.Image{
+			Downloads: map[string]models.Download{
+				"original": {State: models.StateImporting.String()},
+				"var1":     {State: models.StateImported.String()},
+				"var2":     {State: models.StateImported.String()},
+			},
+		}
+		Convey("Then AllOtherDownloadsCompleted for the original returns true", func() {
+			So(image.AllOtherDownloadsImported("original"), ShouldBeTrue)
+		})
+		Convey("Then AllOtherDownloadsCompleted for var1 returns false", func() {
+			So(image.AllOtherDownloadsImported("var1"), ShouldBeFalse)
+		})
+		Convey("Then AllOtherDownloadsCompleted for an inexistent variant returns false", func() {
+			So(image.AllOtherDownloadsImported("wrong"), ShouldBeFalse)
+		})
+	})
+}
+
 func TestImageAnyDownloadFailed(t *testing.T) {
 	Convey("Given an image with all download variants in non-failed state", t, func() {
 		image := models.Image{

@@ -128,6 +128,17 @@ func (i *Image) AnyDownloadFailed() bool {
 	return false
 }
 
+// AllOtherDownloadsImported returns true if all download variants are in immported state,
+// ignoring the provided variantToIgnore (if it exists)
+func (i *Image) AllOtherDownloadsImported(variantToIgnore string) bool {
+	for v, download := range i.Downloads {
+		if v != variantToIgnore && download.State != StateDownloadImported.String() {
+			return false
+		}
+	}
+	return true
+}
+
 // AllOtherDownloadsCompleted returns true if all download variants are in completed state,
 // ignoring the provided variantToIgnore (if it exists)
 func (i *Image) AllOtherDownloadsCompleted(variantToIgnore string) bool {

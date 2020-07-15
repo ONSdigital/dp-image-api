@@ -117,11 +117,13 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			apierrors.ErrImageFilenameTooLong,
 			apierrors.ErrImageNoCollectionID,
 			apierrors.ErrImageInvalidState,
+			apierrors.ErrImageDownloadTypeMismatch,
 			apierrors.ErrImageIDMismatch:
 			status = http.StatusBadRequest
 		case apierrors.ErrImageAlreadyPublished,
 			apierrors.ErrImageAlreadyCompleted,
 			apierrors.ErrImageStateTransitionNotAllowed,
+			apierrors.ErrImageNotImporting,
 			apierrors.ErrImageNotPublished,
 			apierrors.ErrVariantStateTransitionNotAllowed,
 			apierrors.ErrImageDownloadInvalidState:

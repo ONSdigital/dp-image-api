@@ -424,26 +424,97 @@ func (api *API) UpdateVariantHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// create image update with the allowed field. Public, state, href, error or timepstamps can't be provided by the caller.
+	now := time.Now()
 	imageUpdate := &models.Image{
 		Downloads: map[string]models.Download{
 			variant: {
-				Size:    download.Size,
-				Type:    download.Type,
-				Width:   download.Width,
-				Height:  download.Height,
-				Private: download.Private,
+				Size:            download.Size,
+				Type:            download.Type,
+				Width:           download.Width,
+				Height:          download.Height,
+				Private:         download.Private,
+				State:           models.StateDownloadImported.String(),
+				ImportCompleted: &now,
 			},
 		},
 	}
 
-	// apply the update with the provided image download variant
-	if updatedImage := api.doUpdateImage(w, req, id, imageUpdate, logdata); updatedImage != nil {
-		if err := WriteJSONBody(ctx, updatedImage.Downloads[variant], w, logdata); err != nil {
+	// Acquire lock for image ID, and defer unlocking
+	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	defer api.unlockImage(ctx, lockID)
+
+	// get image from mongoDB by id
+	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// get requested variant
+	downloadVariant, found := existingImage.Downloads[variant]
+	if !found {
+		handleError(ctx, w, apierrors.ErrVariantNotFound, logdata)
+		return
+	}
+
+	// The high level image needs to be in 'importing' state to allow an update variant operation
+	if existingImage.State != models.StateImporting.String() {
+		handleError(ctx, w, apierrors.ErrImageNotImporting, logdata)
+		return
+	}
+
+	// validate that the download variant state transition is allowed
+	if !downloadVariant.StateTransitionAllowed(models.StateImported.String()) {
+		logdata["current_state"] = existingImage.State
+		logdata["target_state"] = imageUpdate.State
+		handleError(ctx, w, apierrors.ErrVariantStateTransitionNotAllowed, logdata)
+		return
+	}
+
+	// validate that the type matches the existing type
+	if downloadVariant.Type != "" && download.Type != "" && downloadVariant.Type != download.Type {
+		handleError(ctx, w, apierrors.ErrImageDownloadTypeMismatch, logdata)
+		return
+	}
+
+	// if any download failed, then set the high level state to failed_import and if all of them are imported, set it to imported.
+	if existingImage.AnyDownloadFailed() {
+		log.Event(ctx, "setting high level image state to 'failed_import' because at least one of the "+
+			"other download variants for this image failed to import", log.WARN, logdata)
+		imageUpdate.State = models.StateFailedImport.String()
+	} else if existingImage.AllOtherDownloadsImported(variant) {
+		log.Event(ctx, "setting high level image state to 'imported' because all download variants have been successfully imported", log.INFO, logdata)
+		imageUpdate.State = models.StateImported.String()
+	}
+
+	// Update image in mongo DB
+	didChange, err := api.mongoDB.UpdateImage(ctx, id, imageUpdate)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// get updated image from mongoDB by id (if it changed)
+	updatedImage := existingImage
+	if didChange {
+		updatedImage, err = api.mongoDB.GetImage(req.Context(), id)
+		if err != nil {
 			handleError(ctx, w, err, logdata)
 			return
 		}
-		log.Event(ctx, "successfully updated image", log.INFO, logdata)
 	}
+	updatedImage.Refresh()
+
+	// return the updated download variant as a json object in the response body
+	if err := WriteJSONBody(ctx, updatedImage.Downloads[variant], w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	log.Event(ctx, "successfully updated download variant", log.INFO, logdata)
 }
 
 // ImportVariantHandler is a handler that imports a download variant for an image
@@ -588,7 +659,7 @@ func (api *API) CompleteVariantHandler(w http.ResponseWriter, req *http.Request)
 	// if any download failed, then set the high level state to failed_publish and if all of them are completed, set it to completed.
 	if existingImage.AnyDownloadFailed() {
 		log.Event(ctx, "setting high level image state to 'failed_publish' because at least one of the "+
-			"other download variants for this image failed to import", log.WARN, logdata)
+			"other download variants for this image failed to publish", log.WARN, logdata)
 		imageUpdate.State = models.StateFailedPublish.String()
 	} else if existingImage.AllOtherDownloadsCompleted(variant) {
 		log.Event(ctx, "setting high level image state to 'completed' because all download variants have been completed", log.INFO, logdata)
