@@ -21,15 +21,15 @@ paths:
   /images:
     get:
       tags:
-      - "image"
+        - "image"
       summary: "Get images filtered by collection id"
       description: "Returns a list of images metadata filtered by an optional query parameter defining the collection ID"
       parameters:
-      - $ref: '#/parameters/collection_id'
+        - $ref: '#/parameters/collection_id'
       produces:
-      - "application/json"
+        - "application/json"
       security:
-      - FlorenceAPIKey: []
+        - FlorenceAPIKey: []
       responses:
         200:
           description: "A json object containing a list of images"
@@ -45,15 +45,15 @@ paths:
           $ref: '#/responses/InternalError'
     post:
       tags:
-      - "image"
+        - "image"
       summary: "Create a new image metadata entry"
       description: "Creates a new image metadata entry corresponding to the provided body in this request. A new ID will be generated for the image, and it will be set to `created` state."
       parameters:
-      - $ref: '#/parameters/new_image'
+        - $ref: '#/parameters/new_image'
       produces:
-      - "application/json"
+        - "application/json"
       security:
-      - FlorenceAPIKey: []
+        - FlorenceAPIKey: []
       responses:
         201:
           description: "The image metadata was correctly created and a json object containing the new image information is returned. The new image will be in 'created' state and its id will be newly generated."
@@ -77,15 +77,15 @@ paths:
   /images/{image_id}:
     get:
       tags:
-      - "image"
+        - "image"
       summary: "Get an image metadata by its id"
       description: "Returns an image metadata whose id matches the id provided as path parameter"
       parameters:
-      - $ref: '#/parameters/image_id'
+        - $ref: '#/parameters/image_id'
       produces:
-      - "application/json"
+        - "application/json"
       security:
-      - FlorenceAPIKey: []
+        - FlorenceAPIKey: []
       responses:
         200:
           description: "A json with the requested image metadata"
@@ -101,17 +101,17 @@ paths:
           $ref: '#/responses/InternalError'
     put:
       tags:
-      - "image"
+        - "image"
       summary: "Update an image metadata entry"
       description: "Updates an existing image metadata entry whose id matches the id provided as path parameter. Only the provided fields will be used to overwrite an existing image, creating them if they did not already exist, and not overwriting any field that is not provided."
       parameters:
-      - $ref: '#/parameters/image_id'
-      - $ref: '#/parameters/image'
+        - $ref: '#/parameters/image_id'
+        - $ref: '#/parameters/image'
       produces:
-      - "application/json"
+        - "application/json"
       security:
-      - FlorenceAPIKey: []
-      - ServiceAPIKey: []
+        - FlorenceAPIKey: []
+        - ServiceAPIKey: []
       responses:
         200:
           description: "A json with the requested image metadata"
@@ -132,74 +132,91 @@ paths:
         500:
           $ref: '#/responses/InternalError'
 
-  /images/{image_id}/upload:
-    post:
+  /images/{image_id}/downloads:
+    get:
       tags:
         - "image"
-      summary: "Upload an image"
-      description: "Supplies the uploaded file location and requests that the image be imported. This call sets the image state to 'uploaded'."
-      parameters:
-        - $ref: '#/parameters/image_id'
-        - $ref: '#/parameters/upload_image'
       produces:
         - "application/json"
       security:
         - FlorenceAPIKey: []
+      parameters:
+        - $ref: '#/parameters/image_id'
       responses:
         200:
-          description: "The image upload was successfully requested to the image importer."
-        400:
-          description: "Invalid request, image id was incorrect"
+          description: "Successfully got download variant."
+          schema:
+            $ref: '#/definitions/ImageDownloads'
         401:
           $ref: '#/responses/Unauthenticated'
         403:
-          description: "Unauthorised to upload image or it is in wrong state to be uploaded"
+          description: "Unauthorised to view images metadata"
         404:
           $ref: '#/responses/NotFound'
         500:
           $ref: '#/responses/InternalError'
-
-  /images/{image_id}/publish:
     post:
       tags:
-      - "image"
-      summary: "Publish an image"
-      description: "Requests an image publishing via the static file publisher, which puts the S3 objects for this image to the static bucket. This call sets the image state to 'publishing'."
-      parameters:
-      - $ref: '#/parameters/image_id'
+        - "image"
       produces:
-      - "application/json"
+        - "application/json"
       security:
-      - FlorenceAPIKey: []
+        - FlorenceAPIKey: []
+      parameters:
+        - $ref: '#/parameters/image_id'
+        - $ref: '#/parameters/new_image_download'
       responses:
         200:
-          description: "The image publishing was successfully requested to Static file publisher."
+          description: "Successfully created download variants."
         400:
-          description: "Invalid request, image id was incorrect"
+          description: "Invalid request"
         401:
           $ref: '#/responses/Unauthenticated'
         403:
-          description: "Unauthorised to publish image or it is in wrong state to be published"
+          description: "Unauthorised to view images metadata"
         404:
           $ref: '#/responses/NotFound'
         500:
           $ref: '#/responses/InternalError'
 
   /images/{image_id}/downloads/{variant}:
+    get:
+      tags:
+        - "image"
+      produces:
+        - "application/json"
+      security:
+        - FlorenceAPIKey: []
+      parameters:
+        - $ref: '#/parameters/image_id'
+        - $ref: '#/parameters/variant'
+      responses:
+        200:
+          description: "Successfully updated download variant."
+          schema:
+            $ref: '#/definitions/ImageDownload'
+        401:
+          $ref: '#/responses/Unauthenticated'
+        403:
+          description: "Unauthorised to view images metadata"
+        404:
+          $ref: '#/responses/NotFound'
+        500:
+          $ref: '#/responses/InternalError'
     put:
       tags:
-      - "image"
+        - "image"
       summary: "Update an image download variant"
       description: "Update the image download fields for the provided variant of the provided image."
-      parameters:
-      - $ref: '#/parameters/image_id'
-      - $ref: '#/parameters/variant'
-      - $ref: '#/parameters/update_download'
       produces:
-      - "application/json"
+        - "application/json"
       security:
-      - FlorenceAPIKey: []
-      - ServiceAPIKey: []
+        - FlorenceAPIKey: []
+        - ServiceAPIKey: []
+      parameters:
+        - $ref: '#/parameters/image_id'
+        - $ref: '#/parameters/variant'
+        - $ref: '#/parameters/image_download'
       responses:
         200:
           description: "A json with the download varint afeter veing updated"
@@ -219,54 +236,27 @@ paths:
         500:
           $ref: '#/responses/InternalError'
 
-
-  /images/{image_id}/downloads/{variant}/import:
+  /images/{image_id}/publish:
     post:
       tags:
-      - "image"
-      summary: "Import an image download variant"
-      description: "Update an image download variant state to 'importing' state, just before the variant is generated."
+        - "image"
+      summary: "Publish an image"
+      description: "Requests an image publishing via the static file publisher, which puts the S3 objects for this image to the static bucket. This call sets the image state to 'publishing'."
       parameters:
-      - $ref: '#/parameters/image_id'
-      - $ref: '#/parameters/variant'
+        - $ref: '#/parameters/image_id'
       produces:
-      - "application/json"
+        - "application/json"
       security:
-      - FlorenceAPIKey: []
+        - FlorenceAPIKey: []
       responses:
         200:
-          description: "The image download variant was successfully updated to 'importing' state."
+          description: "The image publishing was successfully requested to Static file publisher."
         400:
-          description: "Invalid request"
+          description: "Invalid request, image id was incorrect"
         401:
           $ref: '#/responses/Unauthenticated'
         403:
-          description: "Unauthorised to import image download variant or the image or download variant is in wrong state to be imported"
-        404:
-          $ref: '#/responses/NotFound'
-        500:
-          $ref: '#/responses/InternalError'
-  
-  /images/{image_id}/downloads/{variant}/complete:
-    post:
-      tags:
-      - "image"
-      summary: "Complete an image download variant"
-      description: "Update an image download variant to 'completed' state. If all download variants have been completed, the high level image state will also be updated to 'completed'. If any download variant failed to publish, the high level image state will be updated to 'failed_publish'."
-      parameters:
-      - $ref: '#/parameters/image_id'
-      - $ref: '#/parameters/variant'
-      produces:
-      - "application/json"
-      security:
-      - FlorenceAPIKey: []
-      responses:
-        200:
-          description: "The image download variant was successfully updated to 'completed' state."
-        401:
-          $ref: '#/responses/Unauthenticated'
-        403:
-          description: "Unauthorised to complete image download variant or the image or download variant is in wrong state to be completed"
+          description: "Unauthorised to publish image or it is in wrong state to be published"
         404:
           $ref: '#/responses/NotFound'
         500:
@@ -276,10 +266,10 @@ responses:
 
   InternalError:
     description: "Failed to process the request due to an internal error"
-    
+
   NotFound:
     description: "Requested item cannot be found"
-    
+
   InvalidRequestError:
     description: "Failed to process the request due to invalid request"
 
@@ -319,6 +309,12 @@ definitions:
     required:
       - "collection_id"
     properties:
+      state:
+        type: string
+        enum:
+          - created
+        description: "The state of the image"
+        example: "created"
       collection_id:
         type: string
         description: "Collection unique identifier corresponding to this image"
@@ -336,7 +332,7 @@ definitions:
             type: string
             description: "Title of the license"
             example: "Open Government Licence v3.0"
-          href: 
+          href:
             type: string
             description: "Link to the license content"
             example: "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
@@ -393,39 +389,69 @@ definitions:
             type: string
             description: "Title of the license"
             example: "Open Government Licence v3.0"
-          href: 
+          href:
             type: string
             description: "Link to the license content"
             example: "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+      links:
+        $ref: '#/definitions/ImageLinks'
       upload:
         $ref: '#/definitions/ImageUpload'
       type:
         type: string
         description: "Type of image, which might define a set of possible formats and variants or resolutions."
         example: "chart"
+
+  ImageLinks:
+    type: object
+    properties:
+      self:
+        type: string
       downloads:
-        type: object
-        description: "All available variants for this image. Note that this spec is not a comprehensive list of cases; it only shows a few examples of possible image variant keys."
-        properties:
-          original:
-            $ref: '#/definitions/ImageDownload'
-          png:
-            $ref: '#/definitions/ImageDownload'
-          svg:
-            $ref: '#/definitions/ImageDownload'
-          png_w500:
-            $ref: '#/definitions/ImageDownload'
-          svg_w500:
-            $ref: '#/definitions/ImageDownload'
-          png_bw:
-            $ref: '#/definitions/ImageDownload'
-          png_w500_bw:
-            $ref: '#/definitions/ImageDownload'
+        type: string
+        example: "https://localhost:100000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/downloads"
+
+  ImageDownloads:
+    description: "A list of image download variants"
+    type: object
+    properties:
+      count:
+        description: "The number of image downloads returned"
+        readOnly: true
+        type: integer
+        example: 1
+      items:
+        type: array
+        items:
+          $ref: '#/definitions/ImageDownload'
+      limit:
+        description: "The number of image downloads requested"
+        type: integer
+      offset:
+        description: "The first row of image downloads to retrieve, starting at 0. Use this parameter as a pagination mechanism along with the limit parameter"
+        type: integer
+      total_count:
+        description: "The total number of image downloads"
+        readOnly: true
+        type: integer
+        example: 1
 
   ImageDownload:
     type: object
     description: "Download information for a particular image variant and resolution"
     properties:
+      id:
+        type: string
+        description: "the variant"
+        example: "original"
+      links:
+        type: object
+        properties:
+          self:
+            type: string
+          image:
+            type: string
+            example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35"
       size:
         type: integer
         description: "File size in number of bytes"
@@ -485,19 +511,23 @@ definitions:
         type: string
         description: "Timestamp representation for the publishing process completion, formatted according to RFC3339"
         example: "2020-04-26T10:01:28Z"
-        
-  ImageDownloadUpdate:
+
+  NewImageDownload:
     type: object
-    description: "Subset of ImageDownload variant that can be updated by a caller"
+    description: "New download information for a particular image variant and resolution"
     properties:
-      size:
-        type: integer
-        description: "File size in number of bytes"
-        example: 1024000
-      palette:
+      id:
         type: string
-        description: "Image palette"
-        example: "bw"
+        description: "the variant"
+        example: "original"
+      links:
+        type: object
+        properties:
+          self:
+            type: string
+          image:
+            type: string
+            example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35"
       type:
         type: string
         description: "Type of download corresponding to this variant"
@@ -510,10 +540,17 @@ definitions:
         type: integer
         description: "Image height, in number of pixels"
         example: 1080
-      private:
+      state:
         type: string
-        description: "S3 Private bucket name"
-        example: "my-private-bucket"
+        description: "The state of this download variant. The high level image will change its state to imported only when all variants are in imported state."
+        enum:
+          - pending
+          - importing
+          - imported
+          - published
+          - completed
+          - failed
+        example: "published"
 
 securityDefinitions:
 
@@ -537,20 +574,20 @@ parameters:
     required: true
     in: path
     type: string
-  
+
   variant:
     name: variant
     description: "A unique image download variant identifier"
     required: true
     in: path
     type: string
-    
+
   collection_id:
     name: collection_id
     description: "A unique id for a collection to filter on"
     in: query
     type: string
-    
+
   image:
     name: image
     description: "A valid image model, which already exists"
@@ -558,6 +595,22 @@ parameters:
     required: true
     schema:
       $ref: '#/definitions/Image'
+
+  image_download:
+    name: image_download
+    description: "A valid image download model, which already exists"
+    in: body
+    required: true
+    schema:
+      $ref: '#/definitions/ImageDownload'
+
+  new_image_download:
+    name: new_image_download
+    description: "A valid new image download"
+    in: body
+    required: true
+    schema:
+      $ref: '#/definitions/NewImageDownload'
 
   new_image:
     name: new_image
@@ -567,19 +620,4 @@ parameters:
     schema:
       $ref: '#/definitions/NewImage'
 
-  upload_image:
-    name: upload_image
-    description: "A valid upload model containing the path of the uploaded image."
-    in: body
-    required: true
-    schema:
-      $ref: '#/definitions/ImageUpload'
-
-  update_download:
-    name: update_download
-    description: "A subset of the download data model, containing only the fields that can be updated by an API caller."
-    in: body
-    required: true
-    schema:
-      $ref: '#/definitions/ImageDownloadUpdate'
   
