@@ -30,6 +30,7 @@ paths:
         - "application/json"
       security:
         - FlorenceAPIKey: []
+        - ServiceAPIKey: []
       responses:
         200:
           description: "A json object containing a list of images"
@@ -54,6 +55,7 @@ paths:
         - "application/json"
       security:
         - FlorenceAPIKey: []
+        - ServiceAPIKey: []
       responses:
         201:
           description: "The image metadata was correctly created and a json object containing the new image information is returned. The new image will be in 'created' state and its id will be newly generated."
@@ -86,6 +88,7 @@ paths:
         - "application/json"
       security:
         - FlorenceAPIKey: []
+        - ServiceAPIKey: []
       responses:
         200:
           description: "A json with the requested image metadata"
@@ -140,6 +143,7 @@ paths:
         - "application/json"
       security:
         - FlorenceAPIKey: []
+        - ServiceAPIKey: []
       parameters:
         - $ref: '#/parameters/image_id'
       responses:
@@ -162,6 +166,7 @@ paths:
         - "application/json"
       security:
         - FlorenceAPIKey: []
+        - ServiceAPIKey: []
       parameters:
         - $ref: '#/parameters/image_id'
         - $ref: '#/parameters/new_image_download'
@@ -187,6 +192,7 @@ paths:
         - "application/json"
       security:
         - FlorenceAPIKey: []
+        - ServiceAPIKey: []
       parameters:
         - $ref: '#/parameters/image_id'
         - $ref: '#/parameters/variant'
@@ -248,6 +254,7 @@ paths:
         - "application/json"
       security:
         - FlorenceAPIKey: []
+        - ServiceAPIKey: []
       responses:
         200:
           description: "The image publishing was successfully requested to Static file publisher."
