@@ -41,37 +41,35 @@ func TestSetup(t *testing.T) {
 			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer)
 
 			Convey("Then the following routes should have been added", func() {
-				So(hasRoute(api.Router, "/images", http.MethodPost), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images", http.MethodGet), ShouldBeTrue)
+				So(hasRoute(api.Router, "/images", http.MethodPost), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}", http.MethodGet), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}", http.MethodPut), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/upload", http.MethodPost), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPost), ShouldBeTrue)
+				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodGet), ShouldBeFalse) // TODO Needs to be true when handler implemented
+				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodPost), ShouldBeTrue)
+				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodGet), ShouldBeFalse) // TODO Needs to be true when handler implemented
 				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodPut), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}/import", http.MethodPost), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}/complete", http.MethodPost), ShouldBeTrue)
+				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPost), ShouldBeTrue)
 			})
 
 			Convey("And auth handler is called once per route with the expected permissions", func() {
-				So(len(authHandlerMock.RequireCalls()), ShouldEqual, 9)
+				So(len(authHandlerMock.RequireCalls()), ShouldEqual, 7)
 				So(authHandlerMock.RequireCalls()[0].Required, ShouldResemble, dpauth.Permissions{
-					Create: true, Read: false, Update: false, Delete: false}) // permissions for POST /images
-				So(authHandlerMock.RequireCalls()[1].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: true, Update: false, Delete: false}) // permissions for GET /images
+				So(authHandlerMock.RequireCalls()[1].Required, ShouldResemble, dpauth.Permissions{
+					Create: true, Read: false, Update: false, Delete: false}) // permissions for POST /images
 				So(authHandlerMock.RequireCalls()[2].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: true, Update: false, Delete: false}) // permissions for GET /images/{id}
 				So(authHandlerMock.RequireCalls()[3].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for PUT /images/{id}
+				// TODO Test for GET /images/{id}/downloads
 				So(authHandlerMock.RequireCalls()[4].Required, ShouldResemble, dpauth.Permissions{
-					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/upload
+					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/downloads
+				// TODO Test for GET /images/{id}/downloads/{variant}
 				So(authHandlerMock.RequireCalls()[5].Required, ShouldResemble, dpauth.Permissions{
-					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/publish
-				So(authHandlerMock.RequireCalls()[6].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for PUT /images/{id}/downloads/{variant}
-				So(authHandlerMock.RequireCalls()[7].Required, ShouldResemble, dpauth.Permissions{
-					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/downloads/{variant}/import
-				So(authHandlerMock.RequireCalls()[8].Required, ShouldResemble, dpauth.Permissions{
-					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/downloads/{variant}/complete
+				So(authHandlerMock.RequireCalls()[6].Required, ShouldResemble, dpauth.Permissions{
+					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/publish
 			})
 		})
 
@@ -83,14 +81,14 @@ func TestSetup(t *testing.T) {
 
 			Convey("Then only the get routes should have been added", func() {
 				So(hasRoute(api.Router, "/images", http.MethodGet), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}", http.MethodGet), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images", http.MethodPost), ShouldBeFalse)
+				So(hasRoute(api.Router, "/images/{id}", http.MethodGet), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}", http.MethodPut), ShouldBeFalse)
-				So(hasRoute(api.Router, "/images/{id}/upload", http.MethodPost), ShouldBeFalse)
-				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPut), ShouldBeFalse)
+				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodGet), ShouldBeFalse) // TODO Needs to be true when handler implemented
+				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodPost), ShouldBeFalse)
+				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodGet), ShouldBeFalse) // TODO Needs to be true when handler implemented
 				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodPut), ShouldBeFalse)
-				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}/import", http.MethodPost), ShouldBeFalse)
-				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}/complete", http.MethodPost), ShouldBeFalse)
+				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPut), ShouldBeFalse)
 			})
 
 			Convey("And no auth permissions are required", func() {

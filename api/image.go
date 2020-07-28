@@ -21,6 +21,59 @@ var NewID = func() string {
 	return uuid.NewV4().String()
 }
 
+//ImageUploadedEvent returns an ImageUploaded event for the provided image ID and upload path
+var ImageUploadedEvent = func(imageID, uploadPath string) *event.ImageUploaded {
+	return &event.ImageUploaded{
+		ImageID: imageID,
+		Path:    uploadPath,
+	}
+}
+
+// ImagePublishedEvent returns an ImagePublished event for the provided path
+var ImagePublishedEvent = func(path string) *event.ImagePublished {
+	return &event.ImagePublished{
+		SrcPath: path,
+		DstPath: path,
+	}
+}
+
+// GetImagesHandler is a handler that gets all images in a collection from MongoDB
+func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	hColID := ctx.Value(handlers.CollectionID.Context())
+	logdata := log.Data{
+		handlers.CollectionID.Header(): hColID,
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+	}
+
+	// get collection_id query parameter (optional)
+	colID := req.URL.Query().Get("collection_id")
+	logdata["collection_id"] = colID
+
+	// get images from MongoDB with the requested collection_id filter, if provided.
+	items, err := api.mongoDB.GetImages(ctx, colID)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	images := models.Images{
+		Items:      items,
+		Count:      len(items),
+		TotalCount: len(items),
+		Limit:      len(items),
+	}
+
+	// refresh to populate any fields that are not stored in mongoDB
+	images.Refresh()
+
+	if err := WriteJSONBody(ctx, images, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	log.Event(ctx, "Successfully retrieved images", log.INFO, logdata)
+}
+
 // CreateImageHandler is a handler that inserts an image into mongoDB with a newly generated ID
 func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
@@ -73,43 +126,6 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	log.Event(ctx, "successfully created image", log.INFO, logdata)
-}
-
-// GetImagesHandler is a handler that gets all images in a collection from MongoDB
-func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-	hColID := ctx.Value(handlers.CollectionID.Context())
-	logdata := log.Data{
-		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
-	}
-
-	// get collection_id query parameter (optional)
-	colID := req.URL.Query().Get("collection_id")
-	logdata["collection_id"] = colID
-
-	// get images from MongoDB with the requested collection_id filter, if provided.
-	items, err := api.mongoDB.GetImages(ctx, colID)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	images := models.Images{
-		Items:      items,
-		Count:      len(items),
-		TotalCount: len(items),
-		Limit:      len(items),
-	}
-
-	// refresh to populate any fields that are not stored in mongoDB
-	images.Refresh()
-
-	if err := WriteJSONBody(ctx, images, w, logdata); err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-	log.Event(ctx, "Successfully retrieved images", log.INFO, logdata)
 }
 
 // GetImageHandler is a handler that gets an image by its id from MongoDB
@@ -247,163 +263,32 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 	return updatedImage
 }
 
-// UploadImageHandler updates the image with the provided upload path and sends a kafka 'image uploaded' message
-func (api *API) UploadImageHandler(w http.ResponseWriter, req *http.Request) {
+// GetDownloadsHandler is a handler that returns all the download variant for an image
+// TODO Implement handler
+
+// CreateDownloadHandler is a handler that
+func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
-	vars := mux.Vars(req)
-	id := vars["id"]
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
 		"request-id":                   ctx.Value(dphttp.RequestIdKey),
-		"image-id":                     id,
 	}
 
-	// Unmarshal upload from body and validate it
-	upload := &models.Upload{}
-	if err := ReadJSONBody(ctx, req.Body, upload, w, logdata); err != nil {
+	// Unmarshal image from body and validate it
+	image := &models.Download{}
+	if err := ReadJSONBody(ctx, req.Body, image, w, logdata); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
 
-	imageUpdate := &models.Image{
-		State:  models.StateUploaded.String(),
-		Upload: upload,
-	}
-
-	// Acquire lock for image ID, and defer unlocking
-	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-	defer api.unlockImage(ctx, lockID)
-
-	// get existing image from mongoDB by id
-	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	// validate that the uploaded transition state is allowed
-	if !existingImage.StateTransitionAllowed(imageUpdate.State) {
-		logdata["current_state"] = existingImage.State
-		logdata["target_state"] = imageUpdate.State
-		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
-		return
-	}
-
-	// Generate and send the kafka event to trigger the upload
-	log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
-	event := ImageUploadedEvent(id, upload.Path)
-	if err := api.uploadProducer.ImageUploaded(event); err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	// Update image in mongo DB
-	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
 }
 
-// PublishImageHandler is a handler that triggers the publishing of an image
-func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-	vars := mux.Vars(req)
-	id := vars["id"]
-	hColID := ctx.Value(handlers.CollectionID.Context())
-	logdata := log.Data{
-		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
-		"image-id":                     id,
-	}
+// GetDownloadHandler is a handler that returns an individual download variant
+// TODO Implement handler
 
-	imageUpdate := &models.Image{State: models.StatePublished.String()}
-
-	// Acquire lock for image ID, and defer unlocking
-	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-	defer api.unlockImage(ctx, lockID)
-
-	// get image from mongoDB by id
-	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	// validate that the publish transition state is allowed
-	if !existingImage.StateTransitionAllowed(imageUpdate.State) {
-		logdata["current_state"] = existingImage.State
-		logdata["target_state"] = imageUpdate.State
-		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
-		return
-	}
-
-	// Generate 'image published' events for all download variants
-	events, err := generateImagePublishEvents(existingImage)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	// Send 'image published' kafka messages corresponding to all the download variants
-	log.Event(ctx, "sending image published messages", log.INFO, logdata)
-	for _, e := range events {
-		if err := api.publishedProducer.ImagePublished(e); err != nil {
-			handleError(ctx, w, err, logdata)
-			return
-		}
-	}
-
-	// Update image in mongo DB
-	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-}
-
-// generateImagePublishEvents creates a kafka 'image-published' event for each download variant for the provided image.
-// Note that the private and public paths will be the same, according to the way the URLs are constructed in 'Refresh()' method,
-// using DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
-func generateImagePublishEvents(image *models.Image) (events []*event.ImagePublished, err error) {
-	image.Refresh()
-	for _, variant := range image.Downloads {
-		imgURL, err := url.Parse(variant.Href)
-		if err != nil {
-			return nil, err
-		}
-		events = append(events, ImagePublishedEvent(imgURL.Path))
-	}
-	return events, nil
-}
-
-//ImageUploadedEvent returns an ImageUploaded event for the provided image ID and upload path
-var ImageUploadedEvent = func(imageID, uploadPath string) *event.ImageUploaded {
-	return &event.ImageUploaded{
-		ImageID: imageID,
-		Path:    uploadPath,
-	}
-}
-
-// ImagePublishedEvent returns an ImagePublished event for the provided path
-var ImagePublishedEvent = func(path string) *event.ImagePublished {
-	return &event.ImagePublished{
-		SrcPath: path,
-		DstPath: path,
-	}
-}
-
-// UpdateVariantHandler is a handler to update an image download variant
-func (api *API) UpdateVariantHandler(w http.ResponseWriter, req *http.Request) {
+// UpdateDownloadHandler is a handler to update an image download variant
+func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	vars := mux.Vars(req)
 	id := vars["id"]
@@ -516,6 +401,154 @@ func (api *API) UpdateVariantHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	log.Event(ctx, "successfully updated download variant", log.INFO, logdata)
+}
+
+// PublishImageHandler is a handler that triggers the publishing of an image
+func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
+	logdata := log.Data{
+		handlers.CollectionID.Header(): hColID,
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"image-id":                     id,
+	}
+
+	imageUpdate := &models.Image{State: models.StatePublished.String()}
+
+	// Acquire lock for image ID, and defer unlocking
+	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	defer api.unlockImage(ctx, lockID)
+
+	// get image from mongoDB by id
+	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// validate that the publish transition state is allowed
+	if !existingImage.StateTransitionAllowed(imageUpdate.State) {
+		logdata["current_state"] = existingImage.State
+		logdata["target_state"] = imageUpdate.State
+		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
+		return
+	}
+
+	// Generate 'image published' events for all download variants
+	events, err := generateImagePublishEvents(existingImage)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// Send 'image published' kafka messages corresponding to all the download variants
+	log.Event(ctx, "sending image published messages", log.INFO, logdata)
+	for _, e := range events {
+		if err := api.publishedProducer.ImagePublished(e); err != nil {
+			handleError(ctx, w, err, logdata)
+			return
+		}
+	}
+
+	// Update image in mongo DB
+	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+}
+
+// generateImagePublishEvents creates a kafka 'image-published' event for each download variant for the provided image.
+// Note that the private and public paths will be the same, according to the way the URLs are constructed in 'Refresh()' method,
+// using DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
+func generateImagePublishEvents(image *models.Image) (events []*event.ImagePublished, err error) {
+	image.Refresh()
+	for _, variant := range image.Downloads {
+		imgURL, err := url.Parse(variant.Href)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, ImagePublishedEvent(imgURL.Path))
+	}
+	return events, nil
+}
+
+// unlockImage unlocks the provided image lockID and logs any error with WARN state
+func (api *API) unlockImage(ctx context.Context, lockID string) {
+	if err := api.mongoDB.UnlockImage(lockID); err != nil {
+		log.Event(ctx, "error unlocking mongoDB lock for an image resource", log.WARN, log.Data{"lockID": lockID})
+	}
+}
+
+/// TODO Remove Deprecated handlers…
+
+// UploadImageHandler updates the image with the provided upload path and sends a kafka 'image uploaded' message
+func (api *API) UploadImageHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
+	logdata := log.Data{
+		handlers.CollectionID.Header(): hColID,
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"image-id":                     id,
+	}
+
+	// Unmarshal upload from body and validate it
+	upload := &models.Upload{}
+	if err := ReadJSONBody(ctx, req.Body, upload, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	imageUpdate := &models.Image{
+		State:  models.StateUploaded.String(),
+		Upload: upload,
+	}
+
+	// Acquire lock for image ID, and defer unlocking
+	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	defer api.unlockImage(ctx, lockID)
+
+	// get existing image from mongoDB by id
+	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// validate that the uploaded transition state is allowed
+	if !existingImage.StateTransitionAllowed(imageUpdate.State) {
+		logdata["current_state"] = existingImage.State
+		logdata["target_state"] = imageUpdate.State
+		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
+		return
+	}
+
+	// Generate and send the kafka event to trigger the upload
+	log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
+	event := ImageUploadedEvent(id, upload.Path)
+	if err := api.uploadProducer.ImageUploaded(event); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// Update image in mongo DB
+	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
 }
 
 // ImportVariantHandler is a handler that imports a download variant for an image
@@ -674,11 +707,4 @@ func (api *API) CompleteVariantHandler(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-}
-
-// unlockImage unlocks the provided image lockID and logs any error with WARN state
-func (api *API) unlockImage(ctx context.Context, lockID string) {
-	if err := api.mongoDB.UnlockImage(lockID); err != nil {
-		log.Event(ctx, "error unlocking mongoDB lock for an image resource", log.WARN, log.Data{"lockID": lockID})
-	}
 }
