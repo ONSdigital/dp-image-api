@@ -9,6 +9,7 @@ import (
 // Config represents service configuration for dp-image-api
 type Config struct {
 	BindAddr                   string        `envconfig:"BIND_ADDR"`
+	ApiURL                     string        `envconfig:"IMAGE_API_URL"`
 	Brokers                    []string      `envconfig:"KAFKA_ADDR"`
 	KafkaMaxBytes              int           `envconfig:"KAFKA_MAX_BYTES"`
 	ImageUploadedTopic         string        `envconfig:"IMAGE_UPLOADED_TOPIC"`
@@ -39,6 +40,7 @@ func Get() (*Config, error) {
 
 	cfg := &Config{
 		BindAddr:                   "localhost:24700",
+		ApiURL:                     "http://localhost:24700/",
 		Brokers:                    []string{"localhost:9092"},
 		KafkaMaxBytes:              2000000,
 		ImageUploadedTopic:         "image-uploaded",

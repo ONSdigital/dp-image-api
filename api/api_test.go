@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"context"
+	"github.com/ONSdigital/dp-image-api/url"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -33,12 +34,13 @@ func TestSetup(t *testing.T) {
 				return func(http.ResponseWriter, *http.Request) {}
 			},
 		}
+		urlBuilder := url.NewBuilder("")
 
 		Convey("When created in Publishing mode", func() {
 			cfg := &config.Config{IsPublishing: true}
 			uploadedKafkaProducer := kafkatest.NewMessageProducer(true)
 			publishedKafkaProducer := kafkatest.NewMessageProducer(true)
-			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer)
+			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
 
 			Convey("Then the following routes should have been added", func() {
 				So(hasRoute(api.Router, "/images", http.MethodGet), ShouldBeTrue)
@@ -77,7 +79,7 @@ func TestSetup(t *testing.T) {
 			cfg := &config.Config{IsPublishing: false}
 			uploadedKafkaProducer := kafkatest.NewMessageProducer(true)
 			publishedKafkaProducer := kafkatest.NewMessageProducer(true)
-			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer)
+			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
 
 			Convey("Then only the get routes should have been added", func() {
 				So(hasRoute(api.Router, "/images", http.MethodGet), ShouldBeTrue)
@@ -104,7 +106,8 @@ func TestClose(t *testing.T) {
 		ctx := context.Background()
 		uploadedKafkaProducer := kafkatest.NewMessageProducer(true)
 		publishedKafkaProducer := kafkatest.NewMessageProducer(true)
-		a := api.Setup(ctx, &config.Config{}, r, &mock.AuthHandlerMock{}, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer)
+		urlBuilder := url.NewBuilder("")
+		a := api.Setup(ctx, &config.Config{}, r, &mock.AuthHandlerMock{}, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
 
 		Convey("When the api is closed any dependencies are closed also", func() {
 			err := a.Close(ctx)
@@ -118,7 +121,8 @@ func TestClose(t *testing.T) {
 func GetAPIWithMocks(cfg *config.Config, mongoDbMock *mock.MongoServerMock, authHandlerMock *mock.AuthHandlerMock, uploadedKafkaProducerMock, publishedKafkaProducerMock kafka.IProducer) *api.API {
 	mu.Lock()
 	defer mu.Unlock()
-	return api.Setup(testContext, cfg, mux.NewRouter(), authHandlerMock, mongoDbMock, uploadedKafkaProducerMock, publishedKafkaProducerMock)
+	urlBuilder := url.NewBuilder("")
+	return api.Setup(testContext, cfg, mux.NewRouter(), authHandlerMock, mongoDbMock, uploadedKafkaProducerMock, publishedKafkaProducerMock, urlBuilder)
 }
 
 func hasRoute(r *mux.Router, path, method string) bool {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/ONSdigital/dp-image-api/url"
 
 	"github.com/ONSdigital/dp-api-clients-go/health"
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
@@ -46,6 +47,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	var a *api.API
 
+	urlBuilder := url.NewBuilder(cfg.ApiURL)
 	// The following dependencies will only be initialised if we are in publishing mode
 	var zc *health.Client
 	var auth api.AuthHandler
@@ -72,11 +74,11 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		}
 
 		// Setup the API in publishing
-		a = api.Setup(ctx, cfg, r, auth, mongoDB, uploadedKafkaProducer, publishedKafkaProducer)
+		a = api.Setup(ctx, cfg, r, auth, mongoDB, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
 
 	} else {
 		// Setup the API in web mode
-		a = api.Setup(ctx, cfg, r, auth, mongoDB, nil, nil)
+		a = api.Setup(ctx, cfg, r, auth, mongoDB, nil, nil, urlBuilder)
 	}
 
 	// Get HealthCheck

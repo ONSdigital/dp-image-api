@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"github.com/ONSdigital/dp-image-api/url"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -24,15 +25,17 @@ type API struct {
 	auth              AuthHandler
 	uploadProducer    *event.AvroProducer
 	publishedProducer *event.AvroProducer
+	urlBuilder        *url.Builder
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
-func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer) *API {
+func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer, builder *url.Builder) *API {
 
 	api := &API{
-		Router:  r,
-		auth:    auth,
-		mongoDB: mongoDB,
+		Router:     r,
+		auth:       auth,
+		mongoDB:    mongoDB,
+		urlBuilder: builder,
 	}
 
 	if cfg.IsPublishing {
