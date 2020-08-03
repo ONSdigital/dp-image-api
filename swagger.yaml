@@ -171,8 +171,10 @@ paths:
         - $ref: '#/parameters/image_id'
         - $ref: '#/parameters/new_image_download'
       responses:
-        200:
+        201:
           description: "Successfully created download variants."
+          schema:
+            $ref: '#/definitions/ImageDownload'
         400:
           description: "Invalid request"
         401:
@@ -549,15 +551,11 @@ definitions:
         example: 1080
       state:
         type: string
-        description: "The state of this download variant. The high level image will change its state to imported only when all variants are in imported state."
+        description: "The state of this download variant. On creation the only allowed states are pending or importing."
         enum:
           - pending
           - importing
-          - imported
-          - published
-          - completed
-          - failed
-        example: "published"
+        example: "importing"
 
 securityDefinitions:
 
