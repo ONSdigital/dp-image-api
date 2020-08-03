@@ -41,6 +41,7 @@ const (
 	longName            = "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch"
 	testLockID          = "image-myID-123456789"
 	testDownloadType    = "originally uploaded file"
+	testPrivateHref     = "http://download.ons.gov.uk/images/imageImageID2/original/some-image-name"
 )
 
 var (
@@ -185,6 +186,7 @@ func dbDownload(variantState models.DownloadState) models.Download {
 		Type:             "originally uploaded file",
 		Width:            &testWidth,
 		Height:           &testHeight,
+		Href:             dbDownloadHRef(variantState),
 		Private:          "my-private-bucket",
 		State:            variantState.String(),
 		Error:            "",
@@ -193,6 +195,16 @@ func dbDownload(variantState models.DownloadState) models.Download {
 		PublishStarted:   &testPublishStarted,
 		PublishCompleted: &testPublishCompleted,
 	}
+}
+
+func dbDownloadHRef(variantState models.DownloadState) string {
+	switch variantState {
+	case models.StateDownloadPublished:
+		return testPrivateHref
+	default:
+		return ""
+	}
+
 }
 
 // API model with state removed
@@ -219,6 +231,24 @@ func dbFullImage(state models.State, variantState models.DownloadState) *models.
 		},
 		Downloads: map[string]models.Download{
 			testVariantOriginal: dbDownload(variantState),
+		},
+	}
+}
+
+// API model corresponding to an image in the provided state
+func apiFullImage(state models.State) *models.Image {
+	return &models.Image{
+		ID:           testImageID2,
+		CollectionID: testCollectionID1,
+		Filename:     "some-image-name",
+		License: &models.License{
+			Title: "Open Government Licence v3.0",
+			Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+		},
+		Type:  "chart",
+		State: state.String(),
+		Upload: &models.Upload{
+			Path: "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png",
 		},
 	}
 }
@@ -264,18 +294,8 @@ func updateImageNoCollectionID() *models.Image {
 	return &image
 }
 
-// API model corresponding to dbPublishedImage (where download variant href and public is populated)
-func publishedImage() *models.Image {
-	publishedImage := dbFullImage(models.StatePublished, models.StateDownloadPublished)
-	original := publishedImage.Downloads["original"]
-	original.Href = fmt.Sprintf("http://download.ons.gov.uk/images/%s/original/some-image-name", testImageID2)
-	original.Public = false
-	publishedImage.Downloads["original"] = original
-	return publishedImage
-}
-
 var imagesWithCollectionID1 = models.Images{
-	Items:      []models.Image{*createdImage(), *importedImage(), *publishedImage()},
+	Items:      []models.Image{*createdImage(), *importedImage(), *apiFullImage(models.StatePublished)},
 	Count:      3,
 	Limit:      3,
 	TotalCount: 3,
@@ -283,7 +303,7 @@ var imagesWithCollectionID1 = models.Images{
 }
 
 var allImages = models.Images{
-	Items:      []models.Image{*createdImage(), *createdImageNoCollectionID(), *importedImage(), *publishedImage()},
+	Items:      []models.Image{*createdImage(), *createdImageNoCollectionID(), *importedImage(), *apiFullImage(models.StatePublished)},
 	Count:      4,
 	Limit:      4,
 	TotalCount: 4,
@@ -507,7 +527,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
 				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, *publishedImage())
+				So(retImage, ShouldResemble, *apiFullImage(models.StatePublished))
 			})
 		})
 
@@ -812,7 +832,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 			Convey("Calling update image results in 200 OK but getImage is called only once", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
-					`{"downloads": {}}`))
+					`{}`))
 				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -821,10 +841,7 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{
-					ID:        testImageID1,
-					Downloads: map[string]models.Download{}},
-				)
+				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{ID: testImageID1})
 				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
 				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
@@ -999,10 +1016,12 @@ func TestPublishImageHandler(t *testing.T) {
 		}
 
 		Convey("And an image in 'imported' state in MongoDB", func() {
+			expectedPathOriginal := fmt.Sprintf("/images/%s/original/some-image-name", testImageID1)
+			expectedPathPngW500 := fmt.Sprintf("/images/%s/png_w500/some-image-name", testImageID1)
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					image := dbImage(models.StateImported)
-					image.Downloads = map[string]models.Download{"original": {}, "png_w500": {}}
+					image.Downloads = map[string]models.Download{"original": {Href: expectedPathOriginal}, "png_w500": {Href: expectedPathPngW500}}
 					return image, nil
 				},
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
@@ -1031,8 +1050,6 @@ func TestPublishImageHandler(t *testing.T) {
 
 				Convey("And the expected avro event is sent to the corresponding kafka output channel, with the expected source and dest paths", func() {
 					// Note: the paths correspond to the path part of DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
-					expectedPathOriginal := fmt.Sprintf("/images/%s/original/some-image-name", testImageID1)
-					expectedPathPngW500 := fmt.Sprintf("/images/%s/png_w500/some-image-name", testImageID1)
 					expectedBytesOriginal, err := schema.ImagePublishedEvent.Marshal(&event.ImagePublished{
 						SrcPath: expectedPathOriginal,
 						DstPath: expectedPathOriginal,
@@ -1666,8 +1683,7 @@ func TestUpdateDownloadVariantHandler(t *testing.T) {
 				retDownload := &models.Download{}
 				err := json.Unmarshal(w.Body.Bytes(), retDownload)
 				So(err, ShouldBeNil)
-				expected := dbDownload(models.StateDownloadImported) // full image download, with refreshed fields
-				expected.Href = "http://download.ons.gov.uk/images/imageImageID2/original/some-image-name"
+				expected := dbDownload(models.StateDownloadImported)
 				expected.Public = false
 				So(*retDownload, ShouldResemble, expected)
 			})
@@ -1695,8 +1711,7 @@ func TestUpdateDownloadVariantHandler(t *testing.T) {
 				retDownload := &models.Download{}
 				err := json.Unmarshal(w.Body.Bytes(), retDownload)
 				So(err, ShouldBeNil)
-				expected := dbDownload(models.StateDownloadImported) // full image download, with refreshed fields
-				expected.Href = "http://download.ons.gov.uk/images/imageImageID2/original/some-image-name"
+				expected := dbDownload(models.StateDownloadImported)
 				expected.Public = false
 				So(*retDownload, ShouldResemble, expected)
 			})
@@ -1754,8 +1769,7 @@ func TestUpdateDownloadVariantHandler(t *testing.T) {
 				retDownload := &models.Download{}
 				err := json.Unmarshal(w.Body.Bytes(), retDownload)
 				So(err, ShouldBeNil)
-				expected := dbDownload(models.StateDownloadImported) // full image download, with refreshed fields
-				expected.Href = "http://download.ons.gov.uk/images/imageImageID2/original/some-image-name"
+				expected := dbDownload(models.StateDownloadImported)
 				expected.Public = false
 				So(*retDownload, ShouldResemble, expected)
 			})
@@ -1801,8 +1815,7 @@ func TestUpdateDownloadVariantHandler(t *testing.T) {
 				retDownload := &models.Download{}
 				err := json.Unmarshal(w.Body.Bytes(), retDownload)
 				So(err, ShouldBeNil)
-				expected := dbDownload(models.StateDownloadImported) // full image download, with refreshed fields
-				expected.Href = "http://download.ons.gov.uk/images/imageImageID2/original/some-image-name"
+				expected := dbDownload(models.StateDownloadImported)
 				expected.Public = false
 				So(*retDownload, ShouldResemble, expected)
 			})

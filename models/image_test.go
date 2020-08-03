@@ -78,50 +78,6 @@ func TestImageAnyDownloadFailed(t *testing.T) {
 	})
 }
 
-func TestImagesRefresh(t *testing.T) {
-	Convey("Given an images struct with an image that contains a download variant", t, func() {
-		images := models.Images{
-			Count:  1,
-			Offset: 0,
-			Limit:  1,
-			Items: []models.Image{
-				{
-					ID:       "imageID",
-					Filename: "myImage.png",
-					State:    models.StateCompleted.String(),
-					Downloads: map[string]models.Download{
-						"original": {
-							State: models.StateDownloadCompleted.String(),
-						},
-					},
-				},
-			},
-		}
-		Convey("Then, refreshing the 'images' refreshes the image and the download variant with the expected values", func() {
-			images.Refresh()
-			So(images, ShouldResemble, models.Images{
-				Count:  1,
-				Offset: 0,
-				Limit:  1,
-				Items: []models.Image{
-					{
-						ID:       "imageID",
-						Filename: "myImage.png",
-						State:    models.StateCompleted.String(),
-						Downloads: map[string]models.Download{
-							"original": {
-								State:  models.StateDownloadCompleted.String(),
-								Href:   "http://static.ons.gov.uk/images/imageID/original/myImage.png",
-								Public: true,
-							},
-						},
-					},
-				},
-			})
-		})
-	})
-}
-
 func TestImageValidation(t *testing.T) {
 
 	Convey("Given an empty image, it is successfully validated", t, func() {
@@ -184,37 +140,6 @@ func TestImageValidation(t *testing.T) {
 	})
 }
 
-func TestImageRefresh(t *testing.T) {
-	Convey("Given a fully populated valid image with a valid download variant, then refreshing the image results in the download variant being refreshed", t, func() {
-
-		image := models.Image{
-			ID:       "imageID",
-			Filename: "myImage.png",
-			State:    models.StateCompleted.String(),
-			Downloads: map[string]models.Download{
-				"original": {
-					State: models.StateDownloadCompleted.String(),
-				},
-			},
-		}
-		Convey("Then, refreshing the image refreshes the download variant with the expected values", func() {
-			image.Refresh()
-			So(image, ShouldResemble, models.Image{
-				ID:       "imageID",
-				Filename: "myImage.png",
-				State:    models.StateCompleted.String(),
-				Downloads: map[string]models.Download{
-					"original": {
-						State:  models.StateDownloadCompleted.String(),
-						Href:   "http://static.ons.gov.uk/images/imageID/original/myImage.png",
-						Public: true,
-					},
-				},
-			})
-		})
-	})
-}
-
 func TestImageStateTransitionAllowed(t *testing.T) {
 	Convey("Given an image in created state", t, func() {
 		image := models.Image{
@@ -270,43 +195,6 @@ func TestDownloadValidation(t *testing.T) {
 		}
 		err := download.Validate()
 		So(err, ShouldBeNil)
-	})
-}
-
-func TestDownloadRefresh(t *testing.T) {
-
-	Convey("Given an array of download variants in any state except completed", t, func() {
-		downloads := []models.Download{
-			{State: models.StateDownloadPending.String()},
-			{State: models.StateDownloadImporting.String()},
-			{State: models.StateDownloadImported.String()},
-			{State: models.StateDownloadPublished.String()},
-			{State: models.StateDownloadFailed.String()},
-		}
-
-		Convey("Then, refreshing the models results in public being false, and the expected href", func() {
-			for _, download := range downloads {
-				state := download.State
-				download.Refresh("imageID", "png_bw", "imageName.png")
-				So(download, ShouldResemble, models.Download{
-					State:  state,
-					Href:   "http://download.ons.gov.uk/images/imageID/png_bw/imageName.png",
-					Public: false,
-				})
-			}
-		})
-	})
-
-	Convey("Given a download variant in completed state", t, func() {
-		download := models.Download{State: models.StateCompleted.String()}
-		Convey("Then, refreshing the model results in public being true, and the expected href", func() {
-			download.Refresh("imageID", "png_bw", "imageName.png")
-			So(download, ShouldResemble, models.Download{
-				State:  models.StateCompleted.String(),
-				Href:   "http://static.ons.gov.uk/images/imageID/png_bw/imageName.png",
-				Public: true,
-			})
-		})
 	})
 }
 

@@ -64,9 +64,6 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 		Limit:      len(items),
 	}
 
-	// refresh to populate any fields that are not stored in mongoDB
-	images.Refresh()
-
 	if err := WriteJSONBody(ctx, images, w, logdata); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
@@ -146,9 +143,6 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-
-	// refresh to populate any fields that are not stored in mongoDB
-	image.Refresh()
 
 	if err := WriteJSONBody(ctx, image, w, logdata); err != nil {
 		handleError(ctx, w, err, logdata)
@@ -259,7 +253,6 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 			return nil
 		}
 	}
-	updatedImage.Refresh()
 	return updatedImage
 }
 
@@ -393,7 +386,6 @@ func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 			return
 		}
 	}
-	updatedImage.Refresh()
 
 	// return the updated download variant as a json object in the response body
 	if err := WriteJSONBody(ctx, updatedImage.Downloads[variant], w, logdata); err != nil {
@@ -468,7 +460,6 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 // Note that the private and public paths will be the same, according to the way the URLs are constructed in 'Refresh()' method,
 // using DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
 func generateImagePublishEvents(image *models.Image) (events []*event.ImagePublished, err error) {
-	image.Refresh()
 	for _, variant := range image.Downloads {
 		imgURL, err := url.Parse(variant.Href)
 		if err != nil {

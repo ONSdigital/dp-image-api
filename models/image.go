@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/ONSdigital/dp-image-api/apierrors"
@@ -35,7 +34,7 @@ type Image struct {
 	License      *License            `bson:"license,omitempty"       json:"license,omitempty"`
 	Upload       *Upload             `bson:"upload,omitempty"        json:"upload,omitempty"`
 	Type         string              `bson:"type,omitempty"          json:"type,omitempty"`
-	Downloads    map[string]Download `bson:"downloads,omitempty"     json:"downloads,omitempty"`
+	Downloads    map[string]Download `bson:"downloads,omitempty"     json:"-"`
 }
 
 // License represents a license model
@@ -67,11 +66,6 @@ type Download struct {
 	PublishCompleted *time.Time `bson:"publish_completed,omitempty"  json:"publish_completed,omitempty"`
 }
 
-// Refresh refreshes all the images in this images struct
-func (ii *Images) Refresh() {
-	for _, image := range ii.Items {
-		image.Refresh()
-	}
 }
 
 // Validate checks that an image struct complies with the filename and state constraints, if provided.
@@ -96,14 +90,6 @@ func (i *Image) Validate() error {
 	}
 
 	return nil
-}
-
-// Refresh regenerates all the values for the available download variants for this image
-func (i *Image) Refresh() {
-	for variant, download := range i.Downloads {
-		download.Refresh(i.ID, variant, i.Filename)
-		i.Downloads[variant] = download
-	}
 }
 
 // StateTransitionAllowed checks if the image can transition from its current state to the provided target state
@@ -159,18 +145,6 @@ func (d *Download) Validate() error {
 		}
 	}
 	return nil
-}
-
-// Refresh regenerates the values for public and href according to the download state and the provided values
-// for variant name, image name and image extension
-func (d *Download) Refresh(imageID, variantName, fileName string) {
-	if d.State == StateDownloadCompleted.String() {
-		d.Public = true
-		d.Href = fmt.Sprintf(DownloadHrefFmt, DownloadPublicHost, imageID, variantName, fileName)
-		return
-	}
-	d.Public = false
-	d.Href = fmt.Sprintf(DownloadHrefFmt, DownloadPrivateHost, imageID, variantName, fileName)
 }
 
 // StateTransitionAllowed checks if the download variant can transition from its current state to the provided target state
