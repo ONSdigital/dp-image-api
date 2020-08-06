@@ -47,9 +47,7 @@ func TestSetup(t *testing.T) {
 				So(hasRoute(api.Router, "/images", http.MethodPost), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}", http.MethodGet), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}", http.MethodPut), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodGet), ShouldBeFalse) // TODO Needs to be true when handler implemented
 				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodPost), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodGet), ShouldBeFalse) // TODO Needs to be true when handler implemented
 				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodPut), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPost), ShouldBeTrue)
 			})
