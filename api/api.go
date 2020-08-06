@@ -45,16 +45,12 @@ func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHand
 		r.HandleFunc("/images", auth.Require(dpauth.Permissions{Create: true}, api.CreateImageHandler)).Methods(http.MethodPost)
 		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Read: true}, api.GetImageHandler)).Methods(http.MethodGet)
 		r.HandleFunc("/images/{id}", auth.Require(dpauth.Permissions{Update: true}, api.UpdateImageHandler)).Methods(http.MethodPut)
-		//  TODO           /images/{id}/downloads            GET
 		r.HandleFunc("/images/{id}/downloads", auth.Require(dpauth.Permissions{Update: true}, api.CreateDownloadHandler)).Methods(http.MethodPost)
-		//  TODO           /images/{id}/downloads/{variant}  GET
 		r.HandleFunc("/images/{id}/downloads/{variant}", auth.Require(dpauth.Permissions{Update: true}, api.UpdateDownloadHandler)).Methods(http.MethodPut)
 		r.HandleFunc("/images/{id}/publish", auth.Require(dpauth.Permissions{Update: true}, api.PublishImageHandler)).Methods(http.MethodPost)
 	} else {
 		r.HandleFunc("/images", api.GetImagesHandler).Methods(http.MethodGet)
 		r.HandleFunc("/images/{id}", api.GetImageHandler).Methods(http.MethodGet)
-		//  TODO           /images/{id}/downloads            GET
-		//  TODO           /images/{id}/downloads/{variant}  GET
 	}
 	return api
 }

@@ -64,10 +64,8 @@ func TestSetup(t *testing.T) {
 					Create: false, Read: true, Update: false, Delete: false}) // permissions for GET /images/{id}
 				So(authHandlerMock.RequireCalls()[3].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for PUT /images/{id}
-				// TODO Test for GET /images/{id}/downloads
 				So(authHandlerMock.RequireCalls()[4].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for POST /images/{id}/downloads
-				// TODO Test for GET /images/{id}/downloads/{variant}
 				So(authHandlerMock.RequireCalls()[5].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: false, Update: true, Delete: false}) // permissions for PUT /images/{id}/downloads/{variant}
 				So(authHandlerMock.RequireCalls()[6].Required, ShouldResemble, dpauth.Permissions{
@@ -86,9 +84,7 @@ func TestSetup(t *testing.T) {
 				So(hasRoute(api.Router, "/images", http.MethodPost), ShouldBeFalse)
 				So(hasRoute(api.Router, "/images/{id}", http.MethodGet), ShouldBeTrue)
 				So(hasRoute(api.Router, "/images/{id}", http.MethodPut), ShouldBeFalse)
-				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodGet), ShouldBeFalse) // TODO Needs to be true when handler implemented
 				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodPost), ShouldBeFalse)
-				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodGet), ShouldBeFalse) // TODO Needs to be true when handler implemented
 				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodPut), ShouldBeFalse)
 				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPut), ShouldBeFalse)
 			})

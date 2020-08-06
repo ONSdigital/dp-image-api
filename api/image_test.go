@@ -1048,12 +1048,6 @@ func TestUpdateImageHandler(t *testing.T) {
 //	})
 //}
 
-func TestGetDownloadsHandler(t *testing.T) {
-	//TODO Test Get downloads
-	// TEST no image exists
-	// TEST no downloads exist
-}
-
 func TestCreateDownloadHandler(t *testing.T) {
 
 	// Convey - Given an API in publishing mode with an existing image in publishing

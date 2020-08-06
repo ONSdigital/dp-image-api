@@ -256,9 +256,6 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 	return updatedImage
 }
 
-// GetDownloadsHandler is a handler that returns all the download variant for an image
-// TODO Implement handler
-
 // CreateDownloadHandler is a handler that
 func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
@@ -353,9 +350,6 @@ func (api *API) createLinksForDownload(id, variant string) *models.DownloadLinks
 		Image: image,
 	}
 }
-
-// GetDownloadHandler is a handler that returns an individual download variant
-// TODO Implement handler
 
 // UpdateDownloadHandler is a handler to update an image download variant
 func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) {
