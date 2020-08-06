@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -361,6 +362,26 @@ var emptyImages = models.Images{
 	TotalCount: 0,
 	Offset:     0,
 }
+
+// API response for GET …/downloads
+func apiGetDownloadsResponse(downloads ...models.Download) *models.Downloads {
+	downloadsList := []models.Download{}
+	downloadsList = append(downloadsList, downloads...)
+	return &models.Downloads{
+		Count:      len(downloads),
+		Offset:     0,
+		Limit:      len(downloads),
+		Items:      downloadsList,
+		TotalCount: len(downloads),
+	}
+}
+
+// Sorting functions for sorting a list of Downloads by their ID
+type downloadsById []models.Download
+
+func (s downloadsById) Len() int           { return len(s) }
+func (s downloadsById) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s downloadsById) Less(i, j int) bool { return s[i].ID < s[j].ID }
 
 // kafkaProducer mock which exposes Channels function returning empty channels
 // to be used on tests that are not supposed to send any kafka message
@@ -1047,6 +1068,152 @@ func TestUpdateImageHandler(t *testing.T) {
 //		})
 //	})
 //}
+
+func TestGetDownloadsHandler(t *testing.T) {
+
+	Convey("Given an image API in publishing mode", t, func() {
+		cfg, err := config.Get()
+		cfg.IsPublishing = true
+		So(err, ShouldBeNil)
+		doTestGetDownloadsHandler(cfg)
+	})
+
+	Convey("Given an image API in web mode", t, func() {
+		cfg, err := config.Get()
+		cfg.IsPublishing = false
+		So(err, ShouldBeNil)
+		doTestGetDownloadsHandler(cfg)
+	})
+}
+
+func doTestGetDownloadsHandler(cfg *config.Config) {
+	Convey("And an image API with existing valid images stored in a mongoDB mock", func() {
+		cfg, err := config.Get()
+		So(err, ShouldBeNil)
+		cfg.IsPublishing = true
+
+		firstDownload := dbDownloadWithID(testImagePublishedID, testVariantAlternative, models.StateDownloadPublished)
+		secondDownload := dbDownloadWithID(testImagePublishedID, testVariantOriginal, models.StateDownloadPublished)
+		mongoDBMock := &mock.MongoServerMock{
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				switch id {
+				case testImageUploadedID:
+					return dbFullImage(models.StateUploaded), nil
+				case testImageImportingID:
+					return dbFullImageWithDownloads(models.StateImporting, dbDownload(models.StateDownloadImported)), nil
+				case testImagePublishedID:
+					return dbFullImageWithDownloads(models.StatePublished, firstDownload, secondDownload), nil
+				default:
+					return nil, apierrors.ErrImageNotFound
+				}
+			},
+		}
+
+		authHandlerMock := &mock.AuthHandlerMock{
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+				return handler
+			},
+		}
+
+		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+		Convey("When downloads are requested from an image with no downloads", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), nil)
+			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+
+			Convey("Then a valid Downloads response with 0 items is returned with status code 200", func() {
+				So(w.Code, ShouldEqual, http.StatusOK)
+				payload, err := ioutil.ReadAll(w.Body)
+				So(err, ShouldBeNil)
+				retDownloads := models.Downloads{}
+				err = json.Unmarshal(payload, &retDownloads)
+				So(err, ShouldBeNil)
+				So(retDownloads, ShouldResemble, *apiGetDownloadsResponse())
+			})
+		})
+
+		Convey("When downloads are requested from an image with one download", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageImportingID), nil)
+			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+
+			Convey("Then a valid Downloads response with 1 item is returned with status code 200", func() {
+				So(w.Code, ShouldEqual, http.StatusOK)
+				payload, err := ioutil.ReadAll(w.Body)
+				So(err, ShouldBeNil)
+				retDownloads := models.Downloads{}
+				err = json.Unmarshal(payload, &retDownloads)
+				So(err, ShouldBeNil)
+				So(retDownloads, ShouldResemble, *apiGetDownloadsResponse(dbDownload(models.StateDownloadImported)))
+			})
+		})
+
+		Convey("When downloads are requested from an image with two downloads", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImagePublishedID), nil)
+			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+
+			Convey("Then a valid Downloads response with 2 items is returned with status code 200", func() {
+				So(w.Code, ShouldEqual, http.StatusOK)
+				payload, err := ioutil.ReadAll(w.Body)
+				So(err, ShouldBeNil)
+				retDownloads := models.Downloads{}
+				err = json.Unmarshal(payload, &retDownloads)
+				So(err, ShouldBeNil)
+				So(retDownloads.Count, ShouldEqual, 2)
+				So(retDownloads.Offset, ShouldEqual, 0)
+				So(retDownloads.Limit, ShouldEqual, 2)
+				So(retDownloads.TotalCount, ShouldEqual, 2)
+
+				items := retDownloads.Items
+				So(items, ShouldHaveLength, 2)
+				// sort the items because they are stored in a map so could come out in any order
+				sort.Sort(downloadsById(items))
+				So(items[0], ShouldResemble, firstDownload)
+				So(items[1], ShouldResemble, secondDownload)
+			})
+		})
+
+		Convey("When downloads are requested from an image not in mongo", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageID1), nil)
+			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+
+			Convey("Then a status code 404 (NotFound) is returned", func() {
+				So(w.Code, ShouldEqual, http.StatusNotFound)
+			})
+		})
+	})
+
+	Convey("And an image API with mongoDB returning an error", func() {
+		cfg, err := config.Get()
+		So(err, ShouldBeNil)
+		mongoDBMock := &mock.MongoServerMock{
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				return nil, errMongoDB
+			},
+		}
+		authHandlerMock := &mock.AuthHandlerMock{
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+				return handler
+			},
+		}
+		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+		Convey("Then when images are requested, a 500 error is returned", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), nil)
+			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			w := httptest.NewRecorder()
+			imageApi.Router.ServeHTTP(w, r)
+			So(w.Code, ShouldEqual, http.StatusInternalServerError)
+		})
+	})
+}
 
 func TestCreateDownloadHandler(t *testing.T) {
 

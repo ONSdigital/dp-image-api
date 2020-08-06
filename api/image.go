@@ -256,6 +256,43 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 	return updatedImage
 }
 
+// GetDownloadsHandler is a handler that returns all the download variant for an image
+func (api *API) GetDownloadsHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
+	logdata := log.Data{
+		handlers.CollectionID.Header(): hColID,
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"image-id":                     id,
+	}
+
+	// get image from mongoDB by id
+	image, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	downloadsList := []models.Download{}
+	for _, dl := range image.Downloads {
+		downloadsList = append(downloadsList, dl)
+	}
+	downloads := models.Downloads{
+		Items:      downloadsList,
+		Count:      len(downloadsList),
+		TotalCount: len(downloadsList),
+		Limit:      len(downloadsList),
+	}
+
+	if err := WriteJSONBody(ctx, downloads, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	log.Event(ctx, "Successfully retrieved downloads", log.INFO, logdata)
+}
+
 // CreateDownloadHandler is a handler that
 func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
