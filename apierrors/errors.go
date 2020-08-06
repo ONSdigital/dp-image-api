@@ -8,6 +8,7 @@ import (
 var (
 	ErrImageNotFound                    = errors.New("image not found")
 	ErrVariantNotFound                  = errors.New("image download variant not found")
+	ErrVariantAlreadyExists             = errors.New("image download variant already exists")
 	ErrInternalServer                   = errors.New("internal error")
 	ErrUnableToReadMessage              = errors.New("failed to read message body")
 	ErrImageIDMismatch                  = errors.New("image id provided in body does not match 'id' path parameter")
@@ -23,4 +24,5 @@ var (
 	ErrVariantStateTransitionNotAllowed = errors.New("image download variant state transition not allowed")
 	ErrImageDownloadTypeMismatch        = errors.New("image download variant type does not match existing type")
 	ErrImageDownloadInvalidState        = errors.New("image download state is not a valid state name")
+	ErrImageDownloadBadInitialState     = errors.New("image download state is not a valid initial state")
 )

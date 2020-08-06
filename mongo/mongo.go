@@ -188,6 +188,9 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 
 	if image.Downloads != nil {
 		for variant, download := range image.Downloads {
+			if download.ID != "" {
+				updates[fmt.Sprintf("downloads.%s.id", variant)] = download.ID
+			}
 			if download.Size != nil {
 				updates[fmt.Sprintf("downloads.%s.size", variant)] = download.Size
 			}
@@ -199,6 +202,9 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 			}
 			if download.Height != nil {
 				updates[fmt.Sprintf("downloads.%s.height", variant)] = download.Height
+			}
+			if download.Links != nil {
+				updates[fmt.Sprintf("downloads.%s.links", variant)] = download.Links
 			}
 			if download.Private != "" {
 				updates[fmt.Sprintf("downloads.%s.private_bucket", variant)] = download.Private

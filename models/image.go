@@ -50,6 +50,7 @@ type Upload struct {
 
 // Download represents a download variant model
 type Download struct {
+	ID               string         `bson:"id,omitempty"                 json:"id,omitempty"`
 	Size             *int       `bson:"size,omitempty"               json:"size,omitempty"`
 	Palette          string     `bson:"palette,omitempty"            json:"palette,omitempty"`
 	Type             string     `bson:"type,omitempty"               json:"type,omitempty"`
@@ -57,6 +58,7 @@ type Download struct {
 	Height           *int       `bson:"height,omitempty"             json:"height,omitempty"`
 	Public           bool       `json:"public,omitempty"`
 	Href             string     `json:"href,omitempty"`
+	Links            *DownloadLinks `bson:"links,omitempty"              json:"links,omitempty"`
 	Private          string     `bson:"private,omitempty"            json:"private,omitempty"`
 	State            string     `bson:"state,omitempty"              json:"state,omitempty"`
 	Error            string     `bson:"error,omitempty"              json:"error,omitempty"`
@@ -66,6 +68,9 @@ type Download struct {
 	PublishCompleted *time.Time `bson:"publish_completed,omitempty"  json:"publish_completed,omitempty"`
 }
 
+type DownloadLinks struct {
+	Self  string `bson:"self,omitempty"       json:"self,omitempty"`
+	Image string `bson:"image,omitempty"      json:"image,omitempty"`
 }
 
 // Validate checks that an image struct complies with the filename and state constraints, if provided.
@@ -80,12 +85,6 @@ func (i *Image) Validate() error {
 	if i.State != "" {
 		if _, err := ParseState(i.State); err != nil {
 			return apierrors.ErrImageInvalidState
-		}
-	}
-
-	for _, download := range i.Downloads {
-		if err := download.Validate(); err != nil {
-			return err
 		}
 	}
 
@@ -137,7 +136,7 @@ func (i *Image) AllOtherDownloadsCompleted(variantToIgnore string) bool {
 	return true
 }
 
-// Validate checks that an image struct complies with the state name constraint, if provided.
+// Validate checks that an download struct complies with the state name constraint, if provided.
 func (d *Download) Validate() error {
 	if d.State != "" {
 		if _, err := ParseDownloadState(d.State); err != nil {

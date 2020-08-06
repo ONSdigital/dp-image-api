@@ -262,19 +262,96 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 // CreateDownloadHandler is a handler that
 func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
 		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"image-id":                     id,
 	}
 
 	// Unmarshal image from body and validate it
-	image := &models.Download{}
-	if err := ReadJSONBody(ctx, req.Body, image, w, logdata); err != nil {
+	newDownload := &models.Download{}
+	if err := ReadJSONBody(ctx, req.Body, newDownload, w, logdata); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
 
+	// generic download validation
+	if err := newDownload.Validate(); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	variant := newDownload.ID
+
+	// Creat HATEOS links for download variant
+	newDownload.Links = api.createLinksForDownload(id, variant)
+
+	// Check provided variant state supplied is correct
+	if newDownload.State != models.StateDownloadImporting.String() {
+		handleError(ctx, w, apierrors.ErrImageDownloadBadInitialState, logdata)
+		return
+	}
+
+	// Acquire lock for image ID, and defer unlocking
+	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	defer api.unlockImage(ctx, lockID)
+
+	// get image from mongoDB by id
+	image, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// The high level image needs to be in 'importing' state to allow an update variant operation
+	if image.State != models.StateCreated.String() && image.State != models.StateImporting.String() {
+		handleError(ctx, w, apierrors.ErrImageNotImporting, logdata)
+		return
+	}
+
+	// check for existing variant
+	_, found := image.Downloads[variant]
+	if found {
+		handleError(ctx, w, apierrors.ErrVariantAlreadyExists, logdata)
+		return
+	}
+
+	// Add new download to existing image and update image state
+	if image.Downloads == nil {
+		image.Downloads = map[string]models.Download{}
+	}
+	image.Downloads[variant] = *newDownload
+	image.State = models.StateImporting.String()
+
+	// Update image in mongo DB
+	err = api.mongoDB.UpsertImage(ctx, id, image)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	if err := WriteJSONBody(ctx, newDownload, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	log.Event(ctx, "successfully created download variant", log.INFO, logdata)
+}
+
+func (api *API) createLinksForDownload(id, variant string) *models.DownloadLinks {
+	self := api.urlBuilder.BuildImageDownloadURL(id, variant)
+	image := api.urlBuilder.BuildImageURL(id)
+	return &models.DownloadLinks{
+		Self:  self,
+		Image: image,
+	}
 }
 
 // GetDownloadHandler is a handler that returns an individual download variant

@@ -40,7 +40,7 @@ func Get() (*Config, error) {
 
 	cfg := &Config{
 		BindAddr:                   "localhost:24700",
-		ApiURL:                     "http://localhost:24700/",
+		ApiURL:                     "http://localhost:24700",
 		Brokers:                    []string{"localhost:9092"},
 		KafkaMaxBytes:              2000000,
 		ImageUploadedTopic:         "image-uploaded",

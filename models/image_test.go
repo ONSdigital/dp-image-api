@@ -102,19 +102,6 @@ func TestImageValidation(t *testing.T) {
 		So(err, ShouldResemble, apierrors.ErrImageInvalidState)
 	})
 
-	Convey("Given an image with an download in an invalid state, it fails to validate with the expected error", t, func() {
-		image := models.Image{
-			State: models.StatePublished.String(),
-			Downloads: map[string]models.Download{
-				"original": {
-					State: "wrong",
-				},
-			},
-		}
-		err := image.Validate()
-		So(err, ShouldResemble, apierrors.ErrImageDownloadInvalidState)
-	})
-
 	Convey("Given a fully populated valid image with a valid download variant, it is successfully validated", t, func() {
 		image := models.Image{
 			ID:           "123",
@@ -129,11 +116,6 @@ func TestImageValidation(t *testing.T) {
 				Path: "image-upload-path",
 			},
 			Type: "icon",
-			Downloads: map[string]models.Download{
-				"original": {
-					State: models.StateDownloadCompleted.String(),
-				},
-			},
 		}
 		err := image.Validate()
 		So(err, ShouldBeNil)
