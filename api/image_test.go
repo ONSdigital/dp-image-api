@@ -1050,8 +1050,6 @@ func TestUpdateImageHandler(t *testing.T) {
 
 func TestCreateDownloadHandler(t *testing.T) {
 
-	// Convey - Given an API in publishing mode with an existing image in publishing
-
 	Convey("Given an image API in publishing mode with existing valid images stored in a mongoDB mock", t, func() {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
