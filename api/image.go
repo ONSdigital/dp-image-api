@@ -307,8 +307,8 @@ func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	// The high level image needs to be in 'importing' state to allow an update variant operation
-	if image.State != models.StateCreated.String() && image.State != models.StateImporting.String() {
+	// The high level image needs to be in 'uploaded' or 'importing' state to allow an update variant operation
+	if image.State != models.StateUploaded.String() && image.State != models.StateImporting.String() {
 		handleError(ctx, w, apierrors.ErrImageNotImporting, logdata)
 		return
 	}

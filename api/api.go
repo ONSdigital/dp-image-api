@@ -119,6 +119,7 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			apierrors.ErrImageNoCollectionID,
 			apierrors.ErrImageInvalidState,
 			apierrors.ErrImageDownloadTypeMismatch,
+			apierrors.ErrImageDownloadInvalidState,
 			apierrors.ErrImageIDMismatch:
 			status = http.StatusBadRequest
 		case apierrors.ErrImageAlreadyPublished,
@@ -126,8 +127,9 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			apierrors.ErrImageStateTransitionNotAllowed,
 			apierrors.ErrImageNotImporting,
 			apierrors.ErrImageNotPublished,
+			apierrors.ErrVariantAlreadyExists,
 			apierrors.ErrVariantStateTransitionNotAllowed,
-			apierrors.ErrImageDownloadInvalidState:
+			apierrors.ErrImageDownloadBadInitialState:
 			status = http.StatusForbidden
 		default:
 			status = http.StatusInternalServerError
