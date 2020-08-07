@@ -498,7 +498,8 @@ definitions:
           - imported
           - published
           - completed
-          - failed
+          - failed-import
+          - failed-publish
         example: "published"
       error:
         type: string
