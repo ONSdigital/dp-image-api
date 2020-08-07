@@ -388,6 +388,44 @@ func (api *API) createLinksForDownload(id, variant string) *models.DownloadLinks
 	}
 }
 
+// GetDownloadHandler is a handler that returns an individual download variant
+func (api *API) GetDownloadHandler(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	id := vars["id"]
+	variant := vars["variant"]
+	hColID := ctx.Value(handlers.CollectionID.Context())
+	logdata := log.Data{
+		handlers.CollectionID.Header(): hColID,
+		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"image-id":                     id,
+		"download-variant":             variant,
+	}
+
+	// get image from mongoDB by id
+	image, err := api.mongoDB.GetImage(req.Context(), id)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	downloadsList := []models.Download{}
+	for _, dl := range image.Downloads {
+		downloadsList = append(downloadsList, dl)
+	}
+	download, found := image.Downloads[variant]
+	if !found {
+		handleError(ctx, w, apierrors.ErrVariantNotFound, logdata)
+		return
+	}
+
+	if err := WriteJSONBody(ctx, download, w, logdata); err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	log.Event(ctx, "Successfully retrieved download", log.INFO, logdata)
+}
+
 // UpdateDownloadHandler is a handler to update an image download variant
 func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
