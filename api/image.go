@@ -293,7 +293,7 @@ func (api *API) GetDownloadsHandler(w http.ResponseWriter, req *http.Request) {
 	log.Event(ctx, "Successfully retrieved downloads", log.INFO, logdata)
 }
 
-// CreateDownloadHandler is a handler that
+// CreateDownloadHandler is a handler that adds a new download to an existing image
 func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	vars := mux.Vars(req)
