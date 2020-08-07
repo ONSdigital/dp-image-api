@@ -283,7 +283,7 @@ func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 
 	variant := newDownload.ID
 
-	// Creat HATEOS links for download variant
+	// Create HATEOS links for download variant
 	newDownload.Links = api.createLinksForDownload(id, variant)
 
 	// Check provided variant state supplied is correct

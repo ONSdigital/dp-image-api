@@ -148,7 +148,7 @@ paths:
         - $ref: '#/parameters/image_id'
       responses:
         200:
-          description: "Successfully got download variant."
+          description: "Successfully got download variants."
           schema:
             $ref: '#/definitions/ImageDownloads'
         401:
@@ -172,7 +172,7 @@ paths:
         - $ref: '#/parameters/new_image_download'
       responses:
         201:
-          description: "Successfully created download variants."
+          description: "Successfully created download variant."
           schema:
             $ref: '#/definitions/ImageDownload'
         400:
@@ -180,7 +180,7 @@ paths:
         401:
           $ref: '#/responses/Unauthenticated'
         403:
-          description: "Unauthorised to view images metadata"
+          description: "Unauthorised to create download variants"
         404:
           $ref: '#/responses/NotFound'
         500:
@@ -200,7 +200,7 @@ paths:
         - $ref: '#/parameters/variant'
       responses:
         200:
-          description: "Successfully updated download variant."
+          description: "Successfully got download variant."
           schema:
             $ref: '#/definitions/ImageDownload'
         401:
@@ -227,7 +227,7 @@ paths:
         - $ref: '#/parameters/image_download'
       responses:
         200:
-          description: "A json with the download varint afeter veing updated"
+          description: "Successfully updated download variant"
           schema:
             $ref: '#/definitions/ImageDownload'
         400:
