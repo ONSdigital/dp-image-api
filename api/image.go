@@ -409,10 +409,6 @@ func (api *API) GetDownloadHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	downloadsList := []models.Download{}
-	for _, dl := range image.Downloads {
-		downloadsList = append(downloadsList, dl)
-	}
 	download, found := image.Downloads[variant]
 	if !found {
 		handleError(ctx, w, apierrors.ErrVariantNotFound, logdata)
