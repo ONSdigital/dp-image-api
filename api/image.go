@@ -170,9 +170,6 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// PUT should not affect the state so clear it if it is supplied
-	image.State = ""
-
 	// apply the update
 	if updatedImage := api.doUpdateImage(w, req, id, image, logdata); updatedImage != nil {
 		if err := WriteJSONBody(ctx, updatedImage, w, logdata); err != nil {
@@ -215,45 +212,31 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 		return nil
 	}
 
-	// check that state transition is allowed, only if state is provided
-	if image.State != "" {
-		if !existingImage.StateTransitionAllowed(image.State) {
-			logdata["current_state"] = existingImage.State
-			logdata["target_state"] = image.State
-			handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
-			return nil
-		}
-	}
-
-	// if the image is already published, it cannot be updated
-	if existingImage.State == models.StatePublished.String() {
-		handleError(ctx, w, apierrors.ErrImageAlreadyPublished, logdata)
-		return nil
-	}
-
-	// if the image is already completed, it cannot be updated
-	if existingImage.State == models.StateCompleted.String() {
-		handleError(ctx, w, apierrors.ErrImageAlreadyCompleted, logdata)
-		return nil
-	}
-
-	// Update image in mongo DB
-	didChange, err := api.mongoDB.UpdateImage(ctx, id, image)
-	if err != nil {
+	// Check that transition from the existing image state is valid
+	if err := image.ValidateTransitionFrom(existingImage); err != nil {
+		logdata["current_state"] = existingImage.State
+		logdata["target_state"] = image.State
 		handleError(ctx, w, err, logdata)
 		return nil
 	}
 
-	// get updated image from mongoDB by id (if it changed)
-	updatedImage = existingImage
-	if didChange {
-		updatedImage, err = api.mongoDB.GetImage(req.Context(), id)
-		if err != nil {
+	// If the new state is 'uploaded', generate and send the kafka event to trigger import
+	if image.State == models.StateUploaded.String() {
+		log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
+		event := ImageUploadedEvent(id, image.Upload.Path)
+		if err := api.uploadProducer.ImageUploaded(event); err != nil {
 			handleError(ctx, w, err, logdata)
-			return nil
+			return
 		}
 	}
-	return updatedImage
+
+	// Update image in mongo DB
+	err = api.mongoDB.UpsertImage(ctx, id, image)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
+	}
+	return image
 }
 
 // GetDownloadsHandler is a handler that returns all the download variant for an image
@@ -620,69 +603,6 @@ func (api *API) unlockImage(ctx context.Context, lockID string) {
 }
 
 /// TODO Remove Deprecated handlers…
-
-// UploadImageHandler updates the image with the provided upload path and sends a kafka 'image uploaded' message
-func (api *API) UploadImageHandler(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-	vars := mux.Vars(req)
-	id := vars["id"]
-	hColID := ctx.Value(handlers.CollectionID.Context())
-	logdata := log.Data{
-		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
-		"image-id":                     id,
-	}
-
-	// Unmarshal upload from body and validate it
-	upload := &models.Upload{}
-	if err := ReadJSONBody(ctx, req.Body, upload, w, logdata); err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	imageUpdate := &models.Image{
-		State:  models.StateUploaded.String(),
-		Upload: upload,
-	}
-
-	// Acquire lock for image ID, and defer unlocking
-	lockID, err := api.mongoDB.AcquireImageLock(ctx, id)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-	defer api.unlockImage(ctx, lockID)
-
-	// get existing image from mongoDB by id
-	existingImage, err := api.mongoDB.GetImage(req.Context(), id)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	// validate that the uploaded transition state is allowed
-	if !existingImage.StateTransitionAllowed(imageUpdate.State) {
-		logdata["current_state"] = existingImage.State
-		logdata["target_state"] = imageUpdate.State
-		handleError(ctx, w, apierrors.ErrImageStateTransitionNotAllowed, logdata)
-		return
-	}
-
-	// Generate and send the kafka event to trigger the upload
-	log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
-	event := ImageUploadedEvent(id, upload.Path)
-	if err := api.uploadProducer.ImageUploaded(event); err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-
-	// Update image in mongo DB
-	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
-	}
-}
 
 // ImportVariantHandler is a handler that imports a download variant for an image
 func (api *API) ImportVariantHandler(w http.ResponseWriter, req *http.Request) {

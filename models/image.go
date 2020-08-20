@@ -100,6 +100,25 @@ func (i *Image) Validate() error {
 	return nil
 }
 
+// ValidateTransitionFrom checks that this image state can be validly transitioned from the existing state
+func (i *Image) ValidateTransitionFrom(existing *Image) error {
+
+	// check that state transition is allowed, only if state is provided
+	if i.State != "" {
+		if !existing.StateTransitionAllowed(i.State) {
+			return apierrors.ErrImageStateTransitionNotAllowed
+			return nil
+		}
+	}
+
+	// if the image is already completed, it cannot be updated
+	if existing.State == StateCompleted.String() {
+		return apierrors.ErrImageAlreadyCompleted
+	}
+
+	return nil
+}
+
 // StateTransitionAllowed checks if the image can transition from its current state to the provided target state
 func (i *Image) StateTransitionAllowed(target string) bool {
 	currentState, err := ParseState(i.State)

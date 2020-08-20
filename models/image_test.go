@@ -122,6 +122,52 @@ func TestImageValidation(t *testing.T) {
 	})
 }
 
+func TestImageValidateTransitionFrom(t *testing.T) {
+	Convey("Given an existing image in an uploaded state", t, func() {
+		existing := &models.Image{
+			State: models.StateUploaded.String(),
+		}
+
+		Convey("When we try to transition to an Importing state", func() {
+			image := &models.Image{
+				State: models.StateImporting.String(),
+			}
+			err := image.ValidateTransitionFrom(existing)
+			So(err, ShouldBeNil)
+		})
+
+		Convey("When we try to transition to a Created state", func() {
+			image := &models.Image{
+				State: models.StateCreated.String(),
+			}
+			err := image.ValidateTransitionFrom(existing)
+			So(err, ShouldResemble, apierrors.ErrImageStateTransitionNotAllowed)
+		})
+	})
+
+	Convey("Given an existing image in a Completed state", t, func() {
+		existing := &models.Image{
+			State: models.StateCompleted.String(),
+		}
+
+		Convey("When we try to transition to an Importing state", func() {
+			image := &models.Image{
+				State: models.StateImporting.String(),
+			}
+			err := image.ValidateTransitionFrom(existing)
+			So(err, ShouldResemble, apierrors.ErrImageStateTransitionNotAllowed)
+		})
+
+		Convey("When we try to transition to a Deleted state", func() {
+			image := &models.Image{
+				State: models.StateDeleted.String(),
+			}
+			err := image.ValidateTransitionFrom(existing)
+			So(err, ShouldResemble, apierrors.ErrImageStateTransitionNotAllowed)
+		})
+	})
+}
+
 func TestImageStateTransitionAllowed(t *testing.T) {
 	Convey("Given an image in created state", t, func() {
 		image := models.Image{
