@@ -86,14 +86,17 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	id := NewID()
+
 	// generate new image from request, mapping only allowed fields at creation time (model newImage in swagger spec)
 	// the image is always created in 'created' state, and it is assigned a newly generated ID
 	newImage := models.Image{
-		ID:           NewID(),
+		ID:           id,
 		CollectionID: newImageRequest.CollectionID,
 		State:        models.StateCreated.String(),
 		Filename:     newImageRequest.Filename,
 		License:      newImageRequest.License,
+		Links:        api.createLinksForImage(id),
 		Type:         newImageRequest.Type,
 	}
 
@@ -184,6 +187,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id string, image *models.Image, logdata log.Data) (updatedImage *models.Image) {
 	ctx := req.Context()
 
+	// Validate new model regardless of existing state
 	if err := image.Validate(); err != nil {
 		handleError(ctx, w, err, logdata)
 		return nil
@@ -219,6 +223,9 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 		handleError(ctx, w, err, logdata)
 		return nil
 	}
+
+	// Copy existing Links to newly updated image
+	image.Links = existingImage.Links
 
 	// If the new state is 'uploaded', generate and send the kafka event to trigger import
 	if image.State == models.StateUploaded.String() {
@@ -360,6 +367,15 @@ func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 	log.Event(ctx, "successfully created download variant", log.INFO, logdata)
+}
+
+func (api *API) createLinksForImage(id string) *models.ImageLinks {
+	self := api.urlBuilder.BuildImageURL(id)
+	downloads := api.urlBuilder.BuildImageDownloadsURL(id)
+	return &models.ImageLinks{
+		Self:      self,
+		Downloads: downloads,
+	}
 }
 
 func (api *API) createLinksForDownload(id, variant string) *models.DownloadLinks {

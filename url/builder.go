@@ -20,6 +20,12 @@ func (builder Builder) BuildImageURL(imageID string) string {
 		builder.apiURL, imageID)
 }
 
+// BuildImageBuildImageDownloadsURL returns the website URL for a collection of downloads for this image
+func (builder Builder) BuildImageDownloadsURL(imageID string) string {
+	return fmt.Sprintf("%s/images/%s/downloads",
+		builder.apiURL, imageID)
+}
+
 // BuildImageDownloadURL returns the website URL for a specific image dowload variant
 func (builder Builder) BuildImageDownloadURL(imageID, variant string) string {
 	return fmt.Sprintf("%s/images/%s/downloads/%s",

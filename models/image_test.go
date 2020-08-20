@@ -163,7 +163,7 @@ func TestImageValidateTransitionFrom(t *testing.T) {
 				State: models.StateDeleted.String(),
 			}
 			err := image.ValidateTransitionFrom(existing)
-			So(err, ShouldResemble, apierrors.ErrImageStateTransitionNotAllowed)
+			So(err, ShouldResemble, apierrors.ErrImageAlreadyCompleted)
 		})
 	})
 }

@@ -171,13 +171,21 @@ var (
 
 // DB model corresponding to an image in the provided state, without any download variant
 func dbImage(state models.State) *models.Image {
+	return dbImageWithId(state, testImageID1)
+}
+
+func dbImageWithId(state models.State, id string) *models.Image {
 	return &models.Image{
-		ID:           testImageID1,
+		ID:           id,
 		CollectionID: testCollectionID1,
 		Filename:     "some-image-name",
 		License: &models.License{
 			Title: "Open Government Licence v3.0",
 			Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+		},
+		Links: &models.ImageLinks{
+			Self:      fmt.Sprintf("http://example.com/images/%s", id),
+			Downloads: fmt.Sprintf("http://example.com/images/%s/downloads", id),
 		},
 		Type:  "chart",
 		State: state.String(),
@@ -206,8 +214,8 @@ func dbDownloadWithID(id, variant string, state models.DownloadState) models.Dow
 		Type:  "originally uploaded file",
 		State: state.String(),
 		Links: &models.DownloadLinks{
-			Self:  fmt.Sprintf("/images/%s/downloads/%s", id, variant),
-			Image: fmt.Sprintf("/images/%s", id),
+			Self:  fmt.Sprintf("http://example.com/images/%s/downloads/%s", id, variant),
+			Image: fmt.Sprintf("http://example.com/images/%s", id),
 		},
 	}
 	if state != models.StateDownloadImporting {
@@ -265,6 +273,10 @@ func dbFullImage(state models.State) *models.Image {
 			Title: "Open Government Licence v3.0",
 			Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
 		},
+		Links: &models.ImageLinks{
+			Self:      fmt.Sprintf("http://example.com/images/%s", testImageID2),
+			Downloads: fmt.Sprintf("http://example.com/images/%s/downloads", testImageID2),
+		},
 		Type:  "chart",
 		State: state.String(),
 		Upload: &models.Upload{
@@ -292,10 +304,13 @@ func apiFullImage(state models.State) *models.Image {
 			Title: "Open Government Licence v3.0",
 			Href:  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
 		},
-		Type:  "chart",
+		Links: &models.ImageLinks{
+			Self:      fmt.Sprintf("http://example.com/images/%s", testImageID2),
+			Downloads: fmt.Sprintf("http://example.com/images/%s/downloads", testImageID2),
+		}, Type: "chart",
 		State: state.String(),
 		Upload: &models.Upload{
-			Path: "images/025a789c-533f-4ecf-a83b-65412b96b2b7/image-name.png",
+			Path: testUploadPath,
 		},
 	}
 }
@@ -853,43 +868,13 @@ func TestUpdateImageHandler(t *testing.T) {
 			})
 		})
 
-		Convey("And an API with a mongoDB containing an image that does not change on update", func() {
-			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return dbImage(models.StateCreated), nil
-				},
-				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
-					return false, nil
-				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
-			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
-
-			Convey("Calling update image results in 200 OK but getImage is called only once", func() {
-				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
-					`{}`))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
-				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
-				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(*mongoDBMock.UpdateImageCalls()[0].Image, ShouldResemble, models.Image{ID: testImageID1})
-				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
-				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
-			})
-		})
-
 		Convey("And an API with a mongoDB containing an image that fails to update", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImage(models.StateImporting), nil
 				},
-				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
-					return false, errors.New("internal mongoDB error")
+				UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error {
+					return errors.New("internal mongoDB error")
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
 				UnlockImageFunc:      func(id string) error { return nil },
@@ -905,8 +890,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
 				So(len(mongoDBMock.GetImageCalls()), ShouldEqual, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(len(mongoDBMock.UpdateImageCalls()), ShouldEqual, 1)
-				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
+				So(len(mongoDBMock.UpsertImageCalls()), ShouldEqual, 1)
+				So(mongoDBMock.UpsertImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
 				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
@@ -941,7 +926,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return dbImage(models.StateCreated), nil
+					return dbImageWithId(models.StateCreated, testImageID2), nil
 				},
 				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },

@@ -123,7 +123,7 @@ func TestClose(t *testing.T) {
 func GetAPIWithMocks(cfg *config.Config, mongoDbMock *mock.MongoServerMock, authHandlerMock *mock.AuthHandlerMock, uploadedKafkaProducerMock, publishedKafkaProducerMock kafka.IProducer) *api.API {
 	mu.Lock()
 	defer mu.Unlock()
-	urlBuilder := url.NewBuilder("")
+	urlBuilder := url.NewBuilder("http://example.com")
 	return api.Setup(testContext, cfg, mux.NewRouter(), authHandlerMock, mongoDbMock, uploadedKafkaProducerMock, publishedKafkaProducerMock, urlBuilder)
 }
 

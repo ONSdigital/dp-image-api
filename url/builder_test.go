@@ -31,6 +31,18 @@ func TestBuilder_BuildWebsiteDatasetVersionURL(t *testing.T) {
 			})
 		})
 
+		Convey("When BuildImageDownloadsURL is called", func() {
+
+			url := urlBuilder.BuildImageDownloadsURL(imageID)
+
+			expectedURL := fmt.Sprintf("%s/images/%s/downloads",
+				websiteURL, imageID)
+
+			Convey("Then the expected URL is returned", func() {
+				So(url, ShouldEqual, expectedURL)
+			})
+		})
+
 		Convey("When BuildImageDownloadURL is called", func() {
 
 			url := urlBuilder.BuildImageDownloadURL(imageID, downloadVariant)
