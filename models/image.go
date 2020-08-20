@@ -103,6 +103,24 @@ func (i *Image) Validate() error {
 		}
 	}
 
+	// Check uploaded images have a valid upload path
+	if i.State == StateUploaded.String() {
+		err := validateUpload(i.Upload)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateUpload(upload *Upload) error {
+	if upload == nil {
+		return apierrors.ErrImageUploadEmpty
+	}
+	if len(upload.Path) < 1 {
+		return apierrors.ErrImageUploadPathEmpty
+	}
 	return nil
 }
 

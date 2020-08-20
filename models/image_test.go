@@ -102,6 +102,23 @@ func TestImageValidation(t *testing.T) {
 		So(err, ShouldResemble, apierrors.ErrImageInvalidState)
 	})
 
+	Convey("Given an image with a state of uploaded has no upload section it fails to validate with the expected error", t, func() {
+		image := models.Image{
+			State: "uploaded",
+		}
+		err := image.Validate()
+		So(err, ShouldResemble, apierrors.ErrImageUploadEmpty)
+	})
+
+	Convey("Given an image with a state of uploaded has no path in its upload section it fails to validate with the expected error", t, func() {
+		image := models.Image{
+			State:  "uploaded",
+			Upload: &models.Upload{},
+		}
+		err := image.Validate()
+		So(err, ShouldResemble, apierrors.ErrImageUploadPathEmpty)
+	})
+
 	Convey("Given a fully populated valid image with a valid download variant, it is successfully validated", t, func() {
 		image := models.Image{
 			ID:           "123",
