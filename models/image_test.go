@@ -2,78 +2,96 @@ package models_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/models"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestImageAllOtherDownloadsCompleted(t *testing.T) {
-	Convey("Given an image with all download variants in completed state except the original", t, func() {
+// Constants for testing
+const (
+	testVariantOriginal = "original"
+	testDownloadType    = "originally uploaded file"
+)
+
+var (
+	testImportStarted   = time.Date(2020, time.April, 26, 8, 5, 52, 0, time.UTC)
+	testImportCompleted = time.Date(2020, time.April, 26, 8, 7, 32, 0, time.UTC)
+)
+
+func TestImageAllDownloadsOfState(t *testing.T) {
+	Convey("Given an image with all download variants in completed state", t, func() {
 		image := models.Image{
 			Downloads: map[string]models.Download{
-				"original": {State: models.StatePublished.String()},
+				"original": {State: models.StateDownloadCompleted.String()},
 				"var1":     {State: models.StateDownloadCompleted.String()},
 				"var2":     {State: models.StateDownloadCompleted.String()},
 			},
 		}
-		Convey("Then AllOtherDownloadsCompleted for the original returns true", func() {
-			So(image.AllOtherDownloadsCompleted("original"), ShouldBeTrue)
-		})
-		Convey("Then AllOtherDownloadsCompleted for var1 returns false", func() {
-			So(image.AllOtherDownloadsCompleted("var1"), ShouldBeFalse)
-		})
-		Convey("Then AllOtherDownloadsCompleted for an inexistent variant returns false", func() {
-			So(image.AllOtherDownloadsCompleted("wrong"), ShouldBeFalse)
+		Convey("Then AllDownloadsOfStateShould return expected values", func() {
+			So(image.AllDownloadsOfState(models.StateDownloadCompleted), ShouldBeTrue)
+			So(image.AllDownloadsOfState(models.StateDownloadImporting), ShouldBeFalse)
 		})
 	})
-}
 
-func TestImageAllOtherDownloadsImported(t *testing.T) {
-	Convey("Given an image with all download variants in imported state except the original", t, func() {
+	Convey("Given an image with all download variants in completed state except the original", t, func() {
 		image := models.Image{
 			Downloads: map[string]models.Download{
-				"original": {State: models.StateImporting.String()},
-				"var1":     {State: models.StateImported.String()},
-				"var2":     {State: models.StateImported.String()},
+				"original": {State: models.StateDownloadPublished.String()},
+				"var1":     {State: models.StateDownloadCompleted.String()},
+				"var2":     {State: models.StateDownloadCompleted.String()},
 			},
 		}
-		Convey("Then AllOtherDownloadsCompleted for the original returns true", func() {
-			So(image.AllOtherDownloadsImported("original"), ShouldBeTrue)
+		Convey("Then AllDownloadsOfStateShould return expected values", func() {
+			So(image.AllDownloadsOfState(models.StateDownloadPublished), ShouldBeFalse)
+			So(image.AllDownloadsOfState(models.StateDownloadCompleted), ShouldBeFalse)
+			So(image.AllDownloadsOfState(models.StateDownloadImporting), ShouldBeFalse)
 		})
-		Convey("Then AllOtherDownloadsCompleted for var1 returns false", func() {
-			So(image.AllOtherDownloadsImported("var1"), ShouldBeFalse)
-		})
-		Convey("Then AllOtherDownloadsCompleted for an inexistent variant returns false", func() {
-			So(image.AllOtherDownloadsImported("wrong"), ShouldBeFalse)
+	})
+
+	Convey("Given an image with no download variants", t, func() {
+		image := models.Image{}
+		Convey("Then AllDownloadsOfStateShould return expected values", func() {
+			So(image.AllDownloadsOfState(models.StateDownloadPublished), ShouldBeFalse)
 		})
 	})
 }
 
-func TestImageAnyDownloadFailed(t *testing.T) {
-	Convey("Given an image with all download variants in non-failed state", t, func() {
+func TestImageAnyDownloadsOfState(t *testing.T) {
+	Convey("Given an image with all download variants in completed state", t, func() {
 		image := models.Image{
 			Downloads: map[string]models.Download{
 				"original": {State: models.StateDownloadCompleted.String()},
-				"var1":     {State: models.StateDownloadPublished.String()},
+				"var1":     {State: models.StateDownloadCompleted.String()},
 				"var2":     {State: models.StateDownloadCompleted.String()},
 			},
 		}
-		Convey("Then AnyDownloadFailed returns false", func() {
-			So(image.AnyDownloadFailed(), ShouldBeFalse)
+		Convey("Then AnyDownloadsOfStateShould return expected values", func() {
+			So(image.AnyDownloadsOfState(models.StateDownloadCompleted), ShouldBeTrue)
+			So(image.AnyDownloadsOfState(models.StateDownloadImporting), ShouldBeFalse)
 		})
 	})
 
-	Convey("Given an image with all download variants in valid state except the original, which is in failed state", t, func() {
+	Convey("Given an image with all download variants in completed state except the original", t, func() {
 		image := models.Image{
 			Downloads: map[string]models.Download{
-				"original": {State: models.StateDownloadFailed.String()},
-				"var1":     {State: models.StatePublished.String()},
+				"original": {State: models.StateDownloadPublished.String()},
+				"var1":     {State: models.StateDownloadCompleted.String()},
 				"var2":     {State: models.StateDownloadCompleted.String()},
 			},
 		}
-		Convey("Then AnyDownloadFailed returns true", func() {
-			So(image.AnyDownloadFailed(), ShouldBeTrue)
+		Convey("Then AnyDownloadsOfStateShould return expected values", func() {
+			So(image.AnyDownloadsOfState(models.StateDownloadPublished), ShouldBeTrue)
+			So(image.AnyDownloadsOfState(models.StateDownloadCompleted), ShouldBeTrue)
+			So(image.AnyDownloadsOfState(models.StateDownloadImporting), ShouldBeFalse)
+		})
+	})
+
+	Convey("Given an image with no download variants", t, func() {
+		image := models.Image{}
+		Convey("Then AnyDownloadsOfStateShould return expected values", func() {
+			So(image.AnyDownloadsOfState(models.StateDownloadPublished), ShouldBeFalse)
 		})
 	})
 }
@@ -204,6 +222,107 @@ func TestImageStateTransitionAllowed(t *testing.T) {
 	})
 }
 
+func TestImageUpdatedState(t *testing.T) {
+	Convey("Given an image in FailedImport State", t, func() {
+		image := models.Image{
+			State: models.StateFailedImport.String(),
+		}
+		Convey("Then UpdatedState should be the same", func() {
+			So(image.UpdatedState(), ShouldResemble, models.StateFailedImport.String())
+		})
+	})
+
+	Convey("Given an image in FailedPublish State", t, func() {
+		image := models.Image{
+			State: models.StateFailedPublish.String(),
+		}
+		Convey("Then UpdatedState should be the same", func() {
+			So(image.UpdatedState(), ShouldResemble, models.StateFailedPublish.String())
+		})
+	})
+
+	Convey("Given an image in Importing State with any downloads in Failed state", t, func() {
+		image := models.Image{
+			State: models.StateImporting.String(),
+			Downloads: map[string]models.Download{
+				"original": {State: models.StateDownloadImporting.String()},
+				"var1":     {State: models.StateDownloadImported.String()},
+				"var2":     {State: models.StateDownloadFailed.String()},
+			},
+		}
+		Convey("Then UpdatedState should be FailedImport", func() {
+			So(image.UpdatedState(), ShouldResemble, models.StateFailedImport.String())
+		})
+	})
+
+	Convey("Given an image in Importing State with all downloads in Imported state", t, func() {
+		image := models.Image{
+			State: models.StateImporting.String(),
+			Downloads: map[string]models.Download{
+				"original": {State: models.StateDownloadImported.String()},
+				"var1":     {State: models.StateDownloadImported.String()},
+			},
+		}
+		Convey("Then UpdatedState should be Impoprted", func() {
+			So(image.UpdatedState(), ShouldResemble, models.StateImported.String())
+		})
+	})
+
+	Convey("Given an image in Importing State with downloads in Imported and Importing state", t, func() {
+		image := models.Image{
+			State: models.StateImporting.String(),
+			Downloads: map[string]models.Download{
+				"original": {State: models.StateDownloadImporting.String()},
+				"var1":     {State: models.StateDownloadImported.String()},
+			},
+		}
+		Convey("Then UpdatedState should remain Importing", func() {
+			So(image.UpdatedState(), ShouldResemble, models.StateImporting.String())
+		})
+	})
+
+	Convey("Given an image in Published State with any downloads in Failed state", t, func() {
+		image := models.Image{
+			State: models.StatePublished.String(),
+			Downloads: map[string]models.Download{
+				"original": {State: models.StateDownloadCompleted.String()},
+				"var1":     {State: models.StateDownloadImported.String()},
+				"var2":     {State: models.StateDownloadFailed.String()},
+			},
+		}
+		Convey("Then UpdatedState should be FailedPublish", func() {
+			So(image.UpdatedState(), ShouldResemble, models.StateFailedPublish.String())
+		})
+	})
+
+	Convey("Given an image in Published State with all downloads in Completed state", t, func() {
+		image := models.Image{
+			State: models.StatePublished.String(),
+			Downloads: map[string]models.Download{
+				"original": {State: models.StateDownloadCompleted.String()},
+				"var1":     {State: models.StateDownloadCompleted.String()},
+			},
+		}
+		Convey("Then UpdatedState should be Completed", func() {
+			So(image.UpdatedState(), ShouldResemble, models.StateCompleted.String())
+		})
+	})
+
+	Convey("Given an image in Published State with downloads in Published and Completed state", t, func() {
+		image := models.Image{
+			State: models.StatePublished.String(),
+			Downloads: map[string]models.Download{
+				"original": {State: models.StateCompleted.String()},
+				"var1":     {State: models.StatePublished.String()},
+			},
+		}
+		Convey("Then UpdatedState should remain Published", func() {
+			So(image.UpdatedState(), ShouldResemble, models.StatePublished.String())
+		})
+	})
+
+}
+
 // validateTransitionsToCreated validates that the provided image can transition to created state,
 // and not to any forbidden of invalid state
 func validateTransitionsToCreated(image models.Image) {
@@ -243,6 +362,149 @@ func TestDownloadValidation(t *testing.T) {
 	})
 }
 
+func TestDownloadValidateTransitionFrom(t *testing.T) {
+	Convey("And an existing download variant with valid importing state", t, func() {
+		existing := &models.Download{
+			ID:            testVariantOriginal,
+			Type:          testDownloadType,
+			State:         models.StateDownloadImporting.String(),
+			ImportStarted: &testImportStarted,
+		}
+
+		Convey("Then with a new download variant with valid state, the transition successfully validates", func() {
+			download := models.Download{
+				ID:              testVariantOriginal,
+				Type:            testDownloadType,
+				State:           models.StateDownloadImported.String(),
+				ImportStarted:   &testImportStarted,
+				ImportCompleted: &testImportCompleted,
+			}
+			err := download.ValidateTransitionFrom(existing)
+			So(err, ShouldBeNil)
+		})
+
+		Convey("Then with a new download variant with a changed type, the transition fails validation", func() {
+			download := models.Download{
+				ID:              testVariantOriginal,
+				Type:            "some other type",
+				State:           models.StateDownloadImported.String(),
+				ImportStarted:   &testImportStarted,
+				ImportCompleted: &testImportCompleted,
+			}
+			err := download.ValidateTransitionFrom(existing)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldResemble, apierrors.ErrImageDownloadTypeMismatch)
+		})
+	})
+
+	Convey("And an existing download variant with valid imported state", t, func() {
+		existing := &models.Download{
+			ID:              testVariantOriginal,
+			Type:            testDownloadType,
+			State:           models.StateDownloadImported.String(),
+			ImportStarted:   &testImportStarted,
+			ImportCompleted: &testImportCompleted,
+		}
+
+		Convey("Then with a new download variant with importing state, the transition fails validation", func() {
+			download := models.Download{
+				ID:            testVariantOriginal,
+				Type:          testDownloadType,
+				State:         models.StateDownloadImporting.String(),
+				ImportStarted: &testImportStarted,
+			}
+			err := download.ValidateTransitionFrom(existing)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldResemble, apierrors.ErrVariantStateTransitionNotAllowed)
+		})
+
+	})
+
+}
+
+func TestDownloadValidateForImage(t *testing.T) {
+	Convey("Given an existing image in importing state", t, func() {
+		image := &models.Image{
+			State: models.StateImporting.String(),
+		}
+		Convey("Then with a new download variant of state Importing is valid", func() {
+			download := models.Download{
+				ID:            testVariantOriginal,
+				Type:          testDownloadType,
+				State:         models.StateDownloadImporting.String(),
+				ImportStarted: &testImportStarted,
+			}
+			err := download.ValidateForImage(image)
+			So(err, ShouldBeNil)
+		})
+	})
+
+	Convey("Given an existing image in imported state", t, func() {
+		image := &models.Image{
+			State: models.StateImported.String(),
+		}
+		Convey("Then a  download variant of state Importing is invalid", func() {
+			download := models.Download{
+				State: models.StateDownloadImporting.String(),
+			}
+			err := download.ValidateForImage(image)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldResemble, apierrors.ErrImageNotImporting)
+		})
+		Convey("Then a download variant of state Completed is invalid", func() {
+			download := models.Download{
+				State: models.StateDownloadCompleted.String(),
+			}
+			err := download.ValidateForImage(image)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldResemble, apierrors.ErrImageNotPublished)
+		})
+	})
+
+	Convey("Given an existing image in published state", t, func() {
+		image := &models.Image{
+			State: models.StatePublished.String(),
+		}
+		Convey("Then a download variant of state Completed is valid", func() {
+			download := models.Download{
+				State: models.StateDownloadCompleted.String(),
+			}
+			err := download.ValidateForImage(image)
+			So(err, ShouldBeNil)
+		})
+		Convey("Then with a new download variant of state Imported is invalid", func() {
+			download := models.Download{
+				State: models.StateDownloadImported.String(),
+			}
+			err := download.ValidateForImage(image)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldResemble, apierrors.ErrImageNotImporting)
+		})
+	})
+
+	Convey("Given an existing image in completed state", t, func() {
+		image := &models.Image{
+			State: models.StateCompleted.String(),
+		}
+		Convey("Then a download variant of state Completed is invalid", func() {
+			download := models.Download{
+				State: models.StateDownloadCompleted.String(),
+			}
+			err := download.ValidateForImage(image)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldResemble, apierrors.ErrImageAlreadyCompleted)
+		})
+		Convey("Then a download variant of state Importing is invalid", func() {
+			download := models.Download{
+				State: models.StateDownloadImporting.String(),
+			}
+			err := download.ValidateForImage(image)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldResemble, apierrors.ErrImageNotImporting)
+		})
+	})
+}
+
 func TestDownloadStateTransitionAllowed(t *testing.T) {
 	Convey("Given an image download variant in pending state", t, func() {
 		download := models.Download{
@@ -251,7 +513,7 @@ func TestDownloadStateTransitionAllowed(t *testing.T) {
 		validateDownloadTransitionsToPending(download)
 	})
 
-	Convey("Given an image download varian with a wrong state value, then no transition is allowed", t, func() {
+	Convey("Given an image download variant with a wrong state value, then no transition is allowed", t, func() {
 		download := models.Download{State: "wrong"}
 		validateDownloadTransitionsToPending(download)
 	})

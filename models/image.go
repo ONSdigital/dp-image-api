@@ -9,13 +9,6 @@ import (
 // MaxFilenameLen is the maximum number of characters allowed for Image filenames
 const MaxFilenameLen = 40
 
-// DownloadHrefFmt is the string formatter to generate href values for Image Download variants
-const (
-	DownloadHrefFmt     = "http://%s/images/%s/%s/%s"
-	DownloadPrivateHost = "download.ons.gov.uk"
-	DownloadPublicHost  = "static.ons.gov.uk"
-)
-
 // Images represents an array of images model as it is stored in mongoDB and json representation for API
 type Images struct {
 	Count      int     `bson:"count,omitempty"        json:"count"`
@@ -131,7 +124,6 @@ func (i *Image) ValidateTransitionFrom(existing *Image) error {
 	if i.State != "" {
 		if !existing.StateTransitionAllowed(i.State) {
 			return apierrors.ErrImageStateTransitionNotAllowed
-			return nil
 		}
 	}
 
@@ -156,36 +148,56 @@ func (i *Image) StateTransitionAllowed(target string) bool {
 	return currentState.TransitionAllowed(targetState)
 }
 
-// AnyDownloadFailed returns true if any image download variant is in failed state
-func (i *Image) AnyDownloadFailed() bool {
+// UpdatedState returns a new image state based on the image's downloads and existing image state
+func (i *Image) UpdatedState() string {
+
+	// Return unchanged state if already failed
+	if i.State == StateFailedImport.String() || i.State == StateFailedPublish.String() {
+		return i.State
+	}
+
+	switch i.State {
+	case StateImporting.String():
+		if i.AnyDownloadsOfState(StateDownloadFailed) {
+			return StateFailedImport.String()
+		}
+		if i.AllDownloadsOfState(StateDownloadImported) {
+			return StateImported.String()
+		}
+	case StatePublished.String():
+		if i.AnyDownloadsOfState(StateDownloadFailed) {
+			return StateFailedPublish.String()
+		}
+		if i.AllDownloadsOfState(StateDownloadCompleted) {
+			return StateCompleted.String()
+		}
+	}
+
+	// Default to existing state
+	return i.State
+}
+
+// AllDownloadsOfState returns trueOfS if all download variants are in specified state,
+func (i *Image) AllDownloadsOfState(s DownloadState) bool {
+	if len(i.Downloads) == 0 {
+		return false
+	}
 	for _, download := range i.Downloads {
-		if download.State == StateDownloadFailed.String() {
+		if download.State != s.String() {
+			return false
+		}
+	}
+	return true
+}
+
+// AnyDownloadsOfState returns true if any image download variant is in specified state
+func (i *Image) AnyDownloadsOfState(s DownloadState) bool {
+	for _, download := range i.Downloads {
+		if download.State == s.String() {
 			return true
 		}
 	}
 	return false
-}
-
-// AllOtherDownloadsImported returns true if all download variants are in immported state,
-// ignoring the provided variantToIgnore (if it exists)
-func (i *Image) AllOtherDownloadsImported(variantToIgnore string) bool {
-	for v, download := range i.Downloads {
-		if v != variantToIgnore && download.State != StateDownloadImported.String() {
-			return false
-		}
-	}
-	return true
-}
-
-// AllOtherDownloadsCompleted returns true if all download variants are in completed state,
-// ignoring the provided variantToIgnore (if it exists)
-func (i *Image) AllOtherDownloadsCompleted(variantToIgnore string) bool {
-	for v, download := range i.Downloads {
-		if v != variantToIgnore && download.State != StateDownloadCompleted.String() {
-			return false
-		}
-	}
-	return true
 }
 
 // Validate checks that an download struct complies with the state name constraint, if provided.
@@ -195,6 +207,46 @@ func (d *Download) Validate() error {
 			return apierrors.ErrImageDownloadInvalidState
 		}
 	}
+	return nil
+}
+
+// ValidateTransitionFrom checks whether the new state is valid given the existing download state…
+func (d *Download) ValidateTransitionFrom(ed *Download) error {
+
+	// validate that the download variant state transition is allowed
+	if !ed.StateTransitionAllowed(d.State) {
+		return apierrors.ErrVariantStateTransitionNotAllowed
+	}
+
+	// validate that the type matches the existing type
+	if d.Type != "" && ed.Type != "" && d.Type != ed.Type {
+		return apierrors.ErrImageDownloadTypeMismatch
+	}
+
+	return nil
+}
+
+// ValidateForImage checks whether the new download state is valid for the specified parent image
+func (d *Download) ValidateForImage(i *Image) error {
+
+	switch d.State {
+	case StateDownloadImporting.String():
+		if i.State != StateUploaded.String() && i.State != StateImporting.String() {
+			return apierrors.ErrImageNotImporting
+		}
+	case StateDownloadImported.String():
+		if i.State != StateImporting.String() {
+			return apierrors.ErrImageNotImporting
+		}
+	case StateDownloadCompleted.String():
+		if i.State == StateCompleted.String() {
+			return apierrors.ErrImageAlreadyCompleted
+		}
+		if i.State != StatePublished.String() {
+			return apierrors.ErrImageNotPublished
+		}
+	}
+
 	return nil
 }
 

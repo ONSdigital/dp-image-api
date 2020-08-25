@@ -23,6 +23,7 @@ var (
 	ErrImageUploadPathEmpty             = errors.New("image upload path is not populated")
 	ErrImageNotImporting                = errors.New("image is not in importing state")
 	ErrImageNotPublished                = errors.New("image is not in published state")
+	ErrVariantIDMismatch                = errors.New("variant id provided in body does not match 'variant' path parameter")
 	ErrVariantStateTransitionNotAllowed = errors.New("image download variant state transition not allowed")
 	ErrImageDownloadTypeMismatch        = errors.New("image download variant type does not match existing type")
 	ErrImageDownloadInvalidState        = errors.New("image download state is not a valid state name")

@@ -219,7 +219,7 @@ func registerCheckers(ctx context.Context,
 
 		if err = hc.AddCheck("Zebedee", zebedeeClient.Checker); err != nil {
 			hasErrors = true
-			log.Event(ctx, "error adding check for zebedeee", log.ERROR, log.Error(err))
+			log.Event(ctx, "error adding check for zebedee", log.ERROR, log.Error(err))
 		}
 	}
 
