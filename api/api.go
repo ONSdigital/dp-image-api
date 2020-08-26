@@ -124,7 +124,8 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 			apierrors.ErrImageInvalidState,
 			apierrors.ErrImageDownloadTypeMismatch,
 			apierrors.ErrImageDownloadInvalidState,
-			apierrors.ErrImageIDMismatch:
+			apierrors.ErrImageIDMismatch,
+			apierrors.ErrVariantIDMismatch:
 			status = http.StatusBadRequest
 		case apierrors.ErrImageAlreadyPublished,
 			apierrors.ErrImageAlreadyCompleted,

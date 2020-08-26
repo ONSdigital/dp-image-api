@@ -1545,6 +1545,17 @@ func TestUpdateDownloadHandler(t *testing.T) {
 				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
 				So(len(mongoDBMock.UnlockImageCalls()), ShouldEqual, 1)
 			})
+
+			Convey("Calling update download with a download that has a different id results in 400 response", func() {
+				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
+					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantAlternative, testDownloadType, models.StateDownloadImported.String())))
+				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusBadRequest)
+			})
+
 		})
 
 		Convey("And an image in 'uploaded' state in MongoDB, without any download variants", func() {
