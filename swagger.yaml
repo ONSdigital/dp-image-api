@@ -316,7 +316,9 @@ definitions:
     type: object
     description: "New Image metadata model, used to create new images. The image ID will be created by image API, and the state will be set to 'created' at creation time."
     required:
+      - "state"
       - "collection_id"
+      - "type"
     properties:
       state:
         type: string
@@ -362,6 +364,11 @@ definitions:
   Image:
     type: object
     description: "Existing Image metadata model"
+    required:
+      - "id"
+      - "state"
+      - "collection_id"
+      - "type"
     properties:
       id:
         type: string
@@ -448,6 +455,10 @@ definitions:
   ImageDownload:
     type: object
     description: "Download information for a particular image variant and resolution"
+    required:
+      - "id"
+      - "state"
+      - "import_started"
     properties:
       id:
         type: string
@@ -490,6 +501,7 @@ definitions:
         properties:
           self:
             type: string
+            example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/downloads/original"
           image:
             type: string
             example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35"
@@ -529,6 +541,10 @@ definitions:
   NewImageDownload:
     type: object
     description: "New download information for a particular image variant and resolution"
+    required:
+      - "id"
+      - "state"
+      - "import_started"
     properties:
       id:
         type: string
@@ -538,6 +554,10 @@ definitions:
         type: integer
         description: "Image height, in number of pixels"
         example: 1080
+      palette:
+        type: string
+        description: "Colour palette of the variant"
+        example: "bw"
       type:
         type: string
         description: "Type of download corresponding to this variant"
@@ -546,14 +566,6 @@ definitions:
         type: integer
         description: "Image width, in number of pixels"
         example: 1920
-      links:
-        type: object
-        properties:
-          self:
-            type: string
-          image:
-            type: string
-            example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35"
       state:
         type: string
         description: "The state of this download variant. On creation the only allowed states are pending or importing."
