@@ -92,7 +92,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	newImage := models.Image{
 		ID:           id,
 		CollectionID: newImageRequest.CollectionID,
-		State:        models.StateCreated.String(),
+		State:        newImageRequest.State,
 		Filename:     newImageRequest.Filename,
 		License:      newImageRequest.License,
 		Links:        api.createLinksForImage(id),
@@ -102,6 +102,12 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	// generic image validation
 	if err := newImage.Validate(); err != nil {
 		handleError(ctx, w, err, logdata)
+		return
+	}
+
+	// Check provided image state supplied is correct
+	if newImage.State != models.StateCreated.String() {
+		handleError(ctx, w, apierrors.ErrImageBadInitialState, logdata)
 		return
 	}
 

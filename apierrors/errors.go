@@ -18,6 +18,7 @@ var (
 	ErrImageAlreadyPublished            = errors.New("image is already published")
 	ErrImageAlreadyCompleted            = errors.New("image is already completed")
 	ErrImageInvalidState                = errors.New("image state is not a valid state name")
+	ErrImageBadInitialState             = errors.New("image state is not a valid initial state")
 	ErrImageStateTransitionNotAllowed   = errors.New("image state transition not allowed")
 	ErrImageUploadEmpty                 = errors.New("image upload section is not populated")
 	ErrImageUploadPathEmpty             = errors.New("image upload path is not populated")

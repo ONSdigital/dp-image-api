@@ -99,9 +99,18 @@ func TestImageAnyDownloadsOfState(t *testing.T) {
 func TestImageValidation(t *testing.T) {
 
 	Convey("Given an empty image, it is successfully validated", t, func() {
-		image := models.Image{}
+		image := models.Image{
+			State: models.StateCreated.String(),
+		}
 		err := image.Validate()
 		So(err, ShouldBeNil)
+	})
+
+	Convey("Given an image with no state supplied, it fails to validate  with the expected error", t, func() {
+		image := models.Image{}
+		err := image.Validate()
+		So(err, ShouldResemble, apierrors.ErrImageInvalidState)
+
 	})
 
 	Convey("Given an image with a filename that is longer than the maximum allowed, it fails to validate with the expected error", t, func() {

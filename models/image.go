@@ -59,15 +59,15 @@ type Downloads struct {
 // Download represents a download variant model
 type Download struct {
 	ID               string         `bson:"id,omitempty"                 json:"id,omitempty"`
-	Size             *int           `bson:"size,omitempty"               json:"size,omitempty"`
+	Height           *int           `bson:"height,omitempty"             json:"height,omitempty"`
+	Href             string         `json:"href,omitempty"`
 	Palette          string         `bson:"palette,omitempty"            json:"palette,omitempty"`
+	Private          string         `bson:"private,omitempty"            json:"private,omitempty"`
+	Public           bool           `json:"public,omitempty"`
+	Size             *int           `bson:"size,omitempty"               json:"size,omitempty"`
 	Type             string         `bson:"type,omitempty"               json:"type,omitempty"`
 	Width            *int           `bson:"width,omitempty"              json:"width,omitempty"`
-	Height           *int           `bson:"height,omitempty"             json:"height,omitempty"`
-	Public           bool           `json:"public,omitempty"`
-	Href             string         `json:"href,omitempty"`
 	Links            *DownloadLinks `bson:"links,omitempty"              json:"links,omitempty"`
-	Private          string         `bson:"private,omitempty"            json:"private,omitempty"`
 	State            string         `bson:"state,omitempty"              json:"state,omitempty"`
 	Error            string         `bson:"error,omitempty"              json:"error,omitempty"`
 	ImportStarted    *time.Time     `bson:"import_started,omitempty"     json:"import_started,omitempty"`
@@ -90,10 +90,8 @@ func (i *Image) Validate() error {
 		}
 	}
 
-	if i.State != "" {
-		if _, err := ParseState(i.State); err != nil {
-			return apierrors.ErrImageInvalidState
-		}
+	if _, err := ParseState(i.State); err != nil {
+		return apierrors.ErrImageInvalidState
 	}
 
 	// Check uploaded images have a valid upload path

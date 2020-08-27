@@ -453,14 +453,26 @@ definitions:
         type: string
         description: "the variant"
         example: "original"
-      links:
-        type: object
-        properties:
-          self:
-            type: string
-          image:
-            type: string
-            example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35"
+      height:
+        type: integer
+        description: "Image height, in number of pixels"
+        example: 1080
+      href:
+        type: string
+        description: "Full URL pointing to the image in download service"
+        example: "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png"
+      palette:
+        type: string
+        description: "Colour palette of the variant"
+        example: "bw"
+      private:
+        type: string
+        description: "S3 Private bucket name"
+        example: "my-private-bucket"
+      public:
+        type: boolean
+        description: "Determines if this image variant is public (i.e. it can be accessed under static.ons.gov.uk)"
+        example: true
       size:
         type: integer
         description: "File size in number of bytes"
@@ -473,22 +485,14 @@ definitions:
         type: integer
         description: "Image width, in number of pixels"
         example: 1920
-      height:
-        type: integer
-        description: "Image height, in number of pixels"
-        example: 1080
-      public:
-        type: boolean
-        description: "Determines if this image variant is public (i.e. it can be accessed under static.ons.gov.uk)"
-        example: true
-      href:
-        type: string
-        description: "Full URL pointing to the image in download service"
-        example: "http://download.ons.gov.uk/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35/image-name.png"
-      private:
-        type: string
-        description: "S3 Private bucket name"
-        example: "my-private-bucket"
+      links:
+        type: object
+        properties:
+          self:
+            type: string
+          image:
+            type: string
+            example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35"
       state:
         type: string
         description: "The state of this download variant. The high level image will change its state to imported only when all variants are in imported state."
@@ -530,14 +534,10 @@ definitions:
         type: string
         description: "the variant"
         example: "original"
-      links:
-        type: object
-        properties:
-          self:
-            type: string
-          image:
-            type: string
-            example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35"
+      height:
+        type: integer
+        description: "Image height, in number of pixels"
+        example: 1080
       type:
         type: string
         description: "Type of download corresponding to this variant"
@@ -546,10 +546,14 @@ definitions:
         type: integer
         description: "Image width, in number of pixels"
         example: 1920
-      height:
-        type: integer
-        description: "Image height, in number of pixels"
-        example: 1080
+      links:
+        type: object
+        properties:
+          self:
+            type: string
+          image:
+            type: string
+            example: "http://localhost:10000/images/042e216a-7822-4fa0-a3d6-e3f5248ffc35"
       state:
         type: string
         description: "The state of this download variant. On creation the only allowed states are pending or importing."

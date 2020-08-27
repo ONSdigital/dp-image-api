@@ -130,6 +130,7 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 		case apierrors.ErrImageAlreadyPublished,
 			apierrors.ErrImageAlreadyCompleted,
 			apierrors.ErrImageStateTransitionNotAllowed,
+			apierrors.ErrImageBadInitialState,
 			apierrors.ErrImageNotImporting,
 			apierrors.ErrImageNotPublished,
 			apierrors.ErrVariantAlreadyExists,

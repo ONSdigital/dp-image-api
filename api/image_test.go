@@ -72,6 +72,7 @@ var newImagePayloadFmt = `{
 		"title": "Open Government Licence v3.0",
 		"href": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
 	},
+    "state": "created",
 	"type": "chart"
 }`
 
@@ -569,7 +570,8 @@ func TestCreateImageHandler(t *testing.T) {
 		})
 
 		Convey("When a valid new image with extra fields is posted", func() {
-			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(fullImagePayload))
+			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images",
+				bytes.NewBufferString(fmt.Sprintf(fullImagePayloadFmt, testImageID2, testCollectionID1, models.StateCreated.String())))
 			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
@@ -584,20 +586,14 @@ func TestCreateImageHandler(t *testing.T) {
 			})
 		})
 
-		Convey("When a new image with an invalid state fields is posted", func() {
+		Convey("When a new image with an invalid state field is posted", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
 				fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, "invalidState")))
 			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
-			Convey("Then a newly created image with the new id and provided details is returned with status code 201, ignoring the state and any field that is not supposed to be provided at creation time", func() {
-				So(w.Code, ShouldEqual, http.StatusCreated)
-				payload, err := ioutil.ReadAll(w.Body)
-				So(err, ShouldBeNil)
-				retImage := models.Image{}
-				err = json.Unmarshal(payload, &retImage)
-				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, *createdImage())
+			Convey("Then an BadRequest response is returned", func() {
+				So(w.Code, ShouldEqual, http.StatusBadRequest)
 			})
 		})
 
