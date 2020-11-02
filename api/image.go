@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"path"
 
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/event"
@@ -21,10 +22,11 @@ var NewID = func() string {
 }
 
 //ImageUploadedEvent returns an ImageUploaded event for the provided image ID and upload path
-var ImageUploadedEvent = func(imageID, uploadPath string) *event.ImageUploaded {
+var ImageUploadedEvent = func(imageID, uploadPath, filename string) *event.ImageUploaded {
 	return &event.ImageUploaded{
-		ImageID: imageID,
-		Path:    uploadPath,
+		ImageID:  imageID,
+		Path:     uploadPath,
+		Filename: filename,
 	}
 }
 
@@ -234,8 +236,17 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 
 	// If the new state is 'uploaded', generate and send the kafka event to trigger import
 	if image.State == models.StateUploaded.String() {
+
+		// TODO Remove this, temp fix to overcome s3 PAth in upload path
+		s3Url, err := url.Parse(image.Upload.Path)
+		if err != nil {
+			handleError(ctx, w, err, logdata)
+			return
+		}
+		uploadS3Key := path.Base(s3Url.Path)
+
 		log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
-		event := ImageUploadedEvent(id, image.Upload.Path)
+		event := ImageUploadedEvent(id, uploadS3Key, image.Filename)
 		if err := api.uploadProducer.ImageUploaded(event); err != nil {
 			handleError(ctx, w, err, logdata)
 			return
