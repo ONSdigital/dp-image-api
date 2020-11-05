@@ -236,17 +236,9 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 
 	// If the new state is 'uploaded', generate and send the kafka event to trigger import
 	if image.State == models.StateUploaded.String() {
-
-		// TODO Remove this, temp fix to overcome s3 PAth in upload path
-		s3Url, err := url.Parse(image.Upload.Path)
-		if err != nil {
-			handleError(ctx, w, err, logdata)
-			return
-		}
-		uploadS3Key := path.Base(s3Url.Path)
-
+		uploadS3Path := path.Base(image.Upload.Path)
 		log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
-		event := ImageUploadedEvent(id, uploadS3Key, image.Filename)
+		event := ImageUploadedEvent(id, uploadS3Path, image.Filename)
 		if err := api.uploadProducer.ImageUploaded(event); err != nil {
 			handleError(ctx, w, err, logdata)
 			return

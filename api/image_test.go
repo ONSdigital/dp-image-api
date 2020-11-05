@@ -42,11 +42,13 @@ const (
 	testCollectionID1      = "1234"
 	testVariantOriginal    = "original"
 	testVariantAlternative = "bw1024"
-	testUploadPath         = "s3://images/newimage.png"
+	testUploadFilename     = "newimage.png"
+	testUploadPath         = "s3://images/" + testUploadFilename
 	longName               = "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch"
 	testLockID             = "image-myID-123456789"
 	testDownloadType       = "originally uploaded file"
 	testPrivateHref        = "http://download.ons.gov.uk/images/imageImageID2/original/some-image-name"
+	testFilename           = "some-image-name"
 )
 
 var (
@@ -941,8 +943,9 @@ func TestUpdateImageHandler(t *testing.T) {
 
 				Convey("And the expected avro event is sent to the corresponding kafka output channel", func() {
 					expectedBytes, err := schema.ImageUploadedEvent.Marshal(&event.ImageUploaded{
-						ImageID: testImageID2,
-						Path:    testUploadPath,
+						ImageID:  testImageID2,
+						Path:     testUploadFilename,
+						Filename: testFilename,
 					})
 					So(err, ShouldBeNil)
 					So(expectedBytes, ShouldResemble, sentBytes[0])
@@ -950,7 +953,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			})
 
 			Convey("Calling image upload results in a 500 InternalError response when an invalid image uploaded event is generated, and the image is not updated in mongoDB", func() {
-				api.ImageUploadedEvent = func(imageID, uploadPath string) *event.ImageUploaded {
+				api.ImageUploadedEvent = func(imageID, uploadPath, filename string) *event.ImageUploaded {
 					return nil
 				}
 				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
