@@ -25,7 +25,7 @@ import (
 	kafka "github.com/ONSdigital/dp-kafka"
 	"github.com/ONSdigital/dp-kafka/kafkatest"
 	"github.com/ONSdigital/dp-net/handlers"
-	dphttp "github.com/ONSdigital/dp-net/http"
+	dpreq "github.com/ONSdigital/dp-net/request"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -446,7 +446,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 
 		Convey("When existing images are requested with a valid Collection-Id context and query parameter value", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -464,7 +464,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 		Convey("When nonexistent images are requested with a valid Collection-Id context and query parameter value", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", "otherCollectionId"), nil)
 			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), "otherCollectionId"))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -481,7 +481,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 
 		Convey("When no collection_id query parameter value is provided", func() {
 			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images", nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -499,7 +499,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 		Convey("Providing different values for Collection-Id header and query parameter is allowed", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), nil)
 			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), "otherCollectionId"))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusOK)
@@ -524,7 +524,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 
 		Convey("Then when images are requested, a 500 error is returned", func() {
 			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images", nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusInternalServerError)
@@ -556,7 +556,7 @@ func TestCreateImageHandler(t *testing.T) {
 		Convey("When a valid new image is posted", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
 				fmt.Sprintf(newImagePayloadFmt, testCollectionID1, "some-image-name")))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -574,7 +574,7 @@ func TestCreateImageHandler(t *testing.T) {
 		Convey("When a valid new image with extra fields is posted", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images",
 				bytes.NewBufferString(fmt.Sprintf(fullImagePayloadFmt, testImageID2, testCollectionID1, models.StateCreated.String())))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			Convey("Then a newly created image with the new id and provided details is returned with status code 201, ignoring any field that is not supposed to be provided at creation time", func() {
@@ -591,7 +591,7 @@ func TestCreateImageHandler(t *testing.T) {
 		Convey("When a new image with an invalid state field is posted", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
 				fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, "invalidState")))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			Convey("Then an BadRequest response is returned", func() {
@@ -602,7 +602,7 @@ func TestCreateImageHandler(t *testing.T) {
 		Convey("Posting an image with a filename longer than the maximum allowed results in BadRequest response", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
 				fmt.Sprintf(newImagePayloadFmt, testCollectionID1, longName)))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusBadRequest)
@@ -610,7 +610,7 @@ func TestCreateImageHandler(t *testing.T) {
 
 		Convey("Posting an empty image (without collection id) results in BadRequest response", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(emptyJsonPayload))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusBadRequest)
@@ -618,7 +618,7 @@ func TestCreateImageHandler(t *testing.T) {
 
 		Convey("An empty request body results in a BadRequest response", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusBadRequest)
@@ -626,7 +626,7 @@ func TestCreateImageHandler(t *testing.T) {
 
 		Convey("An invalid request body results in a BadRequest response", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString("invalidJson"))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusBadRequest)
@@ -652,7 +652,7 @@ func TestCreateImageHandler(t *testing.T) {
 		Convey("When a new image is posted a 500 InternalServerError status code is returned", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
 				fmt.Sprintf(newImagePayloadFmt, testCollectionID1, "some-image-name")))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusInternalServerError)
@@ -702,7 +702,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 
 		Convey("When an existing 'created' image is requested with the valid Collection-Id context value", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			Convey("Then the expected image is returned with status code 200", func() {
@@ -718,7 +718,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 
 		Convey("When an existing 'published' image is requested without a Collection-Id context value", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			Convey("Then the published image is returned with status code 200", func() {
@@ -734,7 +734,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 
 		Convey("Requesting an nonexistent image ID results in a NotFound response", func() {
 			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images/inexistent", nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusNotFound)
@@ -759,7 +759,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 			Convey("Calling update image with an invalid body results in 400 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString("wrong"))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusBadRequest)
@@ -767,7 +767,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 			Convey("Calling update image with an image that has a different id results in 400 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(fullImagePayload))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusBadRequest)
@@ -776,7 +776,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			Convey("Calling update image with an image that has a filename that is too long results in 400 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
 					fmt.Sprintf(`{"filename": "%s"}`, longName)))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusBadRequest)
@@ -799,7 +799,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			Convey("Calling update image with same state results in 403 Forbidden response and it is not updated", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateCreated.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusForbidden)
@@ -824,7 +824,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			Convey("Calling update image with an nonexistent image id results in 404 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", "nonexistent"), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateCreated.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusNotFound)
@@ -848,7 +848,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			Convey("Calling update image results in 500 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateCreated.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
@@ -875,7 +875,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			Convey("Calling update image results in 500 result", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateFailedImport.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
@@ -901,7 +901,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			Convey("Calling update image results in 403 Forbidden response and it is not updated", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testImageID2, models.StateCreated.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusForbidden)
@@ -928,7 +928,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			Convey("Calling image upload with a valid image upload results in 200 OK response with the expected image provided to mongoDB and the message sent to kafka producer", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 					fmt.Sprintf(imageUploadPayloadFmt, testCollectionID1, testUploadPath)))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 
 				sentBytes := serveHTTPAndReadKafka(w, r, imageApi, uploadedProducer, 1)
@@ -959,7 +959,7 @@ func TestUpdateImageHandler(t *testing.T) {
 				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 					fmt.Sprintf(imageUploadPayloadFmt, testCollectionID1, testUploadPath)))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -982,7 +982,7 @@ func TestUpdateImageHandler(t *testing.T) {
 				Convey("Calling 'upload image' results in 403 Forbidden response", func() {
 					r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 						fmt.Sprintf(imageUploadPayloadFmt, testUploadPath)))
-					r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+					r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 					r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 					w := httptest.NewRecorder()
 					imageApi.Router.ServeHTTP(w, r)
@@ -1047,7 +1047,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 
 		Convey("When downloads are requested from an image with no downloads", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1064,7 +1064,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 
 		Convey("When downloads are requested from an image with one download", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageImportingID), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1081,7 +1081,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 
 		Convey("When downloads are requested from an image with two downloads", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImagePublishedID), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1108,7 +1108,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 
 		Convey("When downloads are requested from an image not in mongo", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageID1), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1135,7 +1135,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 
 		Convey("Then when images are requested, a 500 error is returned", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusInternalServerError)
@@ -1181,7 +1181,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 		Convey("When a valid new download is posted to an image in an 'uploaded' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImporting.String())))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1199,7 +1199,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 		Convey("When a new download with an imported state is posted to an image in an 'uploaded' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1211,7 +1211,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 		Convey("When a new download with an invalid state is posted to an image in an 'uploaded' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, "stateWibbling")))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1223,7 +1223,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 		Convey("When a valid new download is posted to an image in an 'importing' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageImportingID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantAlternative, testDownloadType, models.StateDownloadImporting.String())))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1241,7 +1241,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 		Convey("When a download with an already existing ID is posted to an image in an 'importing' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageImportingID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImporting.String())))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1253,7 +1253,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 		Convey("When a valid new download is posted to an image in a 'published' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImagePublishedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantAlternative, testDownloadType, models.StateDownloadImporting.String())))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1265,7 +1265,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 		Convey("When a valid new download is posted to an image with an ID not found in mongodb", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", "nonExistantID"), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantAlternative, testDownloadType, models.StateDownloadImporting.String())))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1299,7 +1299,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 		Convey("When a valid new download is posted to an image in a 'uploaded' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImporting.String())))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1333,7 +1333,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 		Convey("When a valid new download is posted to an image in a 'uploaded' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImporting.String())))
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1395,7 +1395,7 @@ func doTestGetDownloadHandler(cfg *config.Config) {
 
 		Convey("When an existing download is requested from an image with one download", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageImportingID, testVariantOriginal), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1412,7 +1412,7 @@ func doTestGetDownloadHandler(cfg *config.Config) {
 
 		Convey("When an existing download is requested from an image with two downloads", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImagePublishedID, testVariantAlternative), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1430,7 +1430,7 @@ func doTestGetDownloadHandler(cfg *config.Config) {
 		Convey("When a download is requested from an image not in mongo", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", "nonExistantID", testVariantOriginal), nil)
 
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1442,7 +1442,7 @@ func doTestGetDownloadHandler(cfg *config.Config) {
 		Convey("When a nonexistent download is requested from an image with one download", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageImportingID, "nonExistantVariant"), nil)
 
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 
@@ -1470,7 +1470,7 @@ func doTestGetDownloadHandler(cfg *config.Config) {
 
 		Convey("Then when a specific download requested, a 500 error is returned", func() {
 			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageUploadedID, testVariantOriginal), nil)
-			r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusInternalServerError)
@@ -1502,7 +1502,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 			Convey("Calling 'update variant' for the image results in 403 Forbidden response and nothing is updated", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1528,7 +1528,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 			Convey("Calling 'update variant' for the image results in 200 OK response and the image is updated as expected", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1548,7 +1548,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 			Convey("Calling update download with a download that has a different id results in 400 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantAlternative, testDownloadType, models.StateDownloadImported.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1570,7 +1570,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 			Convey("Calling 'update variant' for the existing image without variants results in 404 Not found response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID1, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1596,7 +1596,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 			Convey("Calling 'complete variant' for the image results in 200 OK response and the image is completed", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadCompletedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadCompleted.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1631,7 +1631,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 			Convey("Calling 'update variant' for the image results in 200 OK response, the variant is completed, but the image is not", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadCompletedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadCompleted.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1658,7 +1658,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 			Convey("Calling 'update variant' for the variant results in 500 StatusInternalServerError response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID1, testVariantOriginal),
 					bytes.NewBufferString(imageDownloadPayload))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
@@ -1679,7 +1679,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 			Convey("Calling 'update variant' for an nonexistent image results in 500 InternalServerError response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID1, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1705,7 +1705,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 			Convey("Calling 'import variant' results in 500 InternalServerError response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID1, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1753,7 +1753,7 @@ func TestPublishImageHandler(t *testing.T) {
 				publishedProducer := kafkatest.NewMessageProducer(true)
 				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, publishedProducer)
 				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				sentBytes := serveHTTPAndReadKafka(w, r, imageApi, publishedProducer, 2)
@@ -1789,7 +1789,7 @@ func TestPublishImageHandler(t *testing.T) {
 				publishedProducer := kafkatest.NewMessageProducer(true)
 				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, publishedProducer)
 				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1815,7 +1815,7 @@ func TestPublishImageHandler(t *testing.T) {
 
 			Convey("Calling 'publish image' results in 500 response", func() {
 				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1839,7 +1839,7 @@ func TestPublishImageHandler(t *testing.T) {
 
 			Convey("Calling 'publish image' results in 403 Forbidden response", func() {
 				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
@@ -1863,7 +1863,7 @@ func TestPublishImageHandler(t *testing.T) {
 
 			Convey("Calling 'publish image' results in 500 response", func() {
 				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusInternalServerError)
@@ -1889,7 +1889,7 @@ func TestPublishImageHandler(t *testing.T) {
 
 			Convey("Calling 'publish image' results in 500 response", func() {
 				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
-				r = r.WithContext(context.WithValue(r.Context(), dphttp.FlorenceIdentityKey, testUserAuthToken))
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
