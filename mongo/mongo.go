@@ -20,6 +20,9 @@ import (
 // images collection name
 const imagesCol = "images"
 
+// locked images collection name
+const imagesLockCol = "images_locks"
+
 // Mongo represents a simplistic MongoDB configuration, with session, health and lock clients
 type Mongo struct {
 	Collection   string
@@ -45,7 +48,7 @@ func (m *Mongo) Init(ctx context.Context) (err error) {
 	m.Session.SetMode(mgo.Strong, true)
 
 	databaseCollectionBuilder := make(map[dpMongoHealth.Database][]dpMongoHealth.Collection)
-	databaseCollectionBuilder[(dpMongoHealth.Database)(m.Database)] = []dpMongoHealth.Collection{(dpMongoHealth.Collection)(m.Collection)}
+	databaseCollectionBuilder[(dpMongoHealth.Database)(m.Database)] = []dpMongoHealth.Collection{(dpMongoHealth.Collection)(m.Collection), (dpMongoHealth.Collection)(imagesLockCol)}
 	// Create client and healthclient from session
 	m.client = dpMongoHealth.NewClientWithCollections(m.Session, databaseCollectionBuilder)
 	m.healthClient = &dpMongoHealth.CheckMongoClient{
