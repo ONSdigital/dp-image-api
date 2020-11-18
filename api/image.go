@@ -10,7 +10,7 @@ import (
 	"github.com/ONSdigital/dp-image-api/event"
 	"github.com/ONSdigital/dp-image-api/models"
 	"github.com/ONSdigital/dp-net/handlers"
-	dphttp "github.com/ONSdigital/dp-net/http"
+	dpreq "github.com/ONSdigital/dp-net/request"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
@@ -44,7 +44,7 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"request-id":                   ctx.Value(dpreq.RequestIdKey),
 	}
 
 	// get collection_id query parameter (optional)
@@ -78,7 +78,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"request-id":                   ctx.Value(dpreq.RequestIdKey),
 	}
 
 	newImageRequest := &models.Image{}
@@ -143,7 +143,7 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"request-id":                   ctx.Value(dpreq.RequestIdKey),
 		"image-id":                     id,
 	}
 
@@ -169,7 +169,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"request-id":                   ctx.Value(dpreq.RequestIdKey),
 		"image-id":                     id,
 	}
 
@@ -262,7 +262,7 @@ func (api *API) GetDownloadsHandler(w http.ResponseWriter, req *http.Request) {
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"request-id":                   ctx.Value(dpreq.RequestIdKey),
 		"image-id":                     id,
 	}
 
@@ -299,7 +299,7 @@ func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"request-id":                   ctx.Value(dpreq.RequestIdKey),
 		"image-id":                     id,
 	}
 
@@ -404,7 +404,7 @@ func (api *API) GetDownloadHandler(w http.ResponseWriter, req *http.Request) {
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"request-id":                   ctx.Value(dpreq.RequestIdKey),
 		"image-id":                     id,
 		"download-variant":             variant,
 	}
@@ -438,7 +438,7 @@ func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"request-id":                   ctx.Value(dpreq.RequestIdKey),
 		"image-id":                     id,
 		"download-variant":             variant,
 	}
@@ -532,7 +532,7 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 	hColID := ctx.Value(handlers.CollectionID.Context())
 	logdata := log.Data{
 		handlers.CollectionID.Header(): hColID,
-		"request-id":                   ctx.Value(dphttp.RequestIdKey),
+		"request-id":                   ctx.Value(dpreq.RequestIdKey),
 		"image-id":                     id,
 	}
 
