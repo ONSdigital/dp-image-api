@@ -9,7 +9,8 @@ var imageUploadedEvent = `{
   "name": "image-uploaded",
   "fields": [
     {"name": "image_id", "type": "string", "default": ""},
-    {"name": "path", "type": "string", "default": ""}
+    {"name": "path", "type": "string", "default": ""},
+	{"name": "filename", "type": "string", "default": ""}
   ]
 }`
 
