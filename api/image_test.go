@@ -1734,12 +1734,15 @@ func TestPublishImageHandler(t *testing.T) {
 		}
 
 		Convey("And an image in 'imported' state in MongoDB", func() {
-			expectedPathOriginal := fmt.Sprintf("/images/%s/original/some-image-name", testImageID1)
-			expectedPathPngW500 := fmt.Sprintf("/images/%s/png_w500/some-image-name", testImageID1)
+			expectedSrcPathOriginal := fmt.Sprintf("images/%s/original", testImageID1)
+			expectedSrcPathPngW500 := fmt.Sprintf("images/%s/png_w500", testImageID1)
+			expectedDstPathOriginal := fmt.Sprintf("%s/some-image-name", expectedSrcPathOriginal)
+			expectedDstPathPngW500 := fmt.Sprintf("%s/some-image-name", expectedSrcPathPngW500)
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					image := dbImage(models.StateImported)
-					image.Downloads = map[string]models.Download{"original": {Href: expectedPathOriginal}, "png_w500": {Href: expectedPathPngW500}}
+					image.Filename = "some-image-name"
+					image.Downloads = map[string]models.Download{"original": {ID: "original", Href: expectedSrcPathOriginal}, "png_w500": {ID: "png_w500", Href: expectedSrcPathPngW500}}
 					return image, nil
 				},
 				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
@@ -1769,13 +1772,17 @@ func TestPublishImageHandler(t *testing.T) {
 				Convey("And the expected avro event is sent to the corresponding kafka output channel, with the expected source and dest paths", func() {
 					// Note: the paths correspond to the path part of DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
 					expectedBytesOriginal, err := schema.ImagePublishedEvent.Marshal(&event.ImagePublished{
-						SrcPath: expectedPathOriginal,
-						DstPath: expectedPathOriginal,
+						SrcPath:      expectedSrcPathOriginal,
+						DstPath:      expectedDstPathOriginal,
+						ImageID:      testImageID1,
+						ImageVariant: "original",
 					})
 					So(err, ShouldBeNil)
 					expectedBytesPngW500, err := schema.ImagePublishedEvent.Marshal(&event.ImagePublished{
-						SrcPath: expectedPathPngW500,
-						DstPath: expectedPathPngW500,
+						SrcPath:      expectedSrcPathPngW500,
+						DstPath:      expectedDstPathPngW500,
+						ImageID:      testImageID1,
+						ImageVariant: "png_w500",
 					})
 					So(err, ShouldBeNil)
 					validateExpectedBytes(sentBytes, [][]byte{expectedBytesOriginal, expectedBytesPngW500})
@@ -1783,7 +1790,7 @@ func TestPublishImageHandler(t *testing.T) {
 			})
 
 			Convey("Calling 'publish image' with a 500 InternalError response when an invalid image published event is generated", func() {
-				api.ImagePublishedEvent = func(path string) *event.ImagePublished {
+				api.ImagePublishedEvent = func(path, filename, imageId, variant string) *event.ImagePublished {
 					return nil
 				}
 				publishedProducer := kafkatest.NewMessageProducer(true)

@@ -10,7 +10,7 @@ var imageUploadedEvent = `{
   "fields": [
     {"name": "image_id", "type": "string", "default": ""},
     {"name": "path", "type": "string", "default": ""},
-	{"name": "filename", "type": "string", "default": ""}
+    {"name": "filename", "type": "string", "default": ""}
   ]
 }`
 
@@ -19,7 +19,9 @@ var imagePublishedEvent = `{
   "name": "image-published",
   "fields": [
     {"name": "src_path", "type": "string", "default": ""},
-    {"name": "dst_path", "type": "string", "default": ""}
+    {"name": "dst_path", "type": "string", "default": ""},
+    {"name": "image_id", "type": "string", "default": ""},
+    {"name": "image_variant", "type": "string", "default": ""}
   ]
 }`
 

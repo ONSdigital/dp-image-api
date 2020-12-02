@@ -3,8 +3,8 @@ package api
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"path"
+	"time"
 
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/event"
@@ -31,10 +31,12 @@ var ImageUploadedEvent = func(imageID, uploadPath, filename string) *event.Image
 }
 
 // ImagePublishedEvent returns an ImagePublished event for the provided path
-var ImagePublishedEvent = func(path string) *event.ImagePublished {
+var ImagePublishedEvent = func(filepath, filename, imageID, variant string) *event.ImagePublished {
 	return &event.ImagePublished{
-		SrcPath: path,
-		DstPath: path,
+		SrcPath:      filepath,
+		DstPath:      path.Join(filepath, filename),
+		ImageID:      imageID,
+		ImageVariant: variant,
 	}
 }
 
@@ -561,6 +563,18 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	startTime := time.Now().UTC()
+
+	// update image variants
+	imageUpdate.Downloads = map[string]models.Download{}
+	for variant, _ := range existingImage.Downloads {
+		imageUpdate.Downloads[variant] = models.Download{
+			ID:             variant,
+			State:          models.StateDownloadPublished.String(),
+			PublishStarted: &startTime,
+		}
+	}
+
 	// Generate 'image published' events for all download variants
 	events, err := generateImagePublishEvents(existingImage)
 	if err != nil {
@@ -586,15 +600,10 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 // generateImagePublishEvents creates a kafka 'image-published' event for each download variant for the provided image.
-// Note that the private and public paths will be the same, according to the way the URLs are constructed in 'Refresh()' method,
-// using DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
 func generateImagePublishEvents(image *models.Image) (events []*event.ImagePublished, err error) {
 	for _, variant := range image.Downloads {
-		imgURL, err := url.Parse(variant.Href)
-		if err != nil {
-			return nil, err
-		}
-		events = append(events, ImagePublishedEvent(imgURL.Path))
+		srcPath := path.Join("images", image.ID, variant.ID)
+		events = append(events, ImagePublishedEvent(srcPath, image.Filename, image.ID, variant.ID))
 	}
 	return events, nil
 }
