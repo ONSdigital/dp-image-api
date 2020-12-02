@@ -1858,6 +1858,24 @@ func TestPublishImageHandler(t *testing.T) {
 			})
 		})
 
+		Convey("And MongoDB failing to lock an image", func() {
+			mongoDBMock := &mock.MongoServerMock{
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) {
+					return "", errors.New("mongoDB lock error")
+				},
+			}
+			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			Convey("Calling 'publish image' results in 500 response", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
+				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
+				w := httptest.NewRecorder()
+				imageApi.Router.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusInternalServerError)
+				So(len(mongoDBMock.AcquireImageLockCalls()), ShouldEqual, 1)
+			})
+		})
+
 		Convey("And MongoDB failing to get an image", func() {
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {

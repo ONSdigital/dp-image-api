@@ -74,36 +74,29 @@ func WriteJSONBody(ctx context.Context, v interface{}, w http.ResponseWriter, da
 	// Marshal provided model
 	payload, err := json.Marshal(v)
 	if err != nil {
-		handleError(ctx, w, apierrors.ErrInternalServer, data)
 		return err
 	}
 
 	// Write payload to body
 	if _, err := w.Write(payload); err != nil {
-		handleError(ctx, w, apierrors.ErrInternalServer, data)
 		return err
 	}
 	return nil
 }
 
 // ReadJSONBody reads the bytes from the provided body, and marshals it to the provided model interface.
-func ReadJSONBody(ctx context.Context, body io.ReadCloser, v interface{}, w http.ResponseWriter, data log.Data) error {
+func ReadJSONBody(ctx context.Context, body io.ReadCloser, v interface{}) error {
 	defer body.Close()
-
-	// Set headers
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	// Get Body bytes
 	payload, err := ioutil.ReadAll(body)
 	if err != nil {
-		handleError(ctx, w, apierrors.ErrUnableToReadMessage, data)
-		return err
+		return apierrors.ErrUnableToReadMessage
 	}
 
 	// Unmarshal body bytes to model
 	if err := json.Unmarshal(payload, v); err != nil {
-		handleError(ctx, w, apierrors.ErrUnableToParseJSON, data)
-		return err
+		return apierrors.ErrUnableToParseJSON
 	}
 
 	return nil
