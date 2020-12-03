@@ -40,7 +40,7 @@ func TestAvroProducer(t *testing.T) {
 			})
 
 			Convey("and marshaller is never called", func() {
-				So(len(marshallerMock.MarshalCalls()), ShouldEqual, 0)
+				So(marshallerMock.MarshalCalls(), ShouldHaveLength, 0)
 			})
 		})
 
@@ -52,7 +52,7 @@ func TestAvroProducer(t *testing.T) {
 			})
 
 			Convey("and marshaller is never called", func() {
-				So(len(marshallerMock.MarshalCalls()), ShouldEqual, 0)
+				So(marshallerMock.MarshalCalls(), ShouldHaveLength, 0)
 			})
 		})
 
