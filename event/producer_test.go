@@ -58,8 +58,9 @@ func TestAvroProducer(t *testing.T) {
 
 		Convey("When ImageUploaded is called on the event producer", func() {
 			event := &event.ImageUploaded{
-				ImageID: "myImage",
-				Path:    "myPath",
+				ImageID:  "myImage",
+				Path:     "myPath",
+				Filename: "filename.png",
 			}
 			err := eventProducer.ImageUploaded(event)
 
@@ -74,8 +75,10 @@ func TestAvroProducer(t *testing.T) {
 
 		Convey("When ImagePublished is called on the event producer", func() {
 			event := &event.ImagePublished{
-				SrcPath: "path/private/image.png",
-				DstPath: "path/public/img.png",
+				SrcPath:      "path/private/image.png",
+				DstPath:      "path/public/img.png",
+				ImageID:      "123",
+				ImageVariant: "original",
 			}
 			err := eventProducer.ImagePublished(event)
 
@@ -103,8 +106,9 @@ func TestAvroProducer(t *testing.T) {
 
 		Convey("When ImageUploaded is called on the event producer", func() {
 			event := &event.ImageUploaded{
-				ImageID: "myImage",
-				Path:    "myPath",
+				ImageID:  "myImage",
+				Path:     "myPath",
+				Filename: "filename.png",
 			}
 			err := eventProducer.ImageUploaded(event)
 
@@ -115,8 +119,10 @@ func TestAvroProducer(t *testing.T) {
 
 		Convey("When ImagePublished is called on the event producer", func() {
 			event := &event.ImagePublished{
-				SrcPath: "path/private/image.png",
-				DstPath: "path/public/img.png",
+				SrcPath:      "path/private/image.png",
+				DstPath:      "path/public/img.png",
+				ImageID:      "123",
+				ImageVariant: "original",
 			}
 			err := eventProducer.ImagePublished(event)
 
