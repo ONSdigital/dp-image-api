@@ -55,7 +55,7 @@ func TestSetup(t *testing.T) {
 			})
 
 			Convey("And auth handler is called once per route with the expected permissions", func() {
-				So(len(authHandlerMock.RequireCalls()), ShouldEqual, 9)
+				So(authHandlerMock.RequireCalls(), ShouldHaveLength, 9)
 				So(authHandlerMock.RequireCalls()[0].Required, ShouldResemble, dpauth.Permissions{
 					Create: false, Read: true, Update: false, Delete: false}) // permissions for GET /images
 				So(authHandlerMock.RequireCalls()[1].Required, ShouldResemble, dpauth.Permissions{
@@ -96,7 +96,7 @@ func TestSetup(t *testing.T) {
 			})
 
 			Convey("And no auth permissions are required", func() {
-				So(len(authHandlerMock.RequireCalls()), ShouldEqual, 0)
+				So(authHandlerMock.RequireCalls(), ShouldHaveLength, 0)
 			})
 		})
 	})

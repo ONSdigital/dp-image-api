@@ -3,8 +3,8 @@ package api
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"path"
+	"time"
 
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/event"
@@ -31,10 +31,12 @@ var ImageUploadedEvent = func(imageID, uploadPath, filename string) *event.Image
 }
 
 // ImagePublishedEvent returns an ImagePublished event for the provided path
-var ImagePublishedEvent = func(path string) *event.ImagePublished {
+var ImagePublishedEvent = func(filepath, filename, imageID, variant string) *event.ImagePublished {
 	return &event.ImagePublished{
-		SrcPath: path,
-		DstPath: path,
+		SrcPath:      filepath,
+		DstPath:      path.Join(filepath, filename),
+		ImageID:      imageID,
+		ImageVariant: variant,
 	}
 }
 
@@ -82,7 +84,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	newImageRequest := &models.Image{}
-	if err := ReadJSONBody(ctx, req.Body, newImageRequest, w, logdata); err != nil {
+	if err := ReadJSONBody(ctx, req.Body, newImageRequest); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -175,7 +177,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 
 	// Unmarshal image from body and validate it
 	image := &models.Image{}
-	if err := ReadJSONBody(ctx, req.Body, image, w, logdata); err != nil {
+	if err := ReadJSONBody(ctx, req.Body, image); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -238,8 +240,8 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 	if image.State == models.StateUploaded.String() {
 		uploadS3Path := path.Base(image.Upload.Path)
 		log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
-		event := ImageUploadedEvent(id, uploadS3Path, image.Filename)
-		if err := api.uploadProducer.ImageUploaded(event); err != nil {
+		uploadedEvent := ImageUploadedEvent(id, uploadS3Path, image.Filename)
+		if err := api.uploadProducer.ImageUploaded(uploadedEvent); err != nil {
 			handleError(ctx, w, err, logdata)
 			return
 		}
@@ -273,7 +275,7 @@ func (api *API) GetDownloadsHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	downloadsList := []models.Download{}
+	downloadsList := make([]models.Download, 0)
 	for _, dl := range image.Downloads {
 		downloadsList = append(downloadsList, dl)
 	}
@@ -305,7 +307,7 @@ func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 
 	// Unmarshal image from body and validate it
 	newDownload := &models.Download{}
-	if err := ReadJSONBody(ctx, req.Body, newDownload, w, logdata); err != nil {
+	if err := ReadJSONBody(ctx, req.Body, newDownload); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -445,7 +447,7 @@ func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 
 	// Unmarshal download variant from body and validate it
 	download := &models.Download{}
-	if err := ReadJSONBody(ctx, req.Body, download, w, logdata); err != nil {
+	if err := ReadJSONBody(ctx, req.Body, download); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -561,12 +563,20 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Generate 'image published' events for all download variants
-	events, err := generateImagePublishEvents(existingImage)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
+	startTime := time.Now().UTC()
+
+	// update image variants
+	imageUpdate.Downloads = map[string]models.Download{}
+	for variant := range existingImage.Downloads {
+		imageUpdate.Downloads[variant] = models.Download{
+			ID:             variant,
+			State:          models.StateDownloadPublished.String(),
+			PublishStarted: &startTime,
+		}
 	}
+
+	// Generate 'image published' events for all download variants
+	events := generateImagePublishEvents(existingImage)
 
 	// Send 'image published' kafka messages corresponding to all the download variants
 	log.Event(ctx, "sending image published messages", log.INFO, logdata)
@@ -586,17 +596,12 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 // generateImagePublishEvents creates a kafka 'image-published' event for each download variant for the provided image.
-// Note that the private and public paths will be the same, according to the way the URLs are constructed in 'Refresh()' method,
-// using DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
-func generateImagePublishEvents(image *models.Image) (events []*event.ImagePublished, err error) {
+func generateImagePublishEvents(image *models.Image) (events []*event.ImagePublished) {
 	for _, variant := range image.Downloads {
-		imgURL, err := url.Parse(variant.Href)
-		if err != nil {
-			return nil, err
-		}
-		events = append(events, ImagePublishedEvent(imgURL.Path))
+		srcPath := path.Join("images", image.ID, variant.ID)
+		events = append(events, ImagePublishedEvent(srcPath, image.Filename, image.ID, variant.ID))
 	}
-	return events, nil
+	return events
 }
 
 // unlockImage unlocks the provided image lockID and logs any error with WARN state

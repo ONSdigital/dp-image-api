@@ -228,7 +228,7 @@ func TestRunPublishing(t *testing.T) {
 				So(err.Error(), ShouldResemble, fmt.Sprintf("unable to register checkers: %s", errAddheckFail.Error()))
 				So(svcList.MongoDB, ShouldBeTrue)
 				So(svcList.HealthCheck, ShouldBeTrue)
-				So(len(hcMockAddFail.AddCheckCalls()), ShouldEqual, 4)
+				So(hcMockAddFail.AddCheckCalls(), ShouldHaveLength, 4)
 				So(hcMockAddFail.AddCheckCalls()[0].Name, ShouldResemble, "Mongo DB")
 				So(hcMockAddFail.AddCheckCalls()[1].Name, ShouldResemble, "Uploaded Kafka Producer")
 				So(hcMockAddFail.AddCheckCalls()[2].Name, ShouldResemble, "Published Kafka Producer")
@@ -259,16 +259,16 @@ func TestRunPublishing(t *testing.T) {
 			})
 
 			Convey("The checkers are registered and the healthcheck and http server started", func() {
-				So(len(hcMock.AddCheckCalls()), ShouldEqual, 4)
+				So(hcMock.AddCheckCalls(), ShouldHaveLength, 4)
 				So(hcMock.AddCheckCalls()[0].Name, ShouldResemble, "Mongo DB")
 				So(hcMock.AddCheckCalls()[1].Name, ShouldResemble, "Uploaded Kafka Producer")
 				So(hcMock.AddCheckCalls()[2].Name, ShouldResemble, "Published Kafka Producer")
 				So(hcMock.AddCheckCalls()[3].Name, ShouldEqual, "Zebedee")
-				So(len(initMock.DoGetHTTPServerCalls()), ShouldEqual, 1)
+				So(initMock.DoGetHTTPServerCalls(), ShouldHaveLength, 1)
 				So(initMock.DoGetHTTPServerCalls()[0].BindAddr, ShouldEqual, "localhost:24700")
-				So(len(hcMock.StartCalls()), ShouldEqual, 1)
+				So(hcMock.StartCalls(), ShouldHaveLength, 1)
 				serverWg.Wait() // Wait for HTTP server go-routine to finish
-				So(len(serverMock.ListenAndServeCalls()), ShouldEqual, 1)
+				So(serverMock.ListenAndServeCalls(), ShouldHaveLength, 1)
 			})
 		})
 
@@ -290,7 +290,7 @@ func TestRunPublishing(t *testing.T) {
 			Convey("Then the error is returned in the error channel", func() {
 				sErr := <-svcErrors
 				So(sErr.Error(), ShouldResemble, fmt.Sprintf("failure in http listen and serve: %s", errServer.Error()))
-				So(len(failingServerMock.ListenAndServeCalls()), ShouldEqual, 1)
+				So(failingServerMock.ListenAndServeCalls(), ShouldHaveLength, 1)
 			})
 		})
 
@@ -402,11 +402,11 @@ func TestClose(t *testing.T) {
 
 			err = svc.Close(context.Background())
 			So(err, ShouldBeNil)
-			So(len(hcMock.StopCalls()), ShouldEqual, 1)
-			So(len(serverMock.ShutdownCalls()), ShouldEqual, 1)
-			So(len(mongoDbMock.CloseCalls()), ShouldEqual, 1)
-			So(len(kafkaUploadedProducerMock.CloseCalls()), ShouldEqual, 1)
-			So(len(kafkaPublishedProducerMock.CloseCalls()), ShouldEqual, 1)
+			So(hcMock.StopCalls(), ShouldHaveLength, 1)
+			So(serverMock.ShutdownCalls(), ShouldHaveLength, 1)
+			So(mongoDbMock.CloseCalls(), ShouldHaveLength, 1)
+			So(kafkaUploadedProducerMock.CloseCalls(), ShouldHaveLength, 1)
+			So(kafkaPublishedProducerMock.CloseCalls(), ShouldHaveLength, 1)
 		})
 
 		Convey("If services fail to stop, the Close operation tries to close all dependencies and returns an error", func() {
@@ -435,11 +435,11 @@ func TestClose(t *testing.T) {
 
 			err = svc.Close(context.Background())
 			So(err, ShouldNotBeNil)
-			So(len(hcMock.StopCalls()), ShouldEqual, 1)
-			So(len(failingserverMock.ShutdownCalls()), ShouldEqual, 1)
-			So(len(mongoDbMock.CloseCalls()), ShouldEqual, 1)
-			So(len(kafkaUploadedProducerMock.CloseCalls()), ShouldEqual, 1)
-			So(len(kafkaPublishedProducerMock.CloseCalls()), ShouldEqual, 1)
+			So(hcMock.StopCalls(), ShouldHaveLength, 1)
+			So(failingserverMock.ShutdownCalls(), ShouldHaveLength, 1)
+			So(mongoDbMock.CloseCalls(), ShouldHaveLength, 1)
+			So(kafkaUploadedProducerMock.CloseCalls(), ShouldHaveLength, 1)
+			So(kafkaPublishedProducerMock.CloseCalls(), ShouldHaveLength, 1)
 		})
 	})
 }
