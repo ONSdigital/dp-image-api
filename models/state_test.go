@@ -29,7 +29,7 @@ func TestStateValidation(t *testing.T) {
 		So(models.StateUploaded.TransitionAllowed(models.StatePublished), ShouldBeFalse)
 		So(models.StateUploaded.TransitionAllowed(models.StateCompleted), ShouldBeFalse)
 		So(models.StateUploaded.TransitionAllowed(models.StateDeleted), ShouldBeTrue)
-		So(models.StateUploaded.TransitionAllowed(models.StateFailedImport), ShouldBeFalse)
+		So(models.StateUploaded.TransitionAllowed(models.StateFailedImport), ShouldBeTrue)
 		So(models.StateUploaded.TransitionAllowed(models.StateFailedPublish), ShouldBeFalse)
 	})
 

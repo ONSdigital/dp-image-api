@@ -169,6 +169,9 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 	if image.State != "" {
 		updates["state"] = image.State
 	}
+	if image.Error != "" {
+		updates["error"] = image.Error
+	}
 	if image.Filename != "" {
 		updates["filename"] = image.Filename
 	}

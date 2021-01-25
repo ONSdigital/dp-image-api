@@ -47,7 +47,7 @@ func (s State) TransitionAllowed(target State) bool {
 		}
 	case StateUploaded:
 		switch target {
-		case StateImporting, StateDeleted:
+		case StateImporting, StateFailedImport, StateDeleted:
 			return true
 		default:
 			return false

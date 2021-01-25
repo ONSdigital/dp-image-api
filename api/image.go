@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"path"
 	"time"
@@ -511,6 +512,9 @@ func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 
 	// Update image state based on change to download
 	image.State = image.UpdatedState()
+	if download.State == models.StateDownloadFailed.String() {
+		image.Error = fmt.Sprintf("error in variant '%s'", variant)
+	}
 
 	// Update image in mongo DB
 	err = api.mongoDB.UpsertImage(ctx, id, image)

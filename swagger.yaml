@@ -392,6 +392,10 @@ definitions:
           - failed_publish
         description: "The state of the image"
         example: "published"
+      error:
+        type: string
+        description: "Any error information, if there was an error with this image"
+        example: "publish process failed"
       filename:
         type: string
         description: "Image's file name. According to SEO recommendations, the name should not be longer than 5 words. And it should not include extension because multiple extensions for the same image might be available as download variants."
