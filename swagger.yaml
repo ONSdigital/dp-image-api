@@ -258,8 +258,8 @@ paths:
         - FlorenceAPIKey: []
         - ServiceAPIKey: []
       responses:
-        200:
-          description: "The image publishing was successfully requested to Static file publisher."
+        204:
+          description: "The image was successfully published and a message queued to Static file publisher."
         400:
           description: "Invalid request, image id was incorrect"
         401:

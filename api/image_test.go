@@ -1752,7 +1752,7 @@ func TestPublishImageHandler(t *testing.T) {
 				UnlockImageFunc:      func(id string) error { return nil },
 			}
 
-			Convey("Calling 'publish image' results in 200 OK response with the expected image state update to mongoDB and the message sent to kafka producer", func() {
+			Convey("Calling 'publish image' results in 204 NoContent response with the expected image state update to mongoDB and the message sent to kafka producer", func() {
 				publishedProducer := kafkatest.NewMessageProducer(true)
 				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, publishedProducer)
 				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
@@ -1760,7 +1760,7 @@ func TestPublishImageHandler(t *testing.T) {
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
 				sentBytes := serveHTTPAndReadKafka(w, r, imageApi, publishedProducer, 2)
-				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Code, ShouldEqual, http.StatusNoContent)
 				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
 				So(mongoDBMock.UpdateImageCalls(), ShouldHaveLength, 1)

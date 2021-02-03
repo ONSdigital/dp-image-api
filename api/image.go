@@ -597,6 +597,9 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
+
+	// Publish handler does not return any content on success
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // generateImagePublishEvents creates a kafka 'image-published' event for each download variant for the provided image.
