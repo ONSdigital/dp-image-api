@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"path"
 	"time"
@@ -511,6 +512,9 @@ func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 
 	// Update image state based on change to download
 	image.State = image.UpdatedState()
+	if download.State == models.StateDownloadFailed.String() {
+		image.Error = fmt.Sprintf("error in variant '%s'", variant)
+	}
 
 	// Update image in mongo DB
 	err = api.mongoDB.UpsertImage(ctx, id, image)
@@ -593,6 +597,9 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
+
+	// Publish handler does not return any content on success
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // generateImagePublishEvents creates a kafka 'image-published' event for each download variant for the provided image.
