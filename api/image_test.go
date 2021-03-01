@@ -49,6 +49,8 @@ const (
 	testDownloadType       = "originally uploaded file"
 	testPrivateHref        = "http://download.ons.gov.uk/images/imageImageID2/original/some-image-name"
 	testFilename           = "some-image-name"
+	contentTypeKey         = "Content-Type"
+	contentTypeJSON        = "application/json; charset=utf-8"
 )
 
 var (
@@ -452,6 +454,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 
 			Convey("Then the expected images are returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImages := models.Images{}
@@ -470,6 +473,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 
 			Convey("Then an empty list of images is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImages := models.Images{}
@@ -487,6 +491,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 
 			Convey("Then the full list of images is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImages := models.Images{}
@@ -503,6 +508,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 			w := httptest.NewRecorder()
 			imageApi.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusOK)
+			So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 		})
 
 	})
@@ -562,6 +568,7 @@ func TestCreateImageHandler(t *testing.T) {
 
 			Convey("Then a newly created image with the new id and provided details is returned with status code 201", func() {
 				So(w.Code, ShouldEqual, http.StatusCreated)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImage := models.Image{}
@@ -579,6 +586,7 @@ func TestCreateImageHandler(t *testing.T) {
 			imageApi.Router.ServeHTTP(w, r)
 			Convey("Then a newly created image with the new id and provided details is returned with status code 201, ignoring any field that is not supposed to be provided at creation time", func() {
 				So(w.Code, ShouldEqual, http.StatusCreated)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImage := models.Image{}
@@ -707,6 +715,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 			imageApi.Router.ServeHTTP(w, r)
 			Convey("Then the expected image is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImage := models.Image{}
@@ -723,6 +732,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 			imageApi.Router.ServeHTTP(w, r)
 			Convey("Then the published image is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImage := models.Image{}
@@ -933,6 +943,7 @@ func TestUpdateImageHandler(t *testing.T) {
 
 				sentBytes := serveHTTPAndReadKafka(w, r, imageApi, uploadedProducer, 1)
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
 				So(mongoDBMock.UpsertImageCalls(), ShouldHaveLength, 1)
@@ -1053,6 +1064,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 
 			Convey("Then a valid Downloads response with 0 items is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownloads := models.Downloads{}
@@ -1070,6 +1082,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 
 			Convey("Then a valid Downloads response with 1 item is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownloads := models.Downloads{}
@@ -1087,6 +1100,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 
 			Convey("Then a valid Downloads response with 2 items is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownloads := models.Downloads{}
@@ -1187,6 +1201,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 
 			Convey("Then a newly created download is returned with status code 201", func() {
 				So(w.Code, ShouldEqual, http.StatusCreated)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownload := models.Download{}
@@ -1229,6 +1244,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 
 			Convey("Then a newly created download is returned with status code 201", func() {
 				So(w.Code, ShouldEqual, http.StatusCreated)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownload := models.Download{}
@@ -1401,6 +1417,7 @@ func doTestGetDownloadHandler(cfg *config.Config) {
 
 			Convey("Then a valid Download response is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownloads := models.Download{}
@@ -1418,6 +1435,7 @@ func doTestGetDownloadHandler(cfg *config.Config) {
 
 			Convey("Then a valid Download response is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				payload, err := ioutil.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownloads := models.Download{}
@@ -1533,6 +1551,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
 				So(mongoDBMock.UpsertImageCalls(), ShouldHaveLength, 1)
@@ -1601,6 +1620,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
 				So(mongoDBMock.UpsertImageCalls(), ShouldHaveLength, 1)
@@ -1636,6 +1656,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 				w := httptest.NewRecorder()
 				imageApi.Router.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
+				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
 				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
 				So(mongoDBMock.UpsertImageCalls(), ShouldHaveLength, 1)

@@ -66,10 +66,11 @@ func (*API) Close(ctx context.Context) error {
 }
 
 // WriteJSONBody marshals the provided interface into json, and writes it to the response body.
-func WriteJSONBody(ctx context.Context, v interface{}, w http.ResponseWriter, data log.Data) error {
+func WriteJSONBody(v interface{}, w http.ResponseWriter, httpStatus int) error {
 
 	// Set headers
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(httpStatus)
 
 	// Marshal provided model
 	payload, err := json.Marshal(v)
