@@ -1,6 +1,7 @@
 package models_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -115,7 +116,7 @@ func TestImageValidation(t *testing.T) {
 
 	Convey("Given an image with a filename that is longer than the maximum allowed, it fails to validate with the expected error", t, func() {
 		image := models.Image{
-			Filename: "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch",
+			Filename: strings.Repeat("Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch", 10),
 		}
 		err := image.Validate()
 		So(err, ShouldResemble, apierrors.ErrImageFilenameTooLong)

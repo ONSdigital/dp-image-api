@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -44,7 +45,6 @@ const (
 	testVariantAlternative = "bw1024"
 	testUploadFilename     = "newimage.png"
 	testUploadPath         = "s3://images/" + testUploadFilename
-	longName               = "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch"
 	testLockID             = "image-myID-123456789"
 	testDownloadType       = "originally uploaded file"
 	testPrivateHref        = "http://download.ons.gov.uk/images/imageImageID2/original/some-image-name"
@@ -54,6 +54,7 @@ const (
 )
 
 var (
+	longName             = strings.Repeat("Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch", 10)
 	testSize             = 1024
 	testWidth            = 123
 	testHeight           = 321

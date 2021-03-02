@@ -7,7 +7,7 @@ import (
 )
 
 // MaxFilenameLen is the maximum number of characters allowed for Image filenames
-const MaxFilenameLen = 40
+const MaxFilenameLen = 500
 
 // Images represents an array of images model as it is stored in mongoDB and json representation for API
 type Images struct {
