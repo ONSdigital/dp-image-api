@@ -20,22 +20,24 @@ import (
 
 //API provides a struct to wrap the api around
 type API struct {
-	Router            *mux.Router
-	mongoDB           MongoServer
-	auth              AuthHandler
-	uploadProducer    *event.AvroProducer
-	publishedProducer *event.AvroProducer
-	urlBuilder        *url.Builder
+	Router             *mux.Router
+	mongoDB            MongoServer
+	auth               AuthHandler
+	uploadProducer     *event.AvroProducer
+	publishedProducer  *event.AvroProducer
+	urlBuilder         *url.Builder
+	downloadServiceURL string
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
 func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer, builder *url.Builder) *API {
 
 	api := &API{
-		Router:     r,
-		auth:       auth,
-		mongoDB:    mongoDB,
-		urlBuilder: builder,
+		Router:             r,
+		auth:               auth,
+		mongoDB:            mongoDB,
+		urlBuilder:         builder,
+		downloadServiceURL: cfg.DownloadServiceURL,
 	}
 
 	if cfg.IsPublishing {

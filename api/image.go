@@ -573,8 +573,16 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		imageUpdate.Downloads[variant] = models.Download{
 			ID:             variant,
 			State:          models.StateDownloadPublished.String(),
+			Href:           fmt.Sprintf("%s/images/%s/%s/%s", api.downloadServiceURL, id, variant, existingImage.Filename),
 			PublishStarted: &startTime,
 		}
+	}
+
+	// Update image in mongo DB
+	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
 	}
 
 	// Generate 'image published' events for all download variants
@@ -587,13 +595,6 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 			handleError(ctx, w, err, logdata)
 			return
 		}
-	}
-
-	// Update image in mongo DB
-	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
 	}
 
 	// Publish handler does not return any content on success
