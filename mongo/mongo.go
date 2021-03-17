@@ -217,6 +217,9 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 			if download.Private != "" {
 				updates[fmt.Sprintf("downloads.%s.private_bucket", variant)] = download.Private
 			}
+			if download.Href != "" {
+				updates[fmt.Sprintf("downloads.%s.href", variant)] = download.Href
+			}
 			if download.State != "" {
 				updates[fmt.Sprintf("downloads.%s.state", variant)] = download.State
 			}

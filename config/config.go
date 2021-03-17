@@ -19,6 +19,7 @@ type Config struct {
 	HealthCheckCriticalTimeout time.Duration `envconfig:"HEALTHCHECK_CRITICAL_TIMEOUT"`
 	IsPublishing               bool          `envconfig:"IS_PUBLISHING"`
 	ZebedeeURL                 string        `envconfig:"ZEBEDEE_URL"`
+	DownloadServiceURL         string        `envconfig:"DOWNLOAD_SERVICE_URL"`
 	MongoConfig                MongoConfig
 }
 
@@ -50,6 +51,7 @@ func Get() (*Config, error) {
 		HealthCheckCriticalTimeout: 90 * time.Second,
 		ZebedeeURL:                 "http://localhost:8082",
 		IsPublishing:               true,
+		DownloadServiceURL:         "http://localhost:23600",
 		MongoConfig: MongoConfig{
 			BindAddr:   "localhost:27017",
 			Collection: "images",

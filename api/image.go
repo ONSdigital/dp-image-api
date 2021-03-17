@@ -68,7 +68,7 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 		Limit:      len(items),
 	}
 
-	if err := WriteJSONBody(ctx, images, w, logdata); err != nil {
+	if err := WriteJSONBody(images, w, http.StatusOK); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -130,8 +130,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	if err := WriteJSONBody(ctx, newImage, w, logdata); err != nil {
+	if err := WriteJSONBody(newImage, w, http.StatusCreated); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -157,7 +156,7 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := WriteJSONBody(ctx, image, w, logdata); err != nil {
+	if err := WriteJSONBody(image, w, http.StatusOK); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -185,7 +184,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 
 	// apply the update
 	if updatedImage := api.doUpdateImage(w, req, id, image, logdata); updatedImage != nil {
-		if err := WriteJSONBody(ctx, updatedImage, w, logdata); err != nil {
+		if err := WriteJSONBody(updatedImage, w, http.StatusOK); err != nil {
 			handleError(ctx, w, err, logdata)
 			return
 		}
@@ -287,7 +286,7 @@ func (api *API) GetDownloadsHandler(w http.ResponseWriter, req *http.Request) {
 		Limit:      len(downloadsList),
 	}
 
-	if err := WriteJSONBody(ctx, downloads, w, logdata); err != nil {
+	if err := WriteJSONBody(downloads, w, http.StatusOK); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -372,8 +371,7 @@ func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	if err := WriteJSONBody(ctx, newDownload, w, logdata); err != nil {
+	if err := WriteJSONBody(newDownload, w, http.StatusCreated); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -425,7 +423,7 @@ func (api *API) GetDownloadHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := WriteJSONBody(ctx, download, w, logdata); err != nil {
+	if err := WriteJSONBody(download, w, http.StatusOK); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -523,7 +521,7 @@ func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	if err := WriteJSONBody(ctx, download, w, logdata); err != nil {
+	if err := WriteJSONBody(download, w, http.StatusOK); err != nil {
 		handleError(ctx, w, err, logdata)
 		return
 	}
@@ -575,8 +573,16 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 		imageUpdate.Downloads[variant] = models.Download{
 			ID:             variant,
 			State:          models.StateDownloadPublished.String(),
+			Href:           fmt.Sprintf("%s/images/%s/%s/%s", api.downloadServiceURL, id, variant, existingImage.Filename),
 			PublishStarted: &startTime,
 		}
+	}
+
+	// Update image in mongo DB
+	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
+	if err != nil {
+		handleError(ctx, w, err, logdata)
+		return
 	}
 
 	// Generate 'image published' events for all download variants
@@ -589,13 +595,6 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 			handleError(ctx, w, err, logdata)
 			return
 		}
-	}
-
-	// Update image in mongo DB
-	_, err = api.mongoDB.UpdateImage(ctx, id, imageUpdate)
-	if err != nil {
-		handleError(ctx, w, err, logdata)
-		return
 	}
 
 	// Publish handler does not return any content on success
