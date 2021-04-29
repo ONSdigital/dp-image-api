@@ -30,6 +30,8 @@ type Image struct {
 	Upload       *Upload             `bson:"upload,omitempty"        json:"upload,omitempty"`
 	Type         string              `bson:"type,omitempty"          json:"type,omitempty"`
 	Downloads    map[string]Download `bson:"downloads,omitempty"     json:"-"`
+	AltText      string              `bson:"alt_text,omitempty"      json:"alt_text,omitempty"`
+	ImageTitle   string              `bson:"image_title,omitempty"   json:"image_title,omitempty"`
 }
 
 // License represents a license model
