@@ -159,8 +159,6 @@ func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) 
 
 // UpdateImage updates an existing image document
 func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image) (bool, error) {
-	s := m.Session.Copy()
-	defer s.Close()
 	log.Event(ctx, "updating image", log.Data{"id": id})
 
 	updates := createImageUpdateQuery(ctx, id, image)
@@ -170,7 +168,7 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 	}
 
 	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
-	if err := s.DB(m.Database).C(imagesCol).UpdateId(id, update); err != nil {
+	if _, err := m.Connection.UpdateId(ctx, id, update); err != nil {
 		if err == mgo.ErrNotFound {
 			return false, errs.ErrImageNotFound
 		}
@@ -269,8 +267,6 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 
 // UpsertImage adds or overides an existing image document
 func (m *Mongo) UpsertImage(ctx context.Context, id string, image *models.Image) (err error) {
-	s := m.Session.Copy()
-	defer s.Close()
 	log.Event(ctx, "upserting image", log.Data{"id": id})
 
 	update := bson.M{
@@ -280,6 +276,6 @@ func (m *Mongo) UpsertImage(ctx context.Context, id string, image *models.Image)
 		},
 	}
 
-	_, err = s.DB(m.Database).C(imagesCol).UpsertId(id, update)
+	_, err = m.Connection.UpsertId(ctx, id, update)
 	return
 }
