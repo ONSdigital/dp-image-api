@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	mongoDriver "github.com/ONSdigital/dp-mongodb/v2/pkg/mongo-driver"
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
@@ -11,10 +12,15 @@ import (
 	"github.com/ONSdigital/dp-image-api/models"
 	dpMongodb "github.com/ONSdigital/dp-mongodb"
 	dpMongoLock "github.com/ONSdigital/dp-mongodb/dplock"
-	dpMongoHealth "github.com/ONSdigital/dp-mongodb/health"
+	dpMongoHealth "github.com/ONSdigital/dp-mongodb/v2/pkg/health"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
+)
+
+const (
+	connectTimeoutInSeconds = 5
+	queryTimeoutInSeconds   = 15
 )
 
 // images collection name
@@ -28,29 +34,47 @@ type Mongo struct {
 	Collection   string
 	Database     string
 	Session      *mgo.Session
+	Connection   *mongoDriver.MongoConnection
 	URI          string
+	Username     string
+	Password     string
+	CAFilePath   string
 	client       *dpMongoHealth.Client
 	healthClient *dpMongoHealth.CheckMongoClient
 	lockClient   *dpMongoLock.Lock
 }
 
 // Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
-func (m *Mongo) Init(ctx context.Context) (err error) {
-	if m.Session != nil {
-		return errors.New("session already exists")
-	}
+func (m *Mongo) getConnectionConfig() *mongoDriver.MongoConnectionConfig {
+	return &mongoDriver.MongoConnectionConfig{
+		CaFilePath:              m.CAFilePath,
+		ConnectTimeoutInSeconds: connectTimeoutInSeconds,
+		QueryTimeoutInSeconds:   queryTimeoutInSeconds,
 
-	// Create session
-	if m.Session, err = mgo.Dial(m.URI); err != nil {
+		Username:             m.Username,
+		Password:             m.Password,
+		ClusterEndpoint:      m.URI,
+		Database:             m.Database,
+		Collection:           m.Collection,
+		SkipCertVerification: true,
+	}
+}
+
+// Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
+func (m *Mongo) Init(ctx context.Context) (err error) {
+	if m.Connection != nil {
+		return errors.New("Datastor Connection already exists")
+	}
+	mongoConnection, err := mongoDriver.Open(m.getConnectionConfig())
+	if err != nil {
 		return err
 	}
-	m.Session.EnsureSafe(&mgo.Safe{WMode: "majority"})
-	m.Session.SetMode(mgo.Strong, true)
+	m.Connection = mongoConnection
 
 	databaseCollectionBuilder := make(map[dpMongoHealth.Database][]dpMongoHealth.Collection)
 	databaseCollectionBuilder[(dpMongoHealth.Database)(m.Database)] = []dpMongoHealth.Collection{(dpMongoHealth.Collection)(m.Collection), (dpMongoHealth.Collection)(imagesLockCol)}
 	// Create client and healthclient from session
-	m.client = dpMongoHealth.NewClientWithCollections(m.Session, databaseCollectionBuilder)
+	m.client = dpMongoHealth.NewClientWithCollections(m.Connection, databaseCollectionBuilder)
 	m.healthClient = &dpMongoHealth.CheckMongoClient{
 		Client:      *m.client,
 		Healthcheck: m.client.Healthcheck,

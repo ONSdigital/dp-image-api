@@ -21,4 +21,4 @@ require (
 	gopkg.in/avro.v0 v0.0.0-20171217001914-a730b5802183 // indirect
 )
 
-replace github.com/ONSdigital/dp-mongodb v1.5.0 => github.com/ONSdigital/dp-mongodb v1.5.1-0.20210519090115-592f9a0af6d5
+replace github.com/ONSdigital/dp-mongodb v1.5.0 => github.com/ONSdigital/dp-mongodb v1.5.1-0.20210521083627-7bc8e18ceff4
