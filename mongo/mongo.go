@@ -120,16 +120,9 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 		colIDFilter["collection_id"] = collectionID
 	}
 
-	iter := s.DB(m.Database).C(imagesCol).Find(colIDFilter).Iter()
-	defer func() {
-		err := iter.Close()
-		if err != nil {
-			log.Event(ctx, "error closing iterator", log.ERROR, log.Error(err))
-		}
-	}()
-
-	results := []models.Image{}
-	if err := iter.All(&results); err != nil {
+	var results []models.Image
+	err := m.Connection.GetConfiguredCollection().Find(colIDFilter).IterAll(ctx, &results)
+	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, errs.ErrImageNotFound
 		}
@@ -146,7 +139,7 @@ func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) 
 	log.Event(ctx, "getting image by ID", log.Data{"id": id})
 
 	var image models.Image
-	err := s.DB(m.Database).C(imagesCol).Find(bson.M{"_id": id}).One(&image)
+	err := m.Connection.GetConfiguredCollection().FindOne(ctx, bson.M{"_id": id}, &image)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, errs.ErrImageNotFound
@@ -168,7 +161,7 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 	}
 
 	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
-	if _, err := m.Connection.UpdateId(ctx, id, update); err != nil {
+	if _, err := m.Connection.GetConfiguredCollection().UpdateId(ctx, id, update); err != nil {
 		if err == mgo.ErrNotFound {
 			return false, errs.ErrImageNotFound
 		}
@@ -276,6 +269,6 @@ func (m *Mongo) UpsertImage(ctx context.Context, id string, image *models.Image)
 		},
 	}
 
-	_, err = m.Connection.UpsertId(ctx, id, update)
+	_, err = m.Connection.GetConfiguredCollection().UpsertId(ctx, id, update)
 	return
 }
