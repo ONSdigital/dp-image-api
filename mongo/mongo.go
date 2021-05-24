@@ -110,8 +110,6 @@ func (m *Mongo) Checker(ctx context.Context, state *healthcheck.CheckState) erro
 
 // GetImages retrieves all images documents corresponding to the provided collectionID
 func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Image, error) {
-	s := m.Session.Copy()
-	defer s.Close()
 	log.Event(ctx, "getting images for collectionID", log.Data{"collectionID": collectionID})
 
 	// Filter by collectionID, if provided
@@ -134,8 +132,6 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 
 // GetImage retrieves an image document by its ID
 func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) {
-	s := m.Session.Copy()
-	defer s.Close()
 	log.Event(ctx, "getting image by ID", log.Data{"id": id})
 
 	var image models.Image
