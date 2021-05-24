@@ -28,9 +28,9 @@ type MongoConfig struct {
 	BindAddr   string `envconfig:"MONGODB_BIND_ADDR"   json:"-"`
 	Collection string `envconfig:"MONGODB_COLLECTION"`
 	Database   string `envconfig:"MONGODB_DATABASE"`
-	Username   string `envconfig:"USERNAME"`
-	Password   string `envconfig:"PASSWORD"`
-	CAFilePath string `envconfig:"CA_FILE_PATH"`
+	Username   string `envconfig:"MONGODB_USERNAME"    json:"-"`
+	Password   string `envconfig:"MONGODB_PASSWORD"    json:"-"`
+	CAFilePath string `envconfig:"MONGODB_CA_FILE_PATH"`
 }
 
 var cfg *Config
