@@ -11,7 +11,7 @@ import (
 	errs "github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/models"
 	dpMongodb "github.com/ONSdigital/dp-mongodb"
-	dpMongoLock "github.com/ONSdigital/dp-mongodb/dplock"
+	dpMongoLock "github.com/ONSdigital/dp-mongodb/v2/pkg/dplock"
 	dpMongoHealth "github.com/ONSdigital/dp-mongodb/v2/pkg/health"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/globalsign/mgo"
@@ -73,7 +73,7 @@ func (m *Mongo) Init(ctx context.Context) (err error) {
 
 	databaseCollectionBuilder := make(map[dpMongoHealth.Database][]dpMongoHealth.Collection)
 	databaseCollectionBuilder[(dpMongoHealth.Database)(m.Database)] = []dpMongoHealth.Collection{(dpMongoHealth.Collection)(m.Collection), (dpMongoHealth.Collection)(imagesLockCol)}
-	// Create client and healthclient from session
+	// Create client and health-client from session
 	m.client = dpMongoHealth.NewClientWithCollections(m.Connection, databaseCollectionBuilder)
 	m.healthClient = &dpMongoHealth.CheckMongoClient{
 		Client:      *m.client,
@@ -81,7 +81,7 @@ func (m *Mongo) Init(ctx context.Context) (err error) {
 	}
 
 	// Create MongoDB lock client, which also starts the purger loop
-	m.lockClient = dpMongoLock.New(ctx, m.Session, m.Database, imagesCol)
+	m.lockClient = dpMongoLock.New(ctx, m.Connection, imagesLockCol)
 	return nil
 }
 
@@ -93,8 +93,8 @@ func (m *Mongo) AcquireImageLock(ctx context.Context, imageID string) (lockID st
 }
 
 // UnlockImage releases an exclusive mongoDB lock for the provided lockId (if it exists)
-func (m *Mongo) UnlockImage(lockID string) error {
-	return m.lockClient.Unlock(lockID)
+func (m *Mongo) UnlockImage(ctx context.Context, lockID string) error {
+	return m.lockClient.Unlock(ctx, lockID)
 }
 
 // Close closes the mongo session and returns any error
