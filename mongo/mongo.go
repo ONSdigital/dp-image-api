@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	mongoDriver "github.com/ONSdigital/dp-mongodb/v2/pkg/mongo-driver"
+	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v2/pkg/mongo-driver"
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
@@ -34,7 +34,7 @@ type Mongo struct {
 	Collection   string
 	Database     string
 	Session      *mgo.Session
-	Connection   *mongoDriver.MongoConnection
+	Connection   *dpMongoDriver.MongoConnection
 	URI          string
 	Username     string
 	Password     string
@@ -45,8 +45,8 @@ type Mongo struct {
 }
 
 // Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
-func (m *Mongo) getConnectionConfig() *mongoDriver.MongoConnectionConfig {
-	return &mongoDriver.MongoConnectionConfig{
+func (m *Mongo) getConnectionConfig() *dpMongoDriver.MongoConnectionConfig {
+	return &dpMongoDriver.MongoConnectionConfig{
 		CaFilePath:              m.CAFilePath,
 		ConnectTimeoutInSeconds: connectTimeoutInSeconds,
 		QueryTimeoutInSeconds:   queryTimeoutInSeconds,
@@ -65,7 +65,7 @@ func (m *Mongo) Init(ctx context.Context) (err error) {
 	if m.Connection != nil {
 		return errors.New("Datastor Connection already exists")
 	}
-	mongoConnection, err := mongoDriver.Open(m.getConnectionConfig())
+	mongoConnection, err := dpMongoDriver.Open(m.getConnectionConfig())
 	if err != nil {
 		return err
 	}
