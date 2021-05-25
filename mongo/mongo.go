@@ -5,17 +5,16 @@ import (
 	"errors"
 	"fmt"
 	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v2/pkg/mongo-driver"
+	"go.mongodb.org/mongo-driver/bson"
+	"strings"
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	errs "github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/models"
-	dpMongodb "github.com/ONSdigital/dp-mongodb"
 	dpMongoLock "github.com/ONSdigital/dp-mongodb/v2/pkg/dplock"
 	dpMongoHealth "github.com/ONSdigital/dp-mongodb/v2/pkg/health"
 	"github.com/ONSdigital/log.go/log"
-	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 )
 
 const (
@@ -33,7 +32,6 @@ const imagesLockCol = "images_locks"
 type Mongo struct {
 	Collection   string
 	Database     string
-	Session      *mgo.Session
 	Connection   *dpMongoDriver.MongoConnection
 	URI          string
 	Username     string
@@ -100,7 +98,7 @@ func (m *Mongo) UnlockImage(ctx context.Context, lockID string) error {
 // Close closes the mongo session and returns any error
 func (m *Mongo) Close(ctx context.Context) error {
 	m.lockClient.Close(ctx)
-	return dpMongodb.Close(ctx, m.Session)
+	return m.Connection.Close(ctx)
 }
 
 // Checker is called by the healthcheck library to check the health state of this mongoDB instance
@@ -121,7 +119,7 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 	var results []models.Image
 	err := m.Connection.GetConfiguredCollection().Find(colIDFilter).IterAll(ctx, &results)
 	if err != nil {
-		if err == mgo.ErrNotFound {
+		if strings.Contains(err.Error(), "Collection not found") {
 			return nil, errs.ErrImageNotFound
 		}
 		return nil, err
@@ -137,7 +135,7 @@ func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) 
 	var image models.Image
 	err := m.Connection.GetConfiguredCollection().FindOne(ctx, bson.M{"_id": id}, &image)
 	if err != nil {
-		if err == mgo.ErrNotFound {
+		if strings.Contains(err.Error(), "Collection not found") {
 			return nil, errs.ErrImageNotFound
 		}
 		return nil, err
@@ -158,7 +156,7 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 
 	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
 	if _, err := m.Connection.GetConfiguredCollection().UpdateId(ctx, id, update); err != nil {
-		if err == mgo.ErrNotFound {
+		if strings.Contains(err.Error(), "Collection not found") {
 			return false, errs.ErrImageNotFound
 		}
 		return false, err
