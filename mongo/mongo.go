@@ -6,7 +6,6 @@ import (
 	"fmt"
 	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v2/pkg/mongo-driver"
 	"go.mongodb.org/mongo-driver/bson"
-	"strings"
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
@@ -119,7 +118,7 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 	var results []models.Image
 	err := m.Connection.GetConfiguredCollection().Find(colIDFilter).IterAll(ctx, &results)
 	if err != nil {
-		if strings.Contains(err.Error(), "Collection not found") {
+		if dpMongoDriver.IsErrCollectionNotFound(err) {
 			return nil, errs.ErrImageNotFound
 		}
 		return nil, err
@@ -135,7 +134,7 @@ func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) 
 	var image models.Image
 	err := m.Connection.GetConfiguredCollection().FindOne(ctx, bson.M{"_id": id}, &image)
 	if err != nil {
-		if strings.Contains(err.Error(), "Collection not found") {
+		if dpMongoDriver.IsErrCollectionNotFound(err) {
 			return nil, errs.ErrImageNotFound
 		}
 		return nil, err
@@ -156,7 +155,7 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 
 	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
 	if _, err := m.Connection.GetConfiguredCollection().UpdateId(ctx, id, update); err != nil {
-		if strings.Contains(err.Error(), "Collection not found") {
+		if dpMongoDriver.IsErrCollectionNotFound(err) {
 			return false, errs.ErrImageNotFound
 		}
 		return false, err
