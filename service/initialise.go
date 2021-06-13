@@ -110,9 +110,9 @@ func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoS
 		URI:        cfg.MongoConfig.BindAddr,
 		Username:   cfg.MongoConfig.Username,
 		Password:   cfg.MongoConfig.Password,
-		CAFilePath: cfg.MongoConfig.CAFilePath,
+		IsSSL:      cfg.MongoConfig.IsSSL,
 	}
-	if err := mongodb.Init(ctx); err != nil {
+	if err := mongodb.Init(ctx, true, true); err != nil {
 		return nil, err
 	}
 	return mongodb, nil

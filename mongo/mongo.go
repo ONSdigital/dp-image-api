@@ -35,34 +35,35 @@ type Mongo struct {
 	URI          string
 	Username     string
 	Password     string
-	CAFilePath   string
 	client       *dpMongoHealth.Client
 	healthClient *dpMongoHealth.CheckMongoClient
 	lockClient   *dpMongoLock.Lock
+	IsSSL        bool
 }
 
 // Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
-func (m *Mongo) getConnectionConfig() *dpMongoDriver.MongoConnectionConfig {
+func (m *Mongo) getConnectionConfig(shouldEnableReadConcern, shouldEnableWriteConcern bool) *dpMongoDriver.MongoConnectionConfig {
 	return &dpMongoDriver.MongoConnectionConfig{
-		CaFilePath:              m.CAFilePath,
+		IsSSL:                   m.IsSSL,
 		ConnectTimeoutInSeconds: connectTimeoutInSeconds,
 		QueryTimeoutInSeconds:   queryTimeoutInSeconds,
 
-		Username:             m.Username,
-		Password:             m.Password,
-		ClusterEndpoint:      m.URI,
-		Database:             m.Database,
-		Collection:           m.Collection,
-		SkipCertVerification: true,
+		Username:                      m.Username,
+		Password:                      m.Password,
+		ClusterEndpoint:               m.URI,
+		Database:                      m.Database,
+		Collection:                    m.Collection,
+		IsWriteConcernMajorityEnabled: shouldEnableWriteConcern,
+		IsStrongReadConcernEnabled:    shouldEnableReadConcern,
 	}
 }
 
 // Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
-func (m *Mongo) Init(ctx context.Context) (err error) {
+func (m *Mongo) Init(ctx context.Context, shouldEnableReadConcern, shouldEnableWriteConcern bool) (err error) {
 	if m.Connection != nil {
 		return errors.New("Datastor Connection already exists")
 	}
-	mongoConnection, err := dpMongoDriver.Open(m.getConnectionConfig())
+	mongoConnection, err := dpMongoDriver.Open(m.getConnectionConfig(shouldEnableReadConcern, shouldEnableWriteConcern))
 	if err != nil {
 		return err
 	}
@@ -118,7 +119,7 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 	var results []models.Image
 	err := m.Connection.GetConfiguredCollection().Find(colIDFilter).IterAll(ctx, &results)
 	if err != nil {
-		if dpMongoDriver.IsErrCollectionNotFound(err) {
+		if dpMongoDriver.IsErrNoDocumentFound(err) {
 			return nil, errs.ErrImageNotFound
 		}
 		return nil, err
@@ -134,7 +135,7 @@ func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) 
 	var image models.Image
 	err := m.Connection.GetConfiguredCollection().FindOne(ctx, bson.M{"_id": id}, &image)
 	if err != nil {
-		if dpMongoDriver.IsErrCollectionNotFound(err) {
+		if dpMongoDriver.IsErrNoDocumentFound(err) {
 			return nil, errs.ErrImageNotFound
 		}
 		return nil, err
@@ -155,7 +156,7 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 
 	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
 	if _, err := m.Connection.GetConfiguredCollection().UpdateId(ctx, id, update); err != nil {
-		if dpMongoDriver.IsErrCollectionNotFound(err) {
+		if dpMongoDriver.IsErrNoDocumentFound(err) {
 			return false, errs.ErrImageNotFound
 		}
 		return false, err

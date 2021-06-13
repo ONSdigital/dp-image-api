@@ -29,8 +29,7 @@ Digital Publishing Image API
 | MONGODB_DATABASE             | images                | MongoDB collection
 | MONGODB_USERNAME             | test                  | MongoDB Username
 | MONGODB_PASSWORD             | test                  | MongoDB Password
-| MONGODB_CA_FILE_PATH         | file-path             | MongoDB CA FilePath
-
+| MONGODB_IS_SSL               | false                 | is SSL enabled for mongo server
 
 ### Contributing
 
