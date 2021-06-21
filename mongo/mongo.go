@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v2/pkg/mongo-driver"
+	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v2/pkg/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"time"
 
