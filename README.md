@@ -27,6 +27,9 @@ Digital Publishing Image API
 | MONGODB_BIND_ADDR            | localhost:27017       | The MongoDB bind address
 | MONGODB_COLLECTION           | images                | The MongoDB images database
 | MONGODB_DATABASE             | images                | MongoDB collection
+| MONGODB_USERNAME             | test                  | MongoDB Username
+| MONGODB_PASSWORD             | test                  | MongoDB Password
+| MONGODB_IS_SSL               | false                 | is SSL enabled for mongo server
 
 ### Contributing
 
