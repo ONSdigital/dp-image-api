@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v2/pkg/mongodb"
+	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v2/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	errs "github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/models"
-	dpMongoLock "github.com/ONSdigital/dp-mongodb/v2/pkg/dplock"
-	dpMongoHealth "github.com/ONSdigital/dp-mongodb/v2/pkg/health"
+	dpMongoLock "github.com/ONSdigital/dp-mongodb/v2/dplock"
+	dpMongoHealth "github.com/ONSdigital/dp-mongodb/v2/health"
 	"github.com/ONSdigital/log.go/log"
 )
 
