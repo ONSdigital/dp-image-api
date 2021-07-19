@@ -320,7 +320,7 @@ func (mock *MongoServerMock) GetImagesCalls() []struct {
 }
 
 // UnlockImage calls UnlockImageFunc.
-func (mock *MongoServerMock) UnlockImage(lockID string) error {
+func (mock *MongoServerMock) UnlockImage(ctx context.Context, lockID string) error {
 	if mock.UnlockImageFunc == nil {
 		panic("MongoServerMock.UnlockImageFunc: method is nil but MongoServer.UnlockImage was just called")
 	}

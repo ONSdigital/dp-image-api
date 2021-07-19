@@ -4,17 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v2/mongodb"
+	"go.mongodb.org/mongo-driver/bson"
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	errs "github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/models"
-	dpMongodb "github.com/ONSdigital/dp-mongodb"
-	dpMongoLock "github.com/ONSdigital/dp-mongodb/dplock"
-	dpMongoHealth "github.com/ONSdigital/dp-mongodb/health"
+	dpMongoLock "github.com/ONSdigital/dp-mongodb/v2/dplock"
+	dpMongoHealth "github.com/ONSdigital/dp-mongodb/v2/health"
 	"github.com/ONSdigital/log.go/log"
-	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
+)
+
+const (
+	connectTimeoutInSeconds = 5
+	queryTimeoutInSeconds   = 15
 )
 
 // images collection name
@@ -27,37 +31,55 @@ const imagesLockCol = "images_locks"
 type Mongo struct {
 	Collection   string
 	Database     string
-	Session      *mgo.Session
+	Connection   *dpMongoDriver.MongoConnection
 	URI          string
+	Username     string
+	Password     string
 	client       *dpMongoHealth.Client
 	healthClient *dpMongoHealth.CheckMongoClient
 	lockClient   *dpMongoLock.Lock
+	IsSSL        bool
 }
 
 // Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
-func (m *Mongo) Init(ctx context.Context) (err error) {
-	if m.Session != nil {
-		return errors.New("session already exists")
-	}
+func (m *Mongo) getConnectionConfig(shouldEnableReadConcern, shouldEnableWriteConcern bool) *dpMongoDriver.MongoConnectionConfig {
+	return &dpMongoDriver.MongoConnectionConfig{
+		IsSSL:                   m.IsSSL,
+		ConnectTimeoutInSeconds: connectTimeoutInSeconds,
+		QueryTimeoutInSeconds:   queryTimeoutInSeconds,
 
-	// Create session
-	if m.Session, err = mgo.Dial(m.URI); err != nil {
+		Username:                      m.Username,
+		Password:                      m.Password,
+		ClusterEndpoint:               m.URI,
+		Database:                      m.Database,
+		Collection:                    m.Collection,
+		IsWriteConcernMajorityEnabled: shouldEnableWriteConcern,
+		IsStrongReadConcernEnabled:    shouldEnableReadConcern,
+	}
+}
+
+// Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
+func (m *Mongo) Init(ctx context.Context, shouldEnableReadConcern, shouldEnableWriteConcern bool) (err error) {
+	if m.Connection != nil {
+		return errors.New("Datastor Connection already exists")
+	}
+	mongoConnection, err := dpMongoDriver.Open(m.getConnectionConfig(shouldEnableReadConcern, shouldEnableWriteConcern))
+	if err != nil {
 		return err
 	}
-	m.Session.EnsureSafe(&mgo.Safe{WMode: "majority"})
-	m.Session.SetMode(mgo.Strong, true)
+	m.Connection = mongoConnection
 
 	databaseCollectionBuilder := make(map[dpMongoHealth.Database][]dpMongoHealth.Collection)
 	databaseCollectionBuilder[(dpMongoHealth.Database)(m.Database)] = []dpMongoHealth.Collection{(dpMongoHealth.Collection)(m.Collection), (dpMongoHealth.Collection)(imagesLockCol)}
-	// Create client and healthclient from session
-	m.client = dpMongoHealth.NewClientWithCollections(m.Session, databaseCollectionBuilder)
+	// Create client and health-client from session
+	m.client = dpMongoHealth.NewClientWithCollections(m.Connection, databaseCollectionBuilder)
 	m.healthClient = &dpMongoHealth.CheckMongoClient{
 		Client:      *m.client,
 		Healthcheck: m.client.Healthcheck,
 	}
 
 	// Create MongoDB lock client, which also starts the purger loop
-	m.lockClient = dpMongoLock.New(ctx, m.Session, m.Database, imagesCol)
+	m.lockClient = dpMongoLock.New(ctx, m.Connection, imagesLockCol)
 	return nil
 }
 
@@ -69,14 +91,14 @@ func (m *Mongo) AcquireImageLock(ctx context.Context, imageID string) (lockID st
 }
 
 // UnlockImage releases an exclusive mongoDB lock for the provided lockId (if it exists)
-func (m *Mongo) UnlockImage(lockID string) error {
-	return m.lockClient.Unlock(lockID)
+func (m *Mongo) UnlockImage(ctx context.Context, lockID string) error {
+	return m.lockClient.Unlock(ctx, lockID)
 }
 
 // Close closes the mongo session and returns any error
 func (m *Mongo) Close(ctx context.Context) error {
 	m.lockClient.Close(ctx)
-	return dpMongodb.Close(ctx, m.Session)
+	return m.Connection.Close(ctx)
 }
 
 // Checker is called by the healthcheck library to check the health state of this mongoDB instance
@@ -86,8 +108,6 @@ func (m *Mongo) Checker(ctx context.Context, state *healthcheck.CheckState) erro
 
 // GetImages retrieves all images documents corresponding to the provided collectionID
 func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Image, error) {
-	s := m.Session.Copy()
-	defer s.Close()
 	log.Event(ctx, "getting images for collectionID", log.Data{"collectionID": collectionID})
 
 	// Filter by collectionID, if provided
@@ -96,17 +116,10 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 		colIDFilter["collection_id"] = collectionID
 	}
 
-	iter := s.DB(m.Database).C(imagesCol).Find(colIDFilter).Iter()
-	defer func() {
-		err := iter.Close()
-		if err != nil {
-			log.Event(ctx, "error closing iterator", log.ERROR, log.Error(err))
-		}
-	}()
-
-	results := []models.Image{}
-	if err := iter.All(&results); err != nil {
-		if err == mgo.ErrNotFound {
+	var results []models.Image
+	err := m.Connection.GetConfiguredCollection().Find(colIDFilter).IterAll(ctx, &results)
+	if err != nil {
+		if dpMongoDriver.IsErrNoDocumentFound(err) {
 			return nil, errs.ErrImageNotFound
 		}
 		return nil, err
@@ -117,14 +130,12 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 
 // GetImage retrieves an image document by its ID
 func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) {
-	s := m.Session.Copy()
-	defer s.Close()
 	log.Event(ctx, "getting image by ID", log.Data{"id": id})
 
 	var image models.Image
-	err := s.DB(m.Database).C(imagesCol).Find(bson.M{"_id": id}).One(&image)
+	err := m.Connection.GetConfiguredCollection().FindOne(ctx, bson.M{"_id": id}, &image)
 	if err != nil {
-		if err == mgo.ErrNotFound {
+		if dpMongoDriver.IsErrNoDocumentFound(err) {
 			return nil, errs.ErrImageNotFound
 		}
 		return nil, err
@@ -135,8 +146,6 @@ func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) 
 
 // UpdateImage updates an existing image document
 func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image) (bool, error) {
-	s := m.Session.Copy()
-	defer s.Close()
 	log.Event(ctx, "updating image", log.Data{"id": id})
 
 	updates := createImageUpdateQuery(ctx, id, image)
@@ -146,8 +155,8 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 	}
 
 	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
-	if err := s.DB(m.Database).C(imagesCol).UpdateId(id, update); err != nil {
-		if err == mgo.ErrNotFound {
+	if _, err := m.Connection.GetConfiguredCollection().UpdateId(ctx, id, update); err != nil {
+		if dpMongoDriver.IsErrNoDocumentFound(err) {
 			return false, errs.ErrImageNotFound
 		}
 		return false, err
@@ -245,8 +254,6 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 
 // UpsertImage adds or overides an existing image document
 func (m *Mongo) UpsertImage(ctx context.Context, id string, image *models.Image) (err error) {
-	s := m.Session.Copy()
-	defer s.Close()
 	log.Event(ctx, "upserting image", log.Data{"id": id})
 
 	update := bson.M{
@@ -256,6 +263,6 @@ func (m *Mongo) UpsertImage(ctx context.Context, id string, image *models.Image)
 		},
 	}
 
-	_, err = s.DB(m.Database).C(imagesCol).UpsertId(id, update)
+	_, err = m.Connection.GetConfiguredCollection().UpsertId(ctx, id, update)
 	return
 }
