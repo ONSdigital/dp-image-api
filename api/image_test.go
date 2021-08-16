@@ -804,7 +804,7 @@ func TestUpdateImageHandler(t *testing.T) {
 					return true, nil
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -829,7 +829,7 @@ func TestUpdateImageHandler(t *testing.T) {
 					return nil, apierrors.ErrImageNotFound
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -853,7 +853,7 @@ func TestUpdateImageHandler(t *testing.T) {
 					return nil, errors.New("internal mongoDB error")
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -880,7 +880,7 @@ func TestUpdateImageHandler(t *testing.T) {
 					return errors.New("internal mongoDB error")
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -906,7 +906,7 @@ func TestUpdateImageHandler(t *testing.T) {
 					return dbImage(models.StatePublished), nil
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -933,7 +933,7 @@ func TestUpdateImageHandler(t *testing.T) {
 				},
 				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, uploadedProducer, kafkaStubProducer)
 
@@ -988,7 +988,7 @@ func TestUpdateImageHandler(t *testing.T) {
 						return dbUploadedImage(), nil
 					},
 					AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-					UnlockImageFunc:      func(id string) error { return nil },
+					UnlockImageFunc:      func(ctx context.Context, id string) {},
 				}
 				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1183,7 +1183,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 			},
 			UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
 			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-			UnlockImageFunc:      func(id string) error { return nil },
+			UnlockImageFunc:      func(ctx context.Context, id string) {},
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
@@ -1303,7 +1303,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 			GetImageFunc:         func(ctx context.Context, id string) (*models.Image, error) { return dbImage(models.StateUploaded), nil },
 			UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return errMongoDB },
 			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-			UnlockImageFunc:      func(id string) error { return nil },
+			UnlockImageFunc:      func(ctx context.Context, id string) {},
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
@@ -1337,7 +1337,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 			GetImageFunc:         func(ctx context.Context, id string) (*models.Image, error) { return dbImage(models.StateUploaded), nil },
 			UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
 			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return "", errors.New("fail to lock") },
-			UnlockImageFunc:      func(id string) error { return nil },
+			UnlockImageFunc:      func(ctx context.Context, id string) {},
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
@@ -1515,7 +1515,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 				},
 				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1541,7 +1541,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 				},
 				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1584,7 +1584,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 					return dbImage(models.StateUploaded), nil
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1610,7 +1610,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 				},
 				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1646,7 +1646,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 				},
 				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1695,7 +1695,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 					return nil, errMongoDB
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1721,7 +1721,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 				},
 				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return errMongoDB },
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1773,7 +1773,7 @@ func TestPublishImageHandler(t *testing.T) {
 					return true, nil
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 
 			Convey("Calling 'publish image' results in 204 NoContent response with the expected image state update to mongoDB and the message sent to kafka producer", func() {
@@ -1848,7 +1848,7 @@ func TestPublishImageHandler(t *testing.T) {
 					return true, nil
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1872,7 +1872,7 @@ func TestPublishImageHandler(t *testing.T) {
 					return dbImage(models.StateCreated), nil
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1914,7 +1914,7 @@ func TestPublishImageHandler(t *testing.T) {
 					return nil, errors.New("internal mongoDB error")
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1940,7 +1940,7 @@ func TestPublishImageHandler(t *testing.T) {
 					return false, errors.New("internal mongoDB error")
 				},
 				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(id string) error { return nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 

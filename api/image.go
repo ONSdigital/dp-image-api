@@ -610,9 +610,7 @@ func generateImagePublishEvents(image *models.Image) (events []*event.ImagePubli
 	return events
 }
 
-// unlockImage unlocks the provided image lockID and logs any error with WARN state
+// unlockImage unlocks the provided image lockID
 func (api *API) unlockImage(ctx context.Context, lockID string) {
-	if err := api.mongoDB.UnlockImage(ctx, lockID); err != nil {
-		log.Event(ctx, "error unlocking mongoDB lock for an image resource", log.WARN, log.Data{"lockID": lockID})
-	}
+	api.mongoDB.UnlockImage(ctx, lockID)
 }

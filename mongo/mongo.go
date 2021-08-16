@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v2/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
-	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	errs "github.com/ONSdigital/dp-image-api/apierrors"
@@ -91,8 +92,8 @@ func (m *Mongo) AcquireImageLock(ctx context.Context, imageID string) (lockID st
 }
 
 // UnlockImage releases an exclusive mongoDB lock for the provided lockId (if it exists)
-func (m *Mongo) UnlockImage(ctx context.Context, lockID string) error {
-	return m.lockClient.Unlock(ctx, lockID)
+func (m *Mongo) UnlockImage(ctx context.Context, lockID string) {
+	m.lockClient.Unlock(ctx, lockID)
 }
 
 // Close closes the mongo session and returns any error
