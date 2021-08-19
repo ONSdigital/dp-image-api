@@ -2,11 +2,12 @@ package api_test
 
 import (
 	"context"
-	"github.com/ONSdigital/dp-image-api/url"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
+
+	"github.com/ONSdigital/dp-image-api/url"
 
 	"github.com/gorilla/mux"
 
@@ -14,8 +15,8 @@ import (
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/api/mock"
 	"github.com/ONSdigital/dp-image-api/config"
-	kafka "github.com/ONSdigital/dp-kafka"
-	"github.com/ONSdigital/dp-kafka/kafkatest"
+	kafka "github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/kafkatest"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

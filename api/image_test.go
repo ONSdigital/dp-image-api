@@ -23,8 +23,8 @@ import (
 	"github.com/ONSdigital/dp-image-api/event"
 	"github.com/ONSdigital/dp-image-api/models"
 	"github.com/ONSdigital/dp-image-api/schema"
-	kafka "github.com/ONSdigital/dp-kafka"
-	"github.com/ONSdigital/dp-kafka/kafkatest"
+	kafka "github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/kafkatest"
 	"github.com/ONSdigital/dp-net/handlers"
 	dpreq "github.com/ONSdigital/dp-net/request"
 

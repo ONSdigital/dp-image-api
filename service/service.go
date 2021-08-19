@@ -2,13 +2,14 @@ package service
 
 import (
 	"context"
+
 	"github.com/ONSdigital/dp-image-api/url"
 
 	"github.com/ONSdigital/dp-api-clients-go/health"
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
-	kafka "github.com/ONSdigital/dp-kafka"
+	kafka "github.com/ONSdigital/dp-kafka/v2"
 	"github.com/ONSdigital/dp-net/handlers"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
