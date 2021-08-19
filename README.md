@@ -1,8 +1,8 @@
-dp-image-api
-================
+# dp-image-api
+
 Digital Publishing Image API
 
-### Getting started
+## Getting started
 
 * Run `make debug`
 
@@ -17,6 +17,11 @@ Digital Publishing Image API
 | BIND_ADDR                    | :24700                | The host and port to bind to
 | KAFKA_ADDR                   | localhost:9092        | The list of kafka broker hosts (publishing mode only)
 | KAFKA_MAX_BYTES              | 2000000               | Maximum number of bytes in a kafka message (publishing mode only)
+| KAFKA_SEC_PROTO              | _unset_               | if set to `TLS`, kafka connections will use TLS [1]
+| KAFKA_SEC_CLIENT_KEY         | _unset_               | PEM for the client key [1]
+| KAFKA_SEC_CLIENT_CERT        | _unset_               | PEM for the client certificate [1]
+| KAFKA_SEC_CA_CERTS           | _unset_               | CA cert chain for the server cert [1]
+| KAFKA_SEC_SKIP_VERIFY        | false                 | ignores server certificate issues if `true` [1]
 | IMAGE_UPLOADED_TOPIC         | image-uploaded        | The kafka topic that will be produced by this service for image uploading events (publishing mode only)
 | STATIC_FILE_PUBLISHED_TOPIC  | static-file-published | The kafka topic that will be produced by this service for image publishing events (publishing mode only)
 | GRACEFUL_SHUTDOWN_TIMEOUT    | 5s                    | The graceful shutdown timeout in seconds (`time.Duration` format)
@@ -30,6 +35,10 @@ Digital Publishing Image API
 | MONGODB_USERNAME             | test                  | MongoDB Username
 | MONGODB_PASSWORD             | test                  | MongoDB Password
 | MONGODB_IS_SSL               | false                 | is SSL enabled for mongo server
+
+**Notes:**
+
+1. For more info, see the [kafka TLS examples documentation](https://github.com/ONSdigital//tree/main/examples#tls)
 
 ### Contributing
 
