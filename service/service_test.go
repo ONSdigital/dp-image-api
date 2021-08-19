@@ -100,12 +100,12 @@ func TestRunPublishing(t *testing.T) {
 			return failingServerMock
 		}
 
-		funcDoGetKafkaProducerOk := func(ctx context.Context, cfg *config.Config, brokers []string, topic string) (kafka.IProducer, error) {
+		funcDoGetKafkaProducerOk := func(ctx context.Context, cfg *config.Config, topic string) (kafka.IProducer, error) {
 			return kafkaProducerMock, nil
 		}
 
-		doGetKafkaProducerErrOnTopic := func(errTopic string) func(ctx context.Context, cfg *config.Config, brokers []string, topic string) (kafka.IProducer, error) {
-			return func(ctx context.Context, cfg *config.Config, brokers []string, topic string) (kafka.IProducer, error) {
+		doGetKafkaProducerErrOnTopic := func(errTopic string) func(ctx context.Context, cfg *config.Config, topic string) (kafka.IProducer, error) {
+			return func(ctx context.Context, cfg *config.Config, topic string) (kafka.IProducer, error) {
 				if topic == errTopic {
 					return nil, errKafkaProducer
 				} else {
@@ -374,7 +374,7 @@ func TestClose(t *testing.T) {
 		}
 		kafkaUploadedProducerMock := createKafkaProducerMock()
 		kafkaPublishedProducerMock := createKafkaProducerMock()
-		doGetKafkaProducerFunc := func(ctx context.Context, cfg *config.Config, brokers []string, topic string) (kafka.IProducer, error) {
+		doGetKafkaProducerFunc := func(ctx context.Context, cfg *config.Config, topic string) (kafka.IProducer, error) {
 			if topic == cfg.ImageUploadedTopic {
 				return kafkaUploadedProducerMock, nil
 			} else if topic == cfg.StaticFilePublishedTopic {

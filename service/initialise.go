@@ -65,13 +65,13 @@ func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config
 func (e *ExternalServiceList) GetKafkaProducer(ctx context.Context, cfg *config.Config, producerType KafkaProducerType) (kafkaProducer kafka.IProducer, err error) {
 	switch producerType {
 	case KafkaProducerUploaded:
-		kafkaProducer, err = e.Init.DoGetKafkaProducer(ctx, cfg, cfg.Brokers, cfg.ImageUploadedTopic)
+		kafkaProducer, err = e.Init.DoGetKafkaProducer(ctx, cfg, cfg.ImageUploadedTopic)
 		if err != nil {
 			return nil, err
 		}
 		e.KafkaProducerUploaded = true
 	case KafkaProducerPublished:
-		kafkaProducer, err = e.Init.DoGetKafkaProducer(ctx, cfg, cfg.Brokers, cfg.StaticFilePublishedTopic)
+		kafkaProducer, err = e.Init.DoGetKafkaProducer(ctx, cfg, cfg.StaticFilePublishedTopic)
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +119,7 @@ func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoS
 }
 
 // DoGetKafkaProducer creates a kafka producer for the provided broker addresses, topic and envMax values in config
-func (e *Init) DoGetKafkaProducer(ctx context.Context, cfg *config.Config, brokers []string, topic string) (kafka.IProducer, error) {
+func (e *Init) DoGetKafkaProducer(ctx context.Context, cfg *config.Config, topic string) (kafka.IProducer, error) {
 	pConfig := &kafka.ProducerConfig{
 		KafkaVersion:    &cfg.KafkaVersion,
 		MaxMessageBytes: &cfg.KafkaMaxBytes,
@@ -133,7 +133,7 @@ func (e *Init) DoGetKafkaProducer(ctx context.Context, cfg *config.Config, broke
 		)
 	}
 	producerChannels := kafka.CreateProducerChannels()
-	return kafka.NewProducer(ctx, brokers, topic, producerChannels, pConfig)
+	return kafka.NewProducer(ctx, cfg.Brokers, topic, producerChannels, pConfig)
 }
 
 // DoGetHealthClient creates a new Health Client for the provided name and url

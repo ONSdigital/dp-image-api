@@ -19,7 +19,7 @@ import (
 type Initialiser interface {
 	DoGetHTTPServer(bindAddr string, router http.Handler) HTTPServer
 	DoGetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoServer, error)
-	DoGetKafkaProducer(ctx context.Context, cfg *config.Config, brokers []string, topic string) (kafka.IProducer, error)
+	DoGetKafkaProducer(ctx context.Context, cfg *config.Config, topic string) (kafka.IProducer, error)
 	DoGetHealthClient(name, url string) *health.Client
 	DoGetHealthCheck(cfg *config.Config, buildTime, gitCommit, version string) (HealthChecker, error)
 }
