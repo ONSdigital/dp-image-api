@@ -124,15 +124,16 @@ func (e *Init) DoGetKafkaProducer(ctx context.Context, cfg *config.Config, broke
 		KafkaVersion:    &cfg.KafkaVersion,
 		MaxMessageBytes: &cfg.KafkaMaxBytes,
 	}
-
-	producerChannels := kafka.CreateProducerChannels()
-
-	kafkaProducer, err := kafka.NewProducer(ctx, brokers, topic, producerChannels, pConfig)
-	if err != nil {
-		return nil, err
+	if cfg.KafkaSecProtocol == "TLS" {
+		pConfig.SecurityConfig = kafka.GetSecurityConfig(
+			cfg.KafkaSecCACerts,
+			cfg.KafkaSecClientCert,
+			cfg.KafkaSecClientKey,
+			cfg.KafkaSecSkipVerify,
+		)
 	}
-
-	return kafkaProducer, nil
+	producerChannels := kafka.CreateProducerChannels()
+	return kafka.NewProducer(ctx, brokers, topic, producerChannels, pConfig)
 }
 
 // DoGetHealthClient creates a new Health Client for the provided name and url
