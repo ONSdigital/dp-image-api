@@ -21,6 +21,8 @@ func TestConfig(t *testing.T) {
 				So(cfg.BindAddr, ShouldEqual, "localhost:24700")
 				So(cfg.ApiURL, ShouldResemble, "http://localhost:24700")
 				So(cfg.Brokers, ShouldResemble, []string{"localhost:9092"})
+				So(cfg.KafkaVersion, ShouldEqual, "1.0.2")
+				So(cfg.KafkaSecProtocol, ShouldEqual, "")
 				So(cfg.KafkaMaxBytes, ShouldEqual, 2000000)
 				So(cfg.ImageUploadedTopic, ShouldEqual, "image-uploaded")
 				So(cfg.StaticFilePublishedTopic, ShouldEqual, "static-file-published")
