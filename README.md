@@ -16,7 +16,7 @@ Digital Publishing Image API
 | ---------------------------- | --------------------- | -----------
 | BIND_ADDR                    | :24700                | The host and port to bind to
 | KAFKA_ADDR                   | localhost:9092        | The list of kafka broker hosts (publishing mode only)
-| KAFKA_VERSION                | `1.0.2`                                | The version of (TLS-ready) Kafka
+| KAFKA_VERSION                | `1.0.2`               | The version of (TLS-ready) Kafka
 | KAFKA_MAX_BYTES              | 2000000               | Maximum number of bytes in a kafka message (publishing mode only)
 | KAFKA_SEC_PROTO              | _unset_               | if set to `TLS`, kafka connections will use TLS [1]
 | KAFKA_SEC_CLIENT_KEY         | _unset_               | PEM for the client key [1]
