@@ -80,7 +80,7 @@ func (m *Mongo) Init(ctx context.Context, shouldEnableReadConcern, shouldEnableW
 	}
 
 	// Create MongoDB lock client, which also starts the purger loop
-	m.lockClient = dpMongoLock.New(ctx, m.Connection, imagesLockCol)
+	m.lockClient = dpMongoLock.New(ctx, m.Connection, imagesCol)
 	return nil
 }
 
