@@ -3,17 +3,18 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"github.com/ONSdigital/dp-image-api/url"
 	"io"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/ONSdigital/dp-image-api/url"
 
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/dp-image-api/event"
 	"github.com/ONSdigital/dp-image-api/schema"
-	kafka "github.com/ONSdigital/dp-kafka"
+	kafka "github.com/ONSdigital/dp-kafka/v2"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/gorilla/mux"
 )

@@ -12,6 +12,12 @@ type Config struct {
 	ApiURL                     string        `envconfig:"IMAGE_API_URL"`
 	Brokers                    []string      `envconfig:"KAFKA_ADDR"`
 	KafkaMaxBytes              int           `envconfig:"KAFKA_MAX_BYTES"`
+	KafkaVersion               string        `envconfig:"KAFKA_VERSION"`
+	KafkaSecProtocol           string        `envconfig:"KAFKA_SEC_PROTO"`
+	KafkaSecCACerts            string        `envconfig:"KAFKA_SEC_CA_CERTS"`
+	KafkaSecClientCert         string        `envconfig:"KAFKA_SEC_CLIENT_CERT"`
+	KafkaSecClientKey          string        `envconfig:"KAFKA_SEC_CLIENT_KEY"             json:"-"`
+	KafkaSecSkipVerify         bool          `envconfig:"KAFKA_SEC_SKIP_VERIFY"`
 	ImageUploadedTopic         string        `envconfig:"IMAGE_UPLOADED_TOPIC"`
 	StaticFilePublishedTopic   string        `envconfig:"STATIC_FILE_PUBLISHED_TOPIC"`
 	GracefulShutdownTimeout    time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
@@ -46,6 +52,7 @@ func Get() (*Config, error) {
 		BindAddr:                   "localhost:24700",
 		ApiURL:                     "http://localhost:24700",
 		Brokers:                    []string{"localhost:9092"},
+		KafkaVersion:               "1.0.2",
 		KafkaMaxBytes:              2000000,
 		ImageUploadedTopic:         "image-uploaded",
 		StaticFilePublishedTopic:   "static-file-published",
