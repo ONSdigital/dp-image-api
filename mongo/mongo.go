@@ -14,7 +14,7 @@ import (
 	"github.com/ONSdigital/dp-image-api/models"
 	dpMongoLock "github.com/ONSdigital/dp-mongodb/v2/dplock"
 	dpMongoHealth "github.com/ONSdigital/dp-mongodb/v2/health"
-	"github.com/ONSdigital/log.go/log"
+	"github.com/ONSdigital/log.go/v2/log"
 )
 
 const (
@@ -109,7 +109,7 @@ func (m *Mongo) Checker(ctx context.Context, state *healthcheck.CheckState) erro
 
 // GetImages retrieves all images documents corresponding to the provided collectionID
 func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Image, error) {
-	log.Event(ctx, "getting images for collectionID", log.Data{"collectionID": collectionID})
+	log.Info(ctx, "getting images for collectionID", log.Data{"collectionID": collectionID})
 
 	// Filter by collectionID, if provided
 	colIDFilter := make(bson.M)
@@ -131,7 +131,7 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 
 // GetImage retrieves an image document by its ID
 func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) {
-	log.Event(ctx, "getting image by ID", log.Data{"id": id})
+	log.Info(ctx, "getting image by ID", log.Data{"id": id})
 
 	var image models.Image
 	err := m.Connection.GetConfiguredCollection().FindOne(ctx, bson.M{"_id": id}, &image)
@@ -147,11 +147,11 @@ func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) 
 
 // UpdateImage updates an existing image document
 func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image) (bool, error) {
-	log.Event(ctx, "updating image", log.Data{"id": id})
+	log.Info(ctx, "updating image", log.Data{"id": id})
 
 	updates := createImageUpdateQuery(ctx, id, image)
 	if len(updates) == 0 {
-		log.Event(ctx, "nothing to update")
+		log.Info(ctx, "nothing to update")
 		return false, nil
 	}
 
@@ -171,7 +171,7 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 func createImageUpdateQuery(ctx context.Context, id string, image *models.Image) bson.M {
 	updates := make(bson.M)
 
-	log.Event(ctx, "building update query for image resource", log.INFO, log.INFO, log.Data{"image_id": id, "image": image, "updates": updates})
+	log.Info(ctx, "building update query for image resource", log.INFO, log.Data{"image_id": id, "image": image, "updates": updates})
 
 	if image.CollectionID != "" {
 		updates["collection_id"] = image.CollectionID
@@ -255,7 +255,7 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 
 // UpsertImage adds or overides an existing image document
 func (m *Mongo) UpsertImage(ctx context.Context, id string, image *models.Image) (err error) {
-	log.Event(ctx, "upserting image", log.Data{"id": id})
+	log.Info(ctx, "upserting image", log.Data{"id": id})
 
 	update := bson.M{
 		"$set": image,

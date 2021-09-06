@@ -15,7 +15,7 @@ import (
 	"github.com/ONSdigital/dp-image-api/event"
 	"github.com/ONSdigital/dp-image-api/schema"
 	kafka "github.com/ONSdigital/dp-kafka/v2"
-	"github.com/ONSdigital/log.go/log"
+	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/gorilla/mux"
 )
 
@@ -64,7 +64,7 @@ func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHand
 
 // Close is called during graceful shutdown to give the API an opportunity to perform any required disposal task
 func (*API) Close(ctx context.Context) error {
-	log.Event(ctx, "graceful shutdown of api complete", log.INFO)
+	log.Info(ctx, "graceful shutdown of api complete")
 	return nil
 }
 
@@ -144,6 +144,6 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error, data log
 	}
 
 	data["response_status"] = status
-	log.Event(ctx, "request unsuccessful", log.ERROR, log.Error(err), data)
+	log.Error(ctx, "request unsuccessful", err, data)
 	http.Error(w, err.Error(), status)
 }
