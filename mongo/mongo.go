@@ -42,7 +42,6 @@ type Mongo struct {
 	IsSSL        bool
 }
 
-// Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
 func (m *Mongo) getConnectionConfig(shouldEnableReadConcern, shouldEnableWriteConcern bool) *dpMongoDriver.MongoConnectionConfig {
 	return &dpMongoDriver.MongoConnectionConfig{
 		IsSSL:                   m.IsSSL,
@@ -59,7 +58,7 @@ func (m *Mongo) getConnectionConfig(shouldEnableReadConcern, shouldEnableWriteCo
 	}
 }
 
-// Init creates a new mgo.Session with a strong consistency and a write mode of "majority".
+// Init creates a new mongodb.MongoConnection with a strong consistency and a write mode of "majority".
 func (m *Mongo) Init(ctx context.Context, shouldEnableReadConcern, shouldEnableWriteConcern bool) (err error) {
 	if m.Connection != nil {
 		return errors.New("Datastor Connection already exists")
