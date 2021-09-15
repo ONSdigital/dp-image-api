@@ -21,7 +21,7 @@ type MongoServer interface {
 	UpdateImage(ctx context.Context, id string, image *models.Image) (didChange bool, err error)
 	UpsertImage(ctx context.Context, id string, image *models.Image) (err error)
 	AcquireImageLock(ctx context.Context, id string) (lockID string, err error)
-	UnlockImage(lockID string) error
+	UnlockImage(ctx context.Context, lockID string)
 }
 
 // AuthHandler interface for adding auth to endpoints

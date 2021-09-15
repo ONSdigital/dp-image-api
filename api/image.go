@@ -12,7 +12,7 @@ import (
 	"github.com/ONSdigital/dp-image-api/models"
 	"github.com/ONSdigital/dp-net/handlers"
 	dpreq "github.com/ONSdigital/dp-net/request"
-	"github.com/ONSdigital/log.go/log"
+	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
 )
@@ -72,7 +72,7 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	log.Event(ctx, "Successfully retrieved images", log.INFO, logdata)
+	log.Info(ctx, "Successfully retrieved images", logdata)
 }
 
 // CreateImageHandler is a handler that inserts an image into mongoDB with a newly generated ID
@@ -122,7 +122,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Event(ctx, "storing new image", log.INFO, log.Data{"image": newImage})
+	log.Info(ctx, "storing new image", log.Data{"image": newImage})
 
 	// Upsert image in MongoDB
 	if err := api.mongoDB.UpsertImage(req.Context(), newImage.ID, &newImage); err != nil {
@@ -134,7 +134,7 @@ func (api *API) CreateImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	log.Event(ctx, "successfully created image", log.INFO, logdata)
+	log.Info(ctx, "successfully created image", logdata)
 }
 
 // GetImageHandler is a handler that gets an image by its id from MongoDB
@@ -160,7 +160,7 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	log.Event(ctx, "Successfully retrieved image", log.INFO, logdata)
+	log.Info(ctx, "Successfully retrieved image", logdata)
 }
 
 // UpdateImageHandler is a handler that updates an existing image in MongoDB
@@ -188,7 +188,7 @@ func (api *API) UpdateImageHandler(w http.ResponseWriter, req *http.Request) {
 			handleError(ctx, w, err, logdata)
 			return
 		}
-		log.Event(ctx, "successfully updated image", log.INFO, logdata)
+		log.Info(ctx, "successfully updated image", logdata)
 	}
 }
 
@@ -201,7 +201,7 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 		handleError(ctx, w, err, logdata)
 		return nil
 	}
-	log.Event(ctx, "updating image", log.INFO, log.Data{"image": image})
+	log.Info(ctx, "updating image", log.Data{"image": image})
 
 	// Validate a possible mismatch of image id, if provided in image body
 	if image.ID != "" && image.ID != id {
@@ -239,7 +239,7 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 	// If the new state is 'uploaded', generate and send the kafka event to trigger import
 	if image.State == models.StateUploaded.String() {
 		uploadS3Path := path.Base(image.Upload.Path)
-		log.Event(ctx, "sending image uploaded message", log.INFO, logdata)
+		log.Info(ctx, "sending image uploaded message", logdata)
 		uploadedEvent := ImageUploadedEvent(id, uploadS3Path, image.Filename)
 		if err := api.uploadProducer.ImageUploaded(uploadedEvent); err != nil {
 			handleError(ctx, w, err, logdata)
@@ -290,7 +290,7 @@ func (api *API) GetDownloadsHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	log.Event(ctx, "Successfully retrieved downloads", log.INFO, logdata)
+	log.Info(ctx, "Successfully retrieved downloads", logdata)
 }
 
 // CreateDownloadHandler is a handler that adds a new download to an existing image
@@ -375,7 +375,7 @@ func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	log.Event(ctx, "successfully created download variant", log.INFO, logdata)
+	log.Info(ctx, "successfully created download variant", logdata)
 }
 
 func (api *API) createLinksForImage(id string) *models.ImageLinks {
@@ -427,7 +427,7 @@ func (api *API) GetDownloadHandler(w http.ResponseWriter, req *http.Request) {
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	log.Event(ctx, "Successfully retrieved download", log.INFO, logdata)
+	log.Info(ctx, "Successfully retrieved download", logdata)
 }
 
 // UpdateDownloadHandler is a handler to update an image download variant
@@ -525,7 +525,7 @@ func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 		handleError(ctx, w, err, logdata)
 		return
 	}
-	log.Event(ctx, "successfully updated download variant", log.INFO, logdata)
+	log.Info(ctx, "successfully updated download variant", logdata)
 }
 
 // PublishImageHandler is a handler that triggers the publishing of an image
@@ -589,7 +589,7 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 	events := generateImagePublishEvents(existingImage)
 
 	// Send 'image published' kafka messages corresponding to all the download variants
-	log.Event(ctx, "sending image published messages", log.INFO, logdata)
+	log.Info(ctx, "sending image published messages", logdata)
 	for _, e := range events {
 		if err := api.publishedProducer.ImagePublished(e); err != nil {
 			handleError(ctx, w, err, logdata)
@@ -610,9 +610,7 @@ func generateImagePublishEvents(image *models.Image) (events []*event.ImagePubli
 	return events
 }
 
-// unlockImage unlocks the provided image lockID and logs any error with WARN state
+// unlockImage unlocks the provided image lockID
 func (api *API) unlockImage(ctx context.Context, lockID string) {
-	if err := api.mongoDB.UnlockImage(lockID); err != nil {
-		log.Event(ctx, "error unlocking mongoDB lock for an image resource", log.WARN, log.Data{"lockID": lockID})
-	}
+	api.mongoDB.UnlockImage(ctx, lockID)
 }

@@ -2,15 +2,16 @@ package service
 
 import (
 	"context"
+
 	"github.com/ONSdigital/dp-image-api/url"
 
 	"github.com/ONSdigital/dp-api-clients-go/health"
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
-	kafka "github.com/ONSdigital/dp-kafka"
+	kafka "github.com/ONSdigital/dp-kafka/v2"
 	"github.com/ONSdigital/dp-net/handlers"
-	"github.com/ONSdigital/log.go/log"
+	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
 	"github.com/pkg/errors"
@@ -31,7 +32,7 @@ type Service struct {
 
 // Run the service
 func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceList, buildTime, gitCommit, version string, svcErrors chan error) (*Service, error) {
-	log.Event(ctx, "running service", log.INFO)
+	log.Info(ctx, "running service")
 
 	// Get HTTP Server with collectionID checkHeader middleware
 	r := mux.NewRouter()
@@ -41,7 +42,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	// Get MongoDB client
 	mongoDB, err := serviceList.GetMongoDB(ctx, cfg)
 	if err != nil {
-		log.Event(ctx, "failed to initialise mongo DB", log.FATAL, log.Error(err))
+		log.Fatal(ctx, "failed to initialise mongo DB", err)
 		return nil, err
 	}
 
@@ -62,14 +63,14 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		// Get Uploaded Kafka producer
 		uploadedKafkaProducer, err = serviceList.GetKafkaProducer(ctx, cfg, KafkaProducerUploaded)
 		if err != nil {
-			log.Event(ctx, "failed to create image-uploaded kafka producer", log.FATAL, log.Error(err))
+			log.Fatal(ctx, "failed to create image-uploaded kafka producer", err)
 			return nil, err
 		}
 
 		// Get Published Kafka producer
 		publishedKafkaProducer, err = serviceList.GetKafkaProducer(ctx, cfg, KafkaProducerPublished)
 		if err != nil {
-			log.Event(ctx, "failed to create image-published kafka producer", log.FATAL, log.Error(err))
+			log.Fatal(ctx, "failed to create image-published kafka producer", err)
 			return nil, err
 		}
 
@@ -84,7 +85,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	// Get HealthCheck
 	hc, err := serviceList.GetHealthCheck(cfg, buildTime, gitCommit, version)
 	if err != nil {
-		log.Event(ctx, "could not instantiate healthcheck", log.FATAL, log.Error(err))
+		log.Fatal(ctx, "could not instantiate healthcheck", err)
 		return nil, err
 	}
 	if err := registerCheckers(ctx, cfg, hc, mongoDB, uploadedKafkaProducer, publishedKafkaProducer, zc); err != nil {
@@ -123,7 +124,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 // Close gracefully shuts the service down in the required order, with timeout
 func (svc *Service) Close(ctx context.Context) error {
 	timeout := svc.config.GracefulShutdownTimeout
-	log.Event(ctx, "commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": timeout}, log.INFO)
+	log.Info(ctx, "commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": timeout})
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 
 	// track shutown gracefully closes up
@@ -140,20 +141,20 @@ func (svc *Service) Close(ctx context.Context) error {
 
 		// stop any incoming requests before closing any outbound connections
 		if err := svc.server.Shutdown(ctx); err != nil {
-			log.Event(ctx, "failed to shutdown http server", log.Error(err), log.ERROR)
+			log.Error(ctx, "failed to shutdown http server", err)
 			hasShutdownError = true
 		}
 
 		// close API
 		if err := svc.api.Close(ctx); err != nil {
-			log.Event(ctx, "error closing API", log.Error(err), log.ERROR)
+			log.Error(ctx, "error closing API", err)
 			hasShutdownError = true
 		}
 
 		// close mongoDB
 		if svc.serviceList.MongoDB {
 			if err := svc.mongoDB.Close(ctx); err != nil {
-				log.Event(ctx, "error closing mongoDB", log.Error(err), log.ERROR)
+				log.Error(ctx, "error closing mongoDB", err)
 				hasShutdownError = true
 			}
 		}
@@ -161,7 +162,7 @@ func (svc *Service) Close(ctx context.Context) error {
 		// close kafka uploaded producer
 		if svc.serviceList.KafkaProducerUploaded {
 			if err := svc.uploadedKafkaProducer.Close(ctx); err != nil {
-				log.Event(ctx, "error closing Uploaded Kafka Producer", log.Error(err), log.ERROR)
+				log.Error(ctx, "error closing Uploaded Kafka Producer", err)
 				hasShutdownError = true
 			}
 		}
@@ -169,7 +170,7 @@ func (svc *Service) Close(ctx context.Context) error {
 		// close kafka published producer
 		if svc.serviceList.KafkaProducerUploaded {
 			if err := svc.publishedKafkaProducer.Close(ctx); err != nil {
-				log.Event(ctx, "error closing Published Kafka Producer", log.Error(err), log.ERROR)
+				log.Error(ctx, "error closing Published Kafka Producer", err)
 				hasShutdownError = true
 			}
 		}
@@ -184,11 +185,11 @@ func (svc *Service) Close(ctx context.Context) error {
 
 	if !gracefulShutdown {
 		err := errors.New("failed to shutdown gracefully")
-		log.Event(ctx, "failed to shutdown gracefully ", log.ERROR, log.Error(err))
+		log.Error(ctx, "failed to shutdown gracefully ", err)
 		return err
 	}
 
-	log.Event(ctx, "graceful shutdown was successful", log.INFO)
+	log.Info(ctx, "graceful shutdown was successful")
 	return nil
 }
 
@@ -203,23 +204,23 @@ func registerCheckers(ctx context.Context,
 
 	if err = hc.AddCheck("Mongo DB", mongoDB.Checker); err != nil {
 		hasErrors = true
-		log.Event(ctx, "error adding check for mongo db", log.ERROR, log.Error(err))
+		log.Error(ctx, "error adding check for mongo db", err)
 	}
 
 	if cfg.IsPublishing {
 		if err = hc.AddCheck("Uploaded Kafka Producer", uploadedKafkaProducer.Checker); err != nil {
 			hasErrors = true
-			log.Event(ctx, "error adding check for uploaded kafka producer", log.ERROR, log.Error(err), log.Data{"topic": cfg.ImageUploadedTopic})
+			log.Error(ctx, "error adding check for uploaded kafka producer", err, log.Data{"topic": cfg.ImageUploadedTopic})
 		}
 
 		if err = hc.AddCheck("Published Kafka Producer", publishedKafkaProducer.Checker); err != nil {
 			hasErrors = true
-			log.Event(ctx, "error adding check for published kafka producer", log.ERROR, log.Error(err), log.Data{"topic": cfg.StaticFilePublishedTopic})
+			log.Error(ctx, "error adding check for published kafka producer", err, log.Data{"topic": cfg.StaticFilePublishedTopic})
 		}
 
 		if err = hc.AddCheck("Zebedee", zebedeeClient.Checker); err != nil {
 			hasErrors = true
-			log.Event(ctx, "error adding check for zebedee", log.ERROR, log.Error(err))
+			log.Error(ctx, "error adding check for zebedee", err)
 		}
 	}
 
@@ -233,7 +234,7 @@ func registerCheckers(ctx context.Context,
 func getAuthorisationHandlers(zc *health.Client) api.AuthHandler {
 	dpauth.LoggerNamespace("dp-image-api-auth")
 
-	log.Event(nil, "getting Authorisation Handlers", log.Data{"zc_url": zc.URL})
+	log.Info(context.Background(), "getting Authorisation Handlers", log.Data{"zc_url": zc.URL})
 
 	authClient := dpauth.NewPermissionsClient(zc.Client)
 	authVerifier := dpauth.DefaultPermissionsVerifier()
