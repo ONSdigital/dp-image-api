@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"time"
 
-	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v2/mongodb"
+	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v3/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	errs "github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/models"
-	dpMongoLock "github.com/ONSdigital/dp-mongodb/v2/dplock"
-	dpMongoHealth "github.com/ONSdigital/dp-mongodb/v2/health"
+	dpMongoLock "github.com/ONSdigital/dp-mongodb/v3/dplock"
+	dpMongoHealth "github.com/ONSdigital/dp-mongodb/v3/health"
 	"github.com/ONSdigital/log.go/v2/log"
 )
 
@@ -155,7 +155,7 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 	}
 
 	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
-	if _, err := m.Connection.GetConfiguredCollection().UpdateId(ctx, id, update); err != nil {
+	if _, err := m.Connection.GetConfiguredCollection().UpdateById(ctx, id, update); err != nil {
 		if dpMongoDriver.IsErrNoDocumentFound(err) {
 			return false, errs.ErrImageNotFound
 		}
@@ -263,6 +263,6 @@ func (m *Mongo) UpsertImage(ctx context.Context, id string, image *models.Image)
 		},
 	}
 
-	_, err = m.Connection.GetConfiguredCollection().UpsertId(ctx, id, update)
+	_, err = m.Connection.GetConfiguredCollection().UpsertById(ctx, id, update)
 	return
 }
