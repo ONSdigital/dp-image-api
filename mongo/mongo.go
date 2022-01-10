@@ -5,23 +5,24 @@ import (
 	"fmt"
 	"time"
 
-	dpMongoDriver "github.com/ONSdigital/dp-mongodb/v3/mongodb"
-	"go.mongodb.org/mongo-driver/bson"
-
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	errs "github.com/ONSdigital/dp-image-api/apierrors"
+	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/dp-image-api/models"
-	dpMongoLock "github.com/ONSdigital/dp-mongodb/v3/dplock"
-	dpMongoHealth "github.com/ONSdigital/dp-mongodb/v3/health"
 	"github.com/ONSdigital/log.go/v2/log"
+
+	mongolock "github.com/ONSdigital/dp-mongodb/v3/dplock"
+	mongohealth "github.com/ONSdigital/dp-mongodb/v3/health"
+	mongodriver "github.com/ONSdigital/dp-mongodb/v3/mongodb"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type Mongo struct {
-	dpMongoDriver.MongoConnectionConfig
+	mongodriver.MongoConnectionConfig
 
-	Connection   *dpMongoDriver.MongoConnection
-	healthClient *dpMongoHealth.CheckMongoClient
-	lockClient   *dpMongoLock.Lock
+	connection   *mongodriver.MongoConnection
+	healthClient *mongohealth.CheckMongoClient
+	lockClient   *mongolock.Lock
 }
 
 const (
@@ -29,19 +30,20 @@ const (
 	imagesLockCollection = "images_locks"
 )
 
-// Init creates a new mongodb.MongoConnection with a strong consistency and a write mode of "majority".
-func (m *Mongo) Init(ctx context.Context) (err error) {
-	mongoConnection, err := dpMongoDriver.Open(&m.MongoConnectionConfig)
+// NewMongoStore creates a new Mongo object encapsulating a connection to the mongo server/cluster with the given configuration,
+// and a health client to check the health of the mongo server/cluster
+func NewMongoStore(ctx context.Context, cfg config.MongoConfig) (m *Mongo, err error) {
+	m = &Mongo{MongoConnectionConfig: cfg}
+	m.connection, err = mongodriver.Open(&m.MongoConnectionConfig)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	m.Connection = mongoConnection
 
-	databaseCollectionBuilder := map[dpMongoHealth.Database][]dpMongoHealth.Collection{dpMongoHealth.Database(m.Database): {imagesCollection, imagesLockCollection}}
-	m.healthClient = dpMongoHealth.NewClientWithCollections(m.Connection, databaseCollectionBuilder)
-	m.lockClient = dpMongoLock.New(ctx, m.Connection, imagesCollection)
+	databaseCollectionBuilder := map[mongohealth.Database][]mongohealth.Collection{mongohealth.Database(m.Database): {imagesCollection, imagesLockCollection}}
+	m.healthClient = mongohealth.NewClientWithCollections(m.connection, databaseCollectionBuilder)
+	m.lockClient = mongolock.New(ctx, m.connection, imagesCollection)
 
-	return nil
+	return m, nil
 }
 
 // AcquireImageLock tries to lock the provided imageID.
@@ -59,7 +61,7 @@ func (m *Mongo) UnlockImage(ctx context.Context, lockID string) {
 // Close closes the mongo session and returns any error
 func (m *Mongo) Close(ctx context.Context) error {
 	m.lockClient.Close(ctx)
-	return m.Connection.Close(ctx)
+	return m.connection.Close(ctx)
 }
 
 // Checker is called by the healthcheck library to check the health state of this mongoDB instance
@@ -78,12 +80,13 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 	}
 
 	var results []models.Image
-	err := m.Connection.GetConfiguredCollection().Find(colIDFilter).IterAll(ctx, &results)
+	err := m.connection.GetConfiguredCollection().Find(colIDFilter).IterAll(ctx, &results)
 	if err != nil {
-		if dpMongoDriver.IsErrNoDocumentFound(err) {
-			return nil, errs.ErrImageNotFound
-		}
 		return nil, err
+	}
+
+	if len(results) == 0 {
+		return nil, errs.ErrImageNotFound
 	}
 
 	return results, nil
@@ -94,9 +97,9 @@ func (m *Mongo) GetImage(ctx context.Context, id string) (*models.Image, error) 
 	log.Info(ctx, "getting image by ID", log.Data{"id": id})
 
 	var image models.Image
-	err := m.Connection.GetConfiguredCollection().FindOne(ctx, bson.M{"_id": id}, &image)
+	err := m.connection.GetConfiguredCollection().FindOne(ctx, bson.M{"_id": id}, &image)
 	if err != nil {
-		if dpMongoDriver.IsErrNoDocumentFound(err) {
+		if mongodriver.IsErrNoDocumentFound(err) {
 			return nil, errs.ErrImageNotFound
 		}
 		return nil, err
@@ -115,9 +118,9 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 		return false, nil
 	}
 
-	update := bson.M{"$set": updates, "$setOnInsert": bson.M{"last_updated": time.Now()}}
-	if _, err := m.Connection.GetConfiguredCollection().UpdateById(ctx, id, update); err != nil {
-		if dpMongoDriver.IsErrNoDocumentFound(err) {
+	update := bson.M{"$set": updates, "$currentDate": bson.M{"last_updated": true}}
+	if _, err := m.connection.GetConfiguredCollection().Must().UpdateById(ctx, id, update); err != nil {
+		if mongodriver.IsErrNoDocumentFound(err) {
 			return false, errs.ErrImageNotFound
 		}
 		return false, err
@@ -224,6 +227,6 @@ func (m *Mongo) UpsertImage(ctx context.Context, id string, image *models.Image)
 		},
 	}
 
-	_, err = m.Connection.GetConfiguredCollection().UpsertById(ctx, id, update)
+	_, err = m.connection.GetConfiguredCollection().UpsertById(ctx, id, update)
 	return
 }
