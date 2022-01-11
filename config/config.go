@@ -8,7 +8,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-type MongoConfig = mongodriver.MongoConnectionConfig
+type MongoConfig = mongodriver.MongoDriverConfig
 
 // Config represents service configuration for dp-image-api
 type Config struct {
@@ -34,6 +34,11 @@ type Config struct {
 }
 
 var cfg *Config
+
+const (
+	ImagesCollection     = "ImagesCollection"
+	ImagesLockCollection = "ImagesLockCollection"
+)
 
 // Get returns the default config with any modifications through environment
 // variables
@@ -61,12 +66,12 @@ func Get() (*Config, error) {
 			Username:                      "",
 			Password:                      "",
 			Database:                      "images",
-			Collection:                    "images",
+			Collections:                   map[string]string{ImagesCollection: "images", ImagesLockCollection: "images_locks"},
 			ReplicaSet:                    "",
 			IsStrongReadConcernEnabled:    false,
 			IsWriteConcernMajorityEnabled: true,
-			ConnectTimeoutInSeconds:       5 * time.Second,
-			QueryTimeoutInSeconds:         15 * time.Second,
+			ConnectTimeout:                5 * time.Second,
+			QueryTimeout:                  15 * time.Second,
 			TLSConnectionConfig: mongodriver.TLSConnectionConfig{
 				IsSSL: false,
 			},
