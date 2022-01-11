@@ -2,7 +2,6 @@ package mongo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -17,66 +16,31 @@ import (
 	"github.com/ONSdigital/log.go/v2/log"
 )
 
-const (
-	connectTimeoutInSeconds = 5
-	queryTimeoutInSeconds   = 15
-)
-
-// images collection name
-const imagesCol = "images"
-
-// locked images collection name
-const imagesLockCol = "images_locks"
-
-// Mongo represents a simplistic MongoDB configuration, with session, health and lock clients
 type Mongo struct {
-	Collection   string
-	Database     string
+	dpMongoDriver.MongoConnectionConfig
+
 	Connection   *dpMongoDriver.MongoConnection
-	URI          string
-	Username     string
-	Password     string
 	healthClient *dpMongoHealth.CheckMongoClient
 	lockClient   *dpMongoLock.Lock
-	IsSSL        bool
 }
 
-func (m *Mongo) getConnectionConfig(shouldEnableReadConcern, shouldEnableWriteConcern bool) *dpMongoDriver.MongoConnectionConfig {
-	return &dpMongoDriver.MongoConnectionConfig{
-		TLSConnectionConfig: dpMongoDriver.TLSConnectionConfig{
-			IsSSL: m.IsSSL,
-		},
-		ConnectTimeoutInSeconds: connectTimeoutInSeconds,
-		QueryTimeoutInSeconds:   queryTimeoutInSeconds,
-
-		Username:                      m.Username,
-		Password:                      m.Password,
-		ClusterEndpoint:               m.URI,
-		Database:                      m.Database,
-		Collection:                    m.Collection,
-		IsWriteConcernMajorityEnabled: shouldEnableWriteConcern,
-		IsStrongReadConcernEnabled:    shouldEnableReadConcern,
-	}
-}
+const (
+	imagesCollection     = "images"
+	imagesLockCollection = "images_locks"
+)
 
 // Init creates a new mongodb.MongoConnection with a strong consistency and a write mode of "majority".
-func (m *Mongo) Init(ctx context.Context, shouldEnableReadConcern, shouldEnableWriteConcern bool) (err error) {
-	if m.Connection != nil {
-		return errors.New("Datastor Connection already exists")
-	}
-	mongoConnection, err := dpMongoDriver.Open(m.getConnectionConfig(shouldEnableReadConcern, shouldEnableWriteConcern))
+func (m *Mongo) Init(ctx context.Context) (err error) {
+	mongoConnection, err := dpMongoDriver.Open(&m.MongoConnectionConfig)
 	if err != nil {
 		return err
 	}
 	m.Connection = mongoConnection
 
-	databaseCollectionBuilder := make(map[dpMongoHealth.Database][]dpMongoHealth.Collection)
-	databaseCollectionBuilder[(dpMongoHealth.Database)(m.Database)] = []dpMongoHealth.Collection{(dpMongoHealth.Collection)(m.Collection), (dpMongoHealth.Collection)(imagesLockCol)}
-	// Create health-client from session
+	databaseCollectionBuilder := map[dpMongoHealth.Database][]dpMongoHealth.Collection{dpMongoHealth.Database(m.Database): {imagesCollection, imagesLockCollection}}
 	m.healthClient = dpMongoHealth.NewClientWithCollections(m.Connection, databaseCollectionBuilder)
+	m.lockClient = dpMongoLock.New(ctx, m.Connection, imagesCollection)
 
-	// Create MongoDB lock client, which also starts the purger loop
-	m.lockClient = dpMongoLock.New(ctx, m.Connection, imagesCol)
 	return nil
 }
 

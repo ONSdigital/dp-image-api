@@ -35,12 +35,8 @@ var (
 	errHealthcheck   = errors.New("healthCheck error")
 )
 
-var funcDoGetMongoDbErr = func(ctx context.Context, cfg *config.Config) (api.MongoServer, error) {
+var funcDoGetMongoDbErr = func(ctx context.Context, cfg config.MongoConfig) (api.MongoServer, error) {
 	return nil, errMongoDB
-}
-
-var funcDoGetKafkaProducerErr = func(ctx context.Context, brokers []string, topic string, maxBytes int) (kafka.IProducer, error) {
-	return nil, errKafkaProducer
 }
 
 var funcDoGetHealthcheckErr = func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
@@ -84,7 +80,7 @@ func TestRunPublishing(t *testing.T) {
 			},
 		}
 
-		funcDoGetMongoDbOk := func(ctx context.Context, cfg *config.Config) (api.MongoServer, error) {
+		funcDoGetMongoDbOk := func(ctx context.Context, cfg config.MongoConfig) (api.MongoServer, error) {
 			return mongoDbMock, nil
 		}
 
@@ -387,7 +383,7 @@ func TestClose(t *testing.T) {
 
 			initMock := &mock.InitialiserMock{
 				DoGetHTTPServerFunc:    func(bindAddr string, router http.Handler) service.HTTPServer { return serverMock },
-				DoGetMongoDBFunc:       func(ctx context.Context, cfg *config.Config) (api.MongoServer, error) { return mongoDbMock, nil },
+				DoGetMongoDBFunc:       func(ctx context.Context, cfg config.MongoConfig) (api.MongoServer, error) { return mongoDbMock, nil },
 				DoGetKafkaProducerFunc: doGetKafkaProducerFunc,
 				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 					return hcMock, nil
@@ -420,7 +416,7 @@ func TestClose(t *testing.T) {
 
 			initMock := &mock.InitialiserMock{
 				DoGetHTTPServerFunc:    func(bindAddr string, router http.Handler) service.HTTPServer { return failingserverMock },
-				DoGetMongoDBFunc:       func(ctx context.Context, cfg *config.Config) (api.MongoServer, error) { return mongoDbMock, nil },
+				DoGetMongoDBFunc:       func(ctx context.Context, cfg config.MongoConfig) (api.MongoServer, error) { return mongoDbMock, nil },
 				DoGetKafkaProducerFunc: doGetKafkaProducerFunc,
 				DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
 					return hcMock, nil

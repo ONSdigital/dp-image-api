@@ -3,8 +3,12 @@ package config
 import (
 	"time"
 
+	mongodriver "github.com/ONSdigital/dp-mongodb/v3/mongodb"
+
 	"github.com/kelseyhightower/envconfig"
 )
+
+type MongoConfig = mongodriver.MongoConnectionConfig
 
 // Config represents service configuration for dp-image-api
 type Config struct {
@@ -26,17 +30,7 @@ type Config struct {
 	IsPublishing               bool          `envconfig:"IS_PUBLISHING"`
 	ZebedeeURL                 string        `envconfig:"ZEBEDEE_URL"`
 	DownloadServiceURL         string        `envconfig:"DOWNLOAD_SERVICE_URL"`
-	MongoConfig                MongoConfig
-}
-
-// MongoConfig contains the config required to connect to MongoDB.
-type MongoConfig struct {
-	BindAddr   string `envconfig:"MONGODB_BIND_ADDR"   json:"-"`
-	Collection string `envconfig:"MONGODB_COLLECTION"`
-	Database   string `envconfig:"MONGODB_DATABASE"`
-	Username   string `envconfig:"MONGODB_USERNAME"    json:"-"`
-	Password   string `envconfig:"MONGODB_PASSWORD"    json:"-"`
-	IsSSL      bool   `envconfig:"MONGODB_IS_SSL"`
+	MongoConfig
 }
 
 var cfg *Config
@@ -63,12 +57,19 @@ func Get() (*Config, error) {
 		IsPublishing:               true,
 		DownloadServiceURL:         "http://localhost:23600",
 		MongoConfig: MongoConfig{
-			BindAddr:   "localhost:27017",
-			Collection: "images",
-			Database:   "images",
-			Username:   "",
-			Password:   "",
-			IsSSL:      false,
+			ClusterEndpoint:               "localhost:27017",
+			Username:                      "",
+			Password:                      "",
+			Database:                      "images",
+			Collection:                    "images",
+			ReplicaSet:                    "",
+			IsStrongReadConcernEnabled:    false,
+			IsWriteConcernMajorityEnabled: true,
+			ConnectTimeoutInSeconds:       5 * time.Second,
+			QueryTimeoutInSeconds:         15 * time.Second,
+			TLSConnectionConfig: mongodriver.TLSConnectionConfig{
+				IsSSL: false,
+			},
 		},
 	}
 

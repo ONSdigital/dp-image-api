@@ -40,7 +40,7 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 	s := serviceList.GetHTTPServer(cfg.BindAddr, middleware.Then(r))
 
 	// Get MongoDB client
-	mongoDB, err := serviceList.GetMongoDB(ctx, cfg)
+	mongoDB, err := serviceList.GetMongoDB(ctx, cfg.MongoConfig)
 	if err != nil {
 		log.Fatal(ctx, "failed to initialise mongo DB", err)
 		return nil, err

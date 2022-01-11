@@ -52,7 +52,7 @@ func (e *ExternalServiceList) GetHTTPServer(bindAddr string, router http.Handler
 }
 
 // GetMongoDB creates a mongoDB client and sets the Mongo flag to true
-func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoServer, error) {
+func (e *ExternalServiceList) GetMongoDB(ctx context.Context, cfg config.MongoConfig) (api.MongoServer, error) {
 	mongoDB, err := e.Init.DoGetMongoDB(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -103,18 +103,12 @@ func (e *Init) DoGetHTTPServer(bindAddr string, router http.Handler) HTTPServer 
 }
 
 // DoGetMongoDB returns a MongoDB
-func (e *Init) DoGetMongoDB(ctx context.Context, cfg *config.Config) (api.MongoServer, error) {
-	mongodb := &mongo.Mongo{
-		Collection: cfg.MongoConfig.Collection,
-		Database:   cfg.MongoConfig.Database,
-		URI:        cfg.MongoConfig.BindAddr,
-		Username:   cfg.MongoConfig.Username,
-		Password:   cfg.MongoConfig.Password,
-		IsSSL:      cfg.MongoConfig.IsSSL,
-	}
-	if err := mongodb.Init(ctx, false, true); err != nil {
+func (e *Init) DoGetMongoDB(ctx context.Context, cfg config.MongoConfig) (api.MongoServer, error) {
+	mongodb := &mongo.Mongo{MongoConnectionConfig: cfg}
+	if err := mongodb.Init(ctx); err != nil {
 		return nil, err
 	}
+
 	return mongodb, nil
 }
 
