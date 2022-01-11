@@ -36,7 +36,6 @@ type Mongo struct {
 	URI          string
 	Username     string
 	Password     string
-	client       *dpMongoHealth.Client
 	healthClient *dpMongoHealth.CheckMongoClient
 	lockClient   *dpMongoLock.Lock
 	IsSSL        bool
@@ -44,7 +43,9 @@ type Mongo struct {
 
 func (m *Mongo) getConnectionConfig(shouldEnableReadConcern, shouldEnableWriteConcern bool) *dpMongoDriver.MongoConnectionConfig {
 	return &dpMongoDriver.MongoConnectionConfig{
-		IsSSL:                   m.IsSSL,
+		TLSConnectionConfig: dpMongoDriver.TLSConnectionConfig{
+			IsSSL: m.IsSSL,
+		},
 		ConnectTimeoutInSeconds: connectTimeoutInSeconds,
 		QueryTimeoutInSeconds:   queryTimeoutInSeconds,
 
@@ -71,12 +72,8 @@ func (m *Mongo) Init(ctx context.Context, shouldEnableReadConcern, shouldEnableW
 
 	databaseCollectionBuilder := make(map[dpMongoHealth.Database][]dpMongoHealth.Collection)
 	databaseCollectionBuilder[(dpMongoHealth.Database)(m.Database)] = []dpMongoHealth.Collection{(dpMongoHealth.Collection)(m.Collection), (dpMongoHealth.Collection)(imagesLockCol)}
-	// Create client and health-client from session
-	m.client = dpMongoHealth.NewClientWithCollections(m.Connection, databaseCollectionBuilder)
-	m.healthClient = &dpMongoHealth.CheckMongoClient{
-		Client:      *m.client,
-		Healthcheck: m.client.Healthcheck,
-	}
+	// Create health-client from session
+	m.healthClient = dpMongoHealth.NewClientWithCollections(m.Connection, databaseCollectionBuilder)
 
 	// Create MongoDB lock client, which also starts the purger loop
 	m.lockClient = dpMongoLock.New(ctx, m.Connection, imagesCol)

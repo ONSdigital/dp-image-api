@@ -232,8 +232,6 @@ func registerCheckers(ctx context.Context,
 
 // generate permissions from dp-auth-api, using the provided health client, reusing its http Client
 func getAuthorisationHandlers(zc *health.Client) api.AuthHandler {
-	dpauth.LoggerNamespace("dp-image-api-auth")
-
 	log.Info(context.Background(), "getting Authorisation Handlers", log.Data{"zc_url": zc.URL})
 
 	authClient := dpauth.NewPermissionsClient(zc.Client)
