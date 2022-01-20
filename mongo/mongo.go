@@ -81,13 +81,9 @@ func (m *Mongo) GetImages(ctx context.Context, collectionID string) ([]models.Im
 	}
 
 	var results []models.Image
-	count, err := m.connection.Collection(m.ActualCollectionName(config.ImagesCollection)).Find(ctx, colIDFilter, &results)
+	_, err := m.connection.Collection(m.ActualCollectionName(config.ImagesCollection)).Find(ctx, colIDFilter, &results)
 	if err != nil {
 		return nil, err
-	}
-
-	if count == 0 {
-		return nil, errs.ErrImageNotFound
 	}
 
 	return results, nil
