@@ -11,3 +11,6 @@
 *.iml
 *.iws
 vendor/
+
+# Go
+.go/

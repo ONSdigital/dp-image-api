@@ -1,0 +1,10 @@
+FROM golang:1.19-bullseye AS base
+
+ENV GOCACHE=/go/.go/cache GOPATH=/go/.go/path TZ=Europe/London
+
+RUN GOBIN=/bin go install github.com/cespare/reflex@v0.3.1
+RUN PATH=$PATH:/bin
+
+# Map between the working directories of dev and live
+RUN ln -s /go /dp-image-api
+WORKDIR /dp-image-api

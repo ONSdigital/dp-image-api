@@ -22,6 +22,10 @@ debug:
 	go build -tags 'debug' $(LDFLAGS) -o $(BINPATH)/dp-image-api
 	HUMAN_LOG=1 DEBUG=1 $(BINPATH)/dp-image-api
 
+.PHONY: debug-run
+debug-run:
+	HUMAN_LOG=1 DEBUG=1 go run -tags 'debug' -race $(LDFLAGS) main.go
+
 .PHONY: test
 test:
 	go test -race -cover ./...
@@ -29,4 +33,3 @@ test:
 .PHONY: convey
 convey:
 	goconvey ./...
-
