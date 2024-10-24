@@ -22,6 +22,8 @@ type Config struct {
 	KafkaSecClientCert         string        `envconfig:"KAFKA_SEC_CLIENT_CERT"`
 	KafkaSecClientKey          string        `envconfig:"KAFKA_SEC_CLIENT_KEY"             json:"-"`
 	KafkaSecSkipVerify         bool          `envconfig:"KAFKA_SEC_SKIP_VERIFY"`
+	ConsumerMinBrokersHealthy  int           `envconfig:"KAFKA_CONSUMER_MIN_BROKERS_HEALTHY"`
+	ProducerMinBrokersHealthy  int           `envconfig:"KAFKA_PRODUCER_MIN_BROKERS_HEALTHY"`
 	ImageUploadedTopic         string        `envconfig:"IMAGE_UPLOADED_TOPIC"`
 	StaticFilePublishedTopic   string        `envconfig:"STATIC_FILE_PUBLISHED_TOPIC"`
 	GracefulShutdownTimeout    time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
@@ -53,6 +55,8 @@ func Get() (*Config, error) {
 		Brokers:                    []string{"localhost:9092", "localhost:9093", "localhost:9094"},
 		KafkaVersion:               "1.0.2",
 		KafkaMaxBytes:              2000000,
+		ConsumerMinBrokersHealthy:  1,
+		ProducerMinBrokersHealthy:  1,
 		ImageUploadedTopic:         "image-uploaded",
 		StaticFilePublishedTopic:   "static-file-published",
 		GracefulShutdownTimeout:    5 * time.Second,

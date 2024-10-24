@@ -14,12 +14,12 @@ import (
 	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/dp-image-api/event"
 	"github.com/ONSdigital/dp-image-api/schema"
-	kafka "github.com/ONSdigital/dp-kafka/v2"
+	kafka "github.com/ONSdigital/dp-kafka/v3"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/gorilla/mux"
 )
 
-//API provides a struct to wrap the api around
+// API provides a struct to wrap the api around
 type API struct {
 	Router             *mux.Router
 	mongoDB            MongoServer

@@ -9,7 +9,7 @@ import (
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
-	kafka "github.com/ONSdigital/dp-kafka/v2"
+	kafka "github.com/ONSdigital/dp-kafka/v3"
 	"github.com/ONSdigital/dp-net/handlers"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/gorilla/mux"
@@ -97,8 +97,8 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	if cfg.IsPublishing {
 		// kafka error channel logging go-routines
-		uploadedKafkaProducer.Channels().LogErrors(ctx, "kafka Uploaded Producer")
-		publishedKafkaProducer.Channels().LogErrors(ctx, "Kafka Published Producer")
+		uploadedKafkaProducer.LogErrors(ctx)
+		publishedKafkaProducer.LogErrors(ctx)
 	}
 
 	// Run the http server in a new go-routine

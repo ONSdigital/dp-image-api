@@ -15,8 +15,8 @@ import (
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/api/mock"
 	"github.com/ONSdigital/dp-image-api/config"
-	kafka "github.com/ONSdigital/dp-kafka/v2"
-	"github.com/ONSdigital/dp-kafka/v2/kafkatest"
+	kafka "github.com/ONSdigital/dp-kafka/v3"
+	"github.com/ONSdigital/dp-kafka/v3/kafkatest"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -39,8 +39,16 @@ func TestSetup(t *testing.T) {
 
 		Convey("When created in Publishing mode", func() {
 			cfg := &config.Config{IsPublishing: true}
-			uploadedKafkaProducer := kafkatest.NewMessageProducer(true)
-			publishedKafkaProducer := kafkatest.NewMessageProducer(true)
+			uploadedKafkaProducer := &kafkatest.IProducerMock{
+				ChannelsFunc: func() *kafka.ProducerChannels {
+					return &kafka.ProducerChannels{}
+				},
+			}
+			publishedKafkaProducer := &kafkatest.IProducerMock{
+				ChannelsFunc: func() *kafka.ProducerChannels {
+					return &kafka.ProducerChannels{}
+				},
+			}
 			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
 
 			Convey("Then the following routes should have been added", func() {
@@ -80,8 +88,8 @@ func TestSetup(t *testing.T) {
 
 		Convey("When created in Web mode", func() {
 			cfg := &config.Config{IsPublishing: false}
-			uploadedKafkaProducer := kafkatest.NewMessageProducer(true)
-			publishedKafkaProducer := kafkatest.NewMessageProducer(true)
+			uploadedKafkaProducer := &kafkatest.IProducerMock{}
+			publishedKafkaProducer := &kafkatest.IProducerMock{}
 			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
 
 			Convey("Then only the get routes should have been added", func() {
@@ -107,8 +115,8 @@ func TestClose(t *testing.T) {
 	Convey("Given an API instance", t, func() {
 		r := mux.NewRouter()
 		ctx := context.Background()
-		uploadedKafkaProducer := kafkatest.NewMessageProducer(true)
-		publishedKafkaProducer := kafkatest.NewMessageProducer(true)
+		uploadedKafkaProducer := &kafkatest.IProducerMock{}
+		publishedKafkaProducer := &kafkatest.IProducerMock{}
 		urlBuilder := url.NewBuilder("")
 		a := api.Setup(ctx, &config.Config{}, r, &mock.AuthHandlerMock{}, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
 

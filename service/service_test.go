@@ -15,8 +15,8 @@ import (
 	"github.com/ONSdigital/dp-image-api/service"
 	"github.com/ONSdigital/dp-image-api/service/mock"
 	serviceMock "github.com/ONSdigital/dp-image-api/service/mock"
-	kafka "github.com/ONSdigital/dp-kafka/v2"
-	"github.com/ONSdigital/dp-kafka/v2/kafkatest"
+	kafka "github.com/ONSdigital/dp-kafka/v3"
+	"github.com/ONSdigital/dp-kafka/v3/kafkatest"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -58,7 +58,14 @@ func TestRunPublishing(t *testing.T) {
 			CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error { return nil },
 		}
 
-		kafkaProducerMock := kafkatest.NewMessageProducer(true)
+		kafkaProducerMock := &kafkatest.IProducerMock{
+			ChannelsFunc: func() *kafka.ProducerChannels {
+				return &kafka.ProducerChannels{}
+			},
+			LogErrorsFunc: func(ctx context.Context) {
+				// Do nothing
+			},
+		}
 
 		hcMock := &serviceMock.HealthCheckerMock{
 			AddCheckFunc: func(name string, checker healthcheck.Checker) error { return nil },
@@ -364,6 +371,9 @@ func TestClose(t *testing.T) {
 						return errors.New("KafkaProducer closed before stopping healthcheck, MongoDB or HTTP server")
 					}
 					return nil
+				},
+				LogErrorsFunc: func(ctx context.Context) {
+					// Do nothing
 				},
 				ChannelsFunc: func() *kafka.ProducerChannels { return kafka.CreateProducerChannels() },
 			}
