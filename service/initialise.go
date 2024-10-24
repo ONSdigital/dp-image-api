@@ -9,7 +9,7 @@ import (
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/dp-image-api/mongo"
-	kafka "github.com/ONSdigital/dp-kafka/v2"
+	kafka "github.com/ONSdigital/dp-kafka/v3"
 	dphttp "github.com/ONSdigital/dp-net/http"
 )
 
@@ -117,6 +117,8 @@ func (e *Init) DoGetKafkaProducer(ctx context.Context, cfg *config.Config, topic
 	pConfig := &kafka.ProducerConfig{
 		KafkaVersion:    &cfg.KafkaVersion,
 		MaxMessageBytes: &cfg.KafkaMaxBytes,
+		Topic:           topic,
+		BrokerAddrs:     cfg.Brokers,
 	}
 	if cfg.KafkaSecProtocol == "TLS" {
 		pConfig.SecurityConfig = kafka.GetSecurityConfig(
@@ -126,8 +128,7 @@ func (e *Init) DoGetKafkaProducer(ctx context.Context, cfg *config.Config, topic
 			cfg.KafkaSecSkipVerify,
 		)
 	}
-	producerChannels := kafka.CreateProducerChannels()
-	return kafka.NewProducer(ctx, cfg.Brokers, topic, producerChannels, pConfig)
+	return kafka.NewProducer(ctx, pConfig)
 }
 
 // DoGetHealthClient creates a new Health Client for the provided name and url

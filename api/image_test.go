@@ -23,8 +23,8 @@ import (
 	"github.com/ONSdigital/dp-image-api/event"
 	"github.com/ONSdigital/dp-image-api/models"
 	"github.com/ONSdigital/dp-image-api/schema"
-	kafka "github.com/ONSdigital/dp-kafka/v2"
-	"github.com/ONSdigital/dp-kafka/v2/kafkatest"
+	kafka "github.com/ONSdigital/dp-kafka/v3"
+	"github.com/ONSdigital/dp-kafka/v3/kafkatest"
 	"github.com/ONSdigital/dp-net/handlers"
 	dpreq "github.com/ONSdigital/dp-net/request"
 
@@ -925,7 +925,14 @@ func TestUpdateImageHandler(t *testing.T) {
 		})
 
 		Convey("And an image in created state in MongoDB plus a kafka uploadedProducer", func() {
-			uploadedProducer := kafkatest.NewMessageProducer(true)
+			channels := &kafka.ProducerChannels{
+				Output: make(chan []byte),
+			}
+			uploadedProducer := &kafkatest.IProducerMock{
+				ChannelsFunc: func() *kafka.ProducerChannels {
+					return channels
+				},
+			}
 
 			mongoDBMock := &mock.MongoServerMock{
 				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
@@ -953,6 +960,8 @@ func TestUpdateImageHandler(t *testing.T) {
 				So(*mongoDBMock.UpsertImageCalls()[0].Image, ShouldResemble, *dbFullImage(models.StateUploaded))
 				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
 				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+
+				fmt.Println("got line 996")
 
 				Convey("And the expected avro event is sent to the corresponding kafka output channel", func() {
 					expectedBytes, err := schema.ImageUploadedEvent.Marshal(&event.ImageUploaded{
@@ -1777,7 +1786,14 @@ func TestPublishImageHandler(t *testing.T) {
 			}
 
 			Convey("Calling 'publish image' results in 204 NoContent response with the expected image state update to mongoDB and the message sent to kafka producer", func() {
-				publishedProducer := kafkatest.NewMessageProducer(true)
+				channels := &kafka.ProducerChannels{
+					Output: make(chan []byte),
+				}
+				publishedProducer := &kafkatest.IProducerMock{
+					ChannelsFunc: func() *kafka.ProducerChannels {
+						return channels
+					},
+				}
 				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, publishedProducer)
 				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
@@ -1822,7 +1838,14 @@ func TestPublishImageHandler(t *testing.T) {
 				api.ImagePublishedEvent = func(path, filename, imageId, variant string) *event.ImagePublished {
 					return nil
 				}
-				publishedProducer := kafkatest.NewMessageProducer(true)
+				channels := &kafka.ProducerChannels{
+					Output: make(chan []byte),
+				}
+				publishedProducer := &kafkatest.IProducerMock{
+					ChannelsFunc: func() *kafka.ProducerChannels {
+						return channels
+					},
+				}
 				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, publishedProducer)
 				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))

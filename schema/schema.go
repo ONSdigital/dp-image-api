@@ -1,7 +1,7 @@
 package schema
 
 import (
-	"github.com/ONSdigital/go-ns/avro"
+	"github.com/ONSdigital/dp-kafka/v3/avro"
 )
 
 var imageUploadedEvent = `{
