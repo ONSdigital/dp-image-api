@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -457,7 +457,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 			Convey("Then the expected images are returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImages := models.Images{}
 				err = json.Unmarshal(payload, &retImages)
@@ -476,7 +476,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 			Convey("Then an empty list of images is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImages := models.Images{}
 				err = json.Unmarshal(payload, &retImages)
@@ -494,7 +494,7 @@ func doTestGetImagesHandler(cfg *config.Config) {
 			Convey("Then the full list of images is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImages := models.Images{}
 				err = json.Unmarshal(payload, &retImages)
@@ -571,7 +571,7 @@ func TestCreateImageHandler(t *testing.T) {
 			Convey("Then a newly created image with the new id and provided details is returned with status code 201", func() {
 				So(w.Code, ShouldEqual, http.StatusCreated)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
@@ -589,7 +589,7 @@ func TestCreateImageHandler(t *testing.T) {
 			Convey("Then a newly created image with the new id and provided details is returned with status code 201, ignoring any field that is not supposed to be provided at creation time", func() {
 				So(w.Code, ShouldEqual, http.StatusCreated)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
@@ -718,7 +718,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 			Convey("Then the expected image is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
@@ -735,7 +735,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 			Convey("Then the published image is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
@@ -1076,7 +1076,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 			Convey("Then a valid Downloads response with 0 items is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownloads := models.Downloads{}
 				err = json.Unmarshal(payload, &retDownloads)
@@ -1094,7 +1094,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 			Convey("Then a valid Downloads response with 1 item is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownloads := models.Downloads{}
 				err = json.Unmarshal(payload, &retDownloads)
@@ -1112,7 +1112,7 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 			Convey("Then a valid Downloads response with 2 items is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownloads := models.Downloads{}
 				err = json.Unmarshal(payload, &retDownloads)
@@ -1213,7 +1213,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 			Convey("Then a newly created download is returned with status code 201", func() {
 				So(w.Code, ShouldEqual, http.StatusCreated)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownload := models.Download{}
 				err = json.Unmarshal(payload, &retDownload)
@@ -1256,7 +1256,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 			Convey("Then a newly created download is returned with status code 201", func() {
 				So(w.Code, ShouldEqual, http.StatusCreated)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownload := models.Download{}
 				err = json.Unmarshal(payload, &retDownload)
@@ -1429,7 +1429,7 @@ func doTestGetDownloadHandler(cfg *config.Config) {
 			Convey("Then a valid Download response is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownloads := models.Download{}
 				err = json.Unmarshal(payload, &retDownloads)
@@ -1447,7 +1447,7 @@ func doTestGetDownloadHandler(cfg *config.Config) {
 			Convey("Then a valid Download response is returned with status code 200", func() {
 				So(w.Code, ShouldEqual, http.StatusOK)
 				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				payload, err := ioutil.ReadAll(w.Body)
+				payload, err := io.ReadAll(w.Body)
 				So(err, ShouldBeNil)
 				retDownloads := models.Download{}
 				err = json.Unmarshal(payload, &retDownloads)

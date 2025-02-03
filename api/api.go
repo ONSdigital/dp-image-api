@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/ONSdigital/dp-image-api/url"
@@ -93,7 +92,7 @@ func ReadJSONBody(ctx context.Context, body io.ReadCloser, v interface{}) error 
 	defer body.Close()
 
 	// Get Body bytes
-	payload, err := ioutil.ReadAll(body)
+	payload, err := io.ReadAll(body)
 	if err != nil {
 		return apierrors.ErrUnableToReadMessage
 	}

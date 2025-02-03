@@ -13,16 +13,16 @@ import (
 	"github.com/ONSdigital/dp-net/handlers"
 	dpreq "github.com/ONSdigital/dp-net/request"
 	"github.com/ONSdigital/log.go/v2/log"
+	uuid "github.com/google/uuid"
 	"github.com/gorilla/mux"
-	uuid "github.com/satori/go.uuid"
 )
 
 // NewID returns a new UUID
 var NewID = func() string {
-	return uuid.NewV4().String()
+	return uuid.New().String()
 }
 
-//ImageUploadedEvent returns an ImageUploaded event for the provided image ID and upload path
+// ImageUploadedEvent returns an ImageUploaded event for the provided image ID and upload path
 var ImageUploadedEvent = func(imageID, uploadPath, filename string) *event.ImageUploaded {
 	return &event.ImageUploaded{
 		ImageID:  imageID,

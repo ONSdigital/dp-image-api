@@ -5,7 +5,6 @@ import (
 
 	"github.com/ONSdigital/dp-image-api/event"
 	"github.com/ONSdigital/dp-image-api/event/mock"
-	"github.com/ONSdigital/dp-image-api/schema"
 	"github.com/pkg/errors"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -132,12 +131,4 @@ func TestAvroProducer(t *testing.T) {
 		})
 
 	})
-}
-
-// Unmarshal converts observation events to []byte.
-func unmarshal(bytes []byte) *event.ImageUploaded {
-	event := &event.ImageUploaded{}
-	err := schema.ImageUploadedEvent.Unmarshal(bytes, event)
-	So(err, ShouldBeNil)
-	return event
 }
