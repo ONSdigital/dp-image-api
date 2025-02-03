@@ -32,7 +32,7 @@ test:
 
 .PHONY: lint
 lint:
-	golangci-lint run --verbose --timeout=180s ./...
+	golangci-lint run --timeout=180s ./...
 
 .PHONY: test-component
 test-component:
