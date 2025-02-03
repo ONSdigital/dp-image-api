@@ -12,4 +12,4 @@ inputs:
     path: dp-image-api
 
 run:
-  path: dp-image-api/ci/scripts/audit.sh  
+  path: dp-image-api/ci/scripts/audit.sh
