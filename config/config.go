@@ -13,7 +13,7 @@ type MongoConfig = mongodriver.MongoDriverConfig
 // Config represents service configuration for dp-image-api
 type Config struct {
 	BindAddr                   string        `envconfig:"BIND_ADDR"`
-	ApiURL                     string        `envconfig:"IMAGE_API_URL"`
+	APIURL                     string        `envconfig:"IMAGE_API_URL"`
 	Brokers                    []string      `envconfig:"KAFKA_ADDR"`
 	KafkaMaxBytes              int           `envconfig:"KAFKA_MAX_BYTES"`
 	KafkaVersion               string        `envconfig:"KAFKA_VERSION"`
@@ -51,7 +51,7 @@ func Get() (*Config, error) {
 
 	cfg := &Config{
 		BindAddr:                   "localhost:24700",
-		ApiURL:                     "http://localhost:24700",
+		APIURL:                     "http://localhost:24700",
 		Brokers:                    []string{"localhost:9092", "localhost:9093", "localhost:9094"},
 		KafkaVersion:               "1.0.2",
 		KafkaMaxBytes:              2000000,

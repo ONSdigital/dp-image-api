@@ -84,7 +84,6 @@ type DownloadLinks struct {
 
 // Validate checks that an image struct complies with the filename and state constraints, if provided.
 func (i *Image) Validate() error {
-
 	if i.Filename != "" {
 		if len(i.Filename) > MaxFilenameLen {
 			return apierrors.ErrImageFilenameTooLong
@@ -118,7 +117,6 @@ func validateUpload(upload *Upload) error {
 
 // ValidateTransitionFrom checks that this image state can be validly transitioned from the existing state
 func (i *Image) ValidateTransitionFrom(existing *Image) error {
-
 	// check that state transition is allowed, only if state is provided
 	if i.State != "" {
 		if !existing.StateTransitionAllowed(i.State) {
@@ -149,7 +147,6 @@ func (i *Image) StateTransitionAllowed(target string) bool {
 
 // UpdatedState returns a new image state based on the image's downloads and existing image state
 func (i *Image) UpdatedState() string {
-
 	// Return unchanged state if already failed
 	if i.State == StateFailedImport.String() || i.State == StateFailedPublish.String() {
 		return i.State
@@ -181,6 +178,7 @@ func (i *Image) AllDownloadsOfState(s DownloadState) bool {
 	if len(i.Downloads) == 0 {
 		return false
 	}
+	//nolint:gocritic // rangeValCopy: each iteration copies 184 bytes (consider pointers or indexing)
 	for _, download := range i.Downloads {
 		if download.State != s.String() {
 			return false
@@ -191,6 +189,7 @@ func (i *Image) AllDownloadsOfState(s DownloadState) bool {
 
 // AnyDownloadsOfState returns true if any image download variant is in specified state
 func (i *Image) AnyDownloadsOfState(s DownloadState) bool {
+	//nolint:gocritic // rangeValCopy: each iteration copies 184 bytes (consider pointers or indexing)
 	for _, download := range i.Downloads {
 		if download.State == s.String() {
 			return true
@@ -211,7 +210,6 @@ func (d *Download) Validate() error {
 
 // ValidateTransitionFrom checks whether the new state is valid given the existing download state…
 func (d *Download) ValidateTransitionFrom(ed *Download) error {
-
 	// validate that the download variant state transition is allowed
 	if !ed.StateTransitionAllowed(d.State) {
 		return apierrors.ErrVariantStateTransitionNotAllowed
@@ -227,7 +225,6 @@ func (d *Download) ValidateTransitionFrom(ed *Download) error {
 
 // ValidateForImage checks whether the new download state is valid for the specified parent image
 func (d *Download) ValidateForImage(i *Image) error {
-
 	switch d.State {
 	case StateDownloadImporting.String():
 		if i.State != StateUploaded.String() && i.State != StateImporting.String() {

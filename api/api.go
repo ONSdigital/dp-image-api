@@ -30,8 +30,7 @@ type API struct {
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
-func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer, builder *url.Builder) *API {
-
+func Setup(_ context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer, builder *url.Builder) *API {
 	api := &API{
 		Router:             r,
 		auth:               auth,
@@ -69,7 +68,6 @@ func (*API) Close(ctx context.Context) error {
 
 // WriteJSONBody marshals the provided interface into json, and writes it to the response body.
 func WriteJSONBody(v interface{}, w http.ResponseWriter, httpStatus int) error {
-
 	// Set headers
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(httpStatus)
@@ -88,7 +86,7 @@ func WriteJSONBody(v interface{}, w http.ResponseWriter, httpStatus int) error {
 }
 
 // ReadJSONBody reads the bytes from the provided body, and marshals it to the provided model interface.
-func ReadJSONBody(ctx context.Context, body io.ReadCloser, v interface{}) error {
+func ReadJSONBody(_ context.Context, body io.ReadCloser, v interface{}) error {
 	defer body.Close()
 
 	// Get Body bytes

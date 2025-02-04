@@ -226,10 +226,10 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 	}
 
 	// Check that transition from the existing image state is valid
-	if err := image.ValidateTransitionFrom(existingImage); err != nil {
+	if transitionErr := image.ValidateTransitionFrom(existingImage); transitionErr != nil {
 		logdata["current_image_state"] = existingImage.State
 		logdata["target_image_state"] = image.State
-		handleError(ctx, w, err, logdata)
+		handleError(ctx, w, transitionErr, logdata)
 		return nil
 	}
 
@@ -241,9 +241,9 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 		uploadS3Path := path.Base(image.Upload.Path)
 		log.Info(ctx, "sending image uploaded message", logdata)
 		uploadedEvent := ImageUploadedEvent(id, uploadS3Path, image.Filename)
-		if err := api.uploadProducer.ImageUploaded(uploadedEvent); err != nil {
-			handleError(ctx, w, err, logdata)
-			return
+		if uploadErr := api.uploadProducer.ImageUploaded(uploadedEvent); uploadErr != nil {
+			handleError(ctx, w, uploadErr, logdata)
+			return nil
 		}
 	}
 
@@ -251,7 +251,7 @@ func (api *API) doUpdateImage(w http.ResponseWriter, req *http.Request, id strin
 	err = api.mongoDB.UpsertImage(ctx, id, image)
 	if err != nil {
 		handleError(ctx, w, err, logdata)
-		return
+		return nil
 	}
 	return image
 }
@@ -276,6 +276,7 @@ func (api *API) GetDownloadsHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	downloadsList := make([]models.Download, 0)
+	//nolint:gocritic // rangeValCopy: each iteration copies 184 bytes (consider pointers or indexing)
 	for _, dl := range image.Downloads {
 		downloadsList = append(downloadsList, dl)
 	}
@@ -345,8 +346,8 @@ func (api *API) CreateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 	}
 
 	// Validate new download against parent image
-	if err := newDownload.ValidateForImage(image); err != nil {
-		handleError(ctx, w, err, logdata)
+	if validationErr := newDownload.ValidateForImage(image); validationErr != nil {
+		handleError(ctx, w, validationErr, logdata)
 		return
 	}
 
@@ -487,22 +488,22 @@ func (api *API) UpdateDownloadHandler(w http.ResponseWriter, req *http.Request) 
 	}
 
 	// Validate download variant against parent image state
-	if err := download.ValidateForImage(image); err != nil {
+	if validationErr := download.ValidateForImage(image); validationErr != nil {
 		logdata["current_image_state"] = image.State
 		logdata["target_download_state"] = download.State
-		handleError(ctx, w, err, logdata)
+		handleError(ctx, w, validationErr, logdata)
 		return
 	}
 
 	// Validate download variant against existing variant state
-	if err := download.ValidateTransitionFrom(&existing); err != nil {
+	if transitionErr := download.ValidateTransitionFrom(&existing); transitionErr != nil {
 		logdata["current_image_state"] = existing.State
 		logdata["target_download_state"] = download.State
-		handleError(ctx, w, err, logdata)
+		handleError(ctx, w, transitionErr, logdata)
 		return
 	}
 
-	//Copy Links from existing
+	// Copy Links from existing
 	download.Links = existing.Links
 
 	// Update new download to existing image
@@ -603,6 +604,7 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 
 // generateImagePublishEvents creates a kafka 'image-published' event for each download variant for the provided image.
 func generateImagePublishEvents(image *models.Image) (events []*event.ImagePublished) {
+	//nolint:gocritic // rangeValCopy: each iteration copies 184 bytes (consider pointers or indexing)
 	for _, variant := range image.Downloads {
 		srcPath := path.Join("images", image.ID, variant.ID)
 		events = append(events, ImagePublishedEvent(srcPath, image.Filename, image.ID, variant.ID))

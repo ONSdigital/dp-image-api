@@ -28,7 +28,7 @@ import (
 	"github.com/ONSdigital/dp-net/handlers"
 	dpreq "github.com/ONSdigital/dp-net/request"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/smartystreets/goconvey/convey"
 )
 
 // Constants for testing
@@ -68,7 +68,7 @@ var (
 var errMongoDB = errors.New("MongoDB generic error")
 
 // Empty JSON Payload
-var emptyJsonPayload = `{}`
+var emptyJSONPayload = `{}`
 
 // New Image Payload without any extra field.
 var newImagePayloadFmt = `{
@@ -197,10 +197,10 @@ var (
 
 // DB model corresponding to an image in the provided state, without any download variant
 func dbImage(state models.State) *models.Image {
-	return dbImageWithId(state, testImageID1)
+	return dbImageWithID(state, testImageID1)
 }
 
-func dbImageWithId(state models.State, id string) *models.Image {
+func dbImageWithID(state models.State, id string) *models.Image {
 	return &models.Image{
 		ID:           id,
 		CollectionID: testCollectionID1,
@@ -267,7 +267,6 @@ func dbDownloadHRef(variantState models.DownloadState) string {
 	default:
 		return ""
 	}
-
 }
 
 // DB model corresponding to an image in the provided state, with a download variant in the provided state.
@@ -295,6 +294,7 @@ func dbFullImage(state models.State) *models.Image {
 func dbFullImageWithDownloads(state models.State, downloads ...models.Download) *models.Image {
 	image := dbFullImage(state)
 	image.Downloads = map[string]models.Download{}
+	//nolint:gocritic // rangeValCopy: each iteration copies 184 bytes (consider pointers or indexing)
 	for _, d := range downloads {
 		image.Downloads[d.ID] = d
 	}
@@ -393,12 +393,12 @@ func apiGetDownloadsResponse(downloads ...models.Download) *models.Downloads {
 	}
 }
 
-// Sorting functions for sorting a list of Downloads by their ID
-type downloadsById []models.Download
+// convey.Sorting functions for sorting a list of Downloads by their ID
+type downloadsByID []models.Download
 
-func (s downloadsById) Len() int           { return len(s) }
-func (s downloadsById) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s downloadsById) Less(i, j int) bool { return s[i].ID < s[j].ID }
+func (s downloadsByID) Len() int           { return len(s) }
+func (s downloadsByID) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s downloadsByID) Less(i, j int) bool { return s[i].ID < s[j].ID }
 
 // kafkaProducer mock which exposes Channels function returning empty channels
 // to be used on tests that are not supposed to send any kafka message
@@ -409,290 +409,282 @@ var kafkaStubProducer = &kafkatest.IProducerMock{
 }
 
 func TestGetImagesHandler(t *testing.T) {
-
-	Convey("Given an image API in publishing mode", t, func() {
+	convey.Convey("Given an image API in publishing mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = true
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		doTestGetImagesHandler(cfg)
 	})
 
-	Convey("Given an image API in web mode", t, func() {
+	convey.Convey("Given an image API in web mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = false
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		doTestGetImagesHandler(cfg)
 	})
 }
 
-func doTestGetImagesHandler(cfg *config.Config) {
-
-	Convey("And an image API with mongoDB returning the images as expected according to the collectionID filter", func() {
+func doTestGetImagesHandler(_ *config.Config) {
+	convey.Convey("And an image API with mongoDB returning the images as expected according to the collectionID filter", func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
+			GetImagesFunc: func(_ context.Context, collectionID string) ([]models.Image, error) {
 				if collectionID == testCollectionID1 {
 					return []models.Image{*dbImage(models.StateCreated), *dbImage(models.StateImported), *dbFullImageWithDownloads(models.StatePublished, dbDownload(models.StateDownloadPublished))}, nil
 				} else if collectionID == "" {
 					return []models.Image{*dbImage(models.StateCreated), *dbCreatedImageNoCollectionID(), *dbImage(models.StateImported), *dbFullImageWithDownloads(models.StatePublished, dbDownload(models.StateDownloadPublished))}, nil
-				} else {
-					return []models.Image{}, nil
 				}
+				return []models.Image{}, nil
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("When existing images are requested with a valid Collection-Id context and query parameter value", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), nil)
+		convey.Convey("When existing images are requested with a valid Collection-Id context and query parameter value", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then the expected images are returned with status code 200", func() {
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then the expected images are returned with status code 200", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retImages := models.Images{}
 				err = json.Unmarshal(payload, &retImages)
-				So(err, ShouldBeNil)
-				So(retImages, ShouldResemble, imagesWithCollectionID1)
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retImages, convey.ShouldResemble, imagesWithCollectionID1)
 			})
 		})
 
-		Convey("When nonexistent images are requested with a valid Collection-Id context and query parameter value", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", "otherCollectionId"), nil)
+		convey.Convey("When nonexistent images are requested with a valid Collection-Id context and query parameter value", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", "otherCollectionId"), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), "otherCollectionId"))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then an empty list of images is returned with status code 200", func() {
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then an empty list of images is returned with status code 200", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retImages := models.Images{}
 				err = json.Unmarshal(payload, &retImages)
-				So(err, ShouldBeNil)
-				So(retImages, ShouldResemble, emptyImages)
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retImages, convey.ShouldResemble, emptyImages)
 			})
 		})
 
-		Convey("When no collection_id query parameter value is provided", func() {
-			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images", nil)
+		convey.Convey("When no collection_id query parameter value is provided", func() {
+			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images", http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then the full list of images is returned with status code 200", func() {
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then the full list of images is returned with status code 200", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retImages := models.Images{}
 				err = json.Unmarshal(payload, &retImages)
-				So(err, ShouldBeNil)
-				So(retImages, ShouldResemble, allImages)
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retImages, convey.ShouldResemble, allImages)
 			})
 		})
 
-		Convey("Providing different values for Collection-Id header and query parameter is allowed", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), nil)
+		convey.Convey("Providing different values for Collection-Id header and query parameter is allowed", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), "otherCollectionId"))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusOK)
-			So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+			convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 		})
-
 	})
 
-	Convey("And an image API with mongoDB returning an error", func() {
+	convey.Convey("And an image API with mongoDB returning an error", func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
+			GetImagesFunc: func(_ context.Context, _ string) ([]models.Image, error) {
 				return []models.Image{}, errMongoDB
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("Then when images are requested, a 500 error is returned", func() {
-			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images", nil)
+		convey.Convey("Then when images are requested, a 500 error is returned", func() {
+			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images", http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusInternalServerError)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
 		})
 	})
 }
 
 func TestCreateImageHandler(t *testing.T) {
-
 	api.NewID = func() string { return testImageID1 }
 
-	Convey("Given an image API in publishing mode that can successfully store valid images in mongoDB", t, func() {
+	convey.Convey("Given an image API in publishing mode that can successfully store valid images in mongoDB", t, func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		cfg.IsPublishing = true
 
 		mongoDBMock := &mock.MongoServerMock{
-			UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error { return nil },
+			UpsertImageFunc: func(_ context.Context, _ string, _ *models.Image) error { return nil },
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("When a valid new image is posted", func() {
+		convey.Convey("When a valid new image is posted", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
 				fmt.Sprintf(newImagePayloadFmt, testCollectionID1, "some-image-name")))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a newly created image with the new id and provided details is returned with status code 201", func() {
-				So(w.Code, ShouldEqual, http.StatusCreated)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then a newly created image with the new id and provided details is returned with status code 201", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusCreated)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
-				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, *createdImage())
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retImage, convey.ShouldResemble, *createdImage())
 			})
 		})
 
-		Convey("When a valid new image with extra fields is posted", func() {
+		convey.Convey("When a valid new image with extra fields is posted", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images",
 				bytes.NewBufferString(fmt.Sprintf(fullImagePayloadFmt, testImageID2, testCollectionID1, models.StateCreated.String())))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			Convey("Then a newly created image with the new id and provided details is returned with status code 201, ignoring any field that is not supposed to be provided at creation time", func() {
-				So(w.Code, ShouldEqual, http.StatusCreated)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.Convey("Then a newly created image with the new id and provided details is returned with status code 201, ignoring any field that is not supposed to be provided at creation time", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusCreated)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
-				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, *createdImage())
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retImage, convey.ShouldResemble, *createdImage())
 			})
 		})
 
-		Convey("When a new image with an invalid state field is posted", func() {
+		convey.Convey("When a new image with an invalid state field is posted", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
 				fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, "invalidState")))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			Convey("Then an BadRequest response is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusBadRequest)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.Convey("Then an BadRequest response is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusBadRequest)
 			})
 		})
 
-		Convey("Posting an image with a filename longer than the maximum allowed results in BadRequest response", func() {
+		convey.Convey("Posting an image with a filename longer than the maximum allowed results in BadRequest response", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
 				fmt.Sprintf(newImagePayloadFmt, testCollectionID1, longName)))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusBadRequest)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.So(w.Code, convey.ShouldEqual, http.StatusBadRequest)
 		})
 
-		Convey("Posting an empty image (without collection id) results in BadRequest response", func() {
-			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(emptyJsonPayload))
+		convey.Convey("Posting an empty image (without collection id) results in BadRequest response", func() {
+			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(emptyJSONPayload))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusBadRequest)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.So(w.Code, convey.ShouldEqual, http.StatusBadRequest)
 		})
 
-		Convey("An empty request body results in a BadRequest response", func() {
-			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", nil)
+		convey.Convey("An empty request body results in a BadRequest response", func() {
+			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusBadRequest)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.So(w.Code, convey.ShouldEqual, http.StatusBadRequest)
 		})
 
-		Convey("An invalid request body results in a BadRequest response", func() {
+		convey.Convey("An invalid request body results in a BadRequest response", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString("invalidJson"))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusBadRequest)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.So(w.Code, convey.ShouldEqual, http.StatusBadRequest)
 		})
 	})
 
-	Convey("Given an image API with mongoDB that fails to insert images", t, func() {
+	convey.Convey("Given an image API with mongoDB that fails to insert images", t, func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		cfg.IsPublishing = true
 
 		mongoDBMock := &mock.MongoServerMock{
-			UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error { return errMongoDB },
+			UpsertImageFunc: func(_ context.Context, _ string, _ *models.Image) error { return errMongoDB },
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("When a new image is posted a 500 InternalServerError status code is returned", func() {
+		convey.Convey("When a new image is posted a 500 InternalServerError status code is returned", func() {
 			r := httptest.NewRequest(http.MethodPost, "http://localhost:24700/images", bytes.NewBufferString(
 				fmt.Sprintf(newImagePayloadFmt, testCollectionID1, "some-image-name")))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusInternalServerError)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
 		})
 	})
 }
 
 func TestGetImageHandler(t *testing.T) {
-
-	Convey("Given an image API in publishing mode", t, func() {
+	convey.Convey("Given an image API in publishing mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = true
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		doTestGetImageHandler(cfg)
 	})
 
-	Convey("Given an image API in web mode", t, func() {
+	convey.Convey("Given an image API in web mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = false
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		doTestGetImageHandler(cfg)
 	})
 }
 
 func doTestGetImageHandler(cfg *config.Config) {
-
-	Convey("And an image API with mongoDB returning 'created' and 'published' images", func() {
-
+	convey.Convey("And an image API with mongoDB returning 'created' and 'published' images", func() {
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+			GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testImageID1:
 					return dbImage(models.StateCreated), nil
@@ -704,227 +696,225 @@ func doTestGetImageHandler(cfg *config.Config) {
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("When an existing 'created' image is requested with the valid Collection-Id context value", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), nil)
+		convey.Convey("When an existing 'created' image is requested with the valid Collection-Id context value", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			Convey("Then the expected image is returned with status code 200", func() {
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.Convey("Then the expected image is returned with status code 200", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
-				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, *createdImage())
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retImage, convey.ShouldResemble, *createdImage())
 			})
 		})
 
-		Convey("When an existing 'published' image is requested without a Collection-Id context value", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), nil)
+		convey.Convey("When an existing 'published' image is requested without a Collection-Id context value", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			Convey("Then the published image is returned with status code 200", func() {
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.Convey("Then the published image is returned with status code 200", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retImage := models.Image{}
 				err = json.Unmarshal(payload, &retImage)
-				So(err, ShouldBeNil)
-				So(retImage, ShouldResemble, *apiFullImage(models.StatePublished))
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retImage, convey.ShouldResemble, *apiFullImage(models.StatePublished))
 			})
 		})
 
-		Convey("Requesting an nonexistent image ID results in a NotFound response", func() {
-			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images/inexistent", nil)
+		convey.Convey("Requesting an nonexistent image ID results in a NotFound response", func() {
+			r := httptest.NewRequest(http.MethodGet, "http://localhost:24700/images/inexistent", http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusNotFound)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.So(w.Code, convey.ShouldEqual, http.StatusNotFound)
 		})
 	})
 }
 
 func TestUpdateImageHandler(t *testing.T) {
-
-	Convey("Given a valid config, auth handler, kafka producer", t, func() {
+	convey.Convey("Given a valid config, auth handler, kafka producer", t, func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 
-		Convey("And an empty MongoDB mock", func() {
+		convey.Convey("And an empty MongoDB mock", func() {
 			mongoMock := &mock.MongoServerMock{}
-			imageApi := GetAPIWithMocks(cfg, mongoMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling update image with an invalid body results in 400 response", func() {
+			convey.Convey("Calling update image with an invalid body results in 400 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString("wrong"))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusBadRequest)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusBadRequest)
 			})
 
-			Convey("Calling update image with an image that has a different id results in 400 response", func() {
+			convey.Convey("Calling update image with an image that has a different id results in 400 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(fullImagePayload))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusBadRequest)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusBadRequest)
 			})
 
-			Convey("Calling update image with an image that has a filename that is too long results in 400 response", func() {
+			convey.Convey("Calling update image with an image that has a filename that is too long results in 400 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
-					fmt.Sprintf(`{"filename": "%s"}`, longName)))
+					fmt.Sprintf(`{"filename": "%q"}`, longName)))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusBadRequest)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusBadRequest)
 			})
 		})
 
-		Convey("And an image in created state in MongoDB", func() {
+		convey.Convey("And an image in created state in MongoDB", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					return dbImage(models.StateCreated), nil
 				},
-				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
+				UpdateImageFunc: func(_ context.Context, _ string, _ *models.Image) (bool, error) {
 					return true, nil
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling update image with same state results in 403 Forbidden response and it is not updated", func() {
+			convey.Convey("Calling update image with same state results in 403 Forbidden response and it is not updated", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateCreated.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusForbidden)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusForbidden)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID2)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
-
 		})
 
-		Convey("And MongoDB returning imageNotFound error", func() {
+		convey.Convey("And MongoDB returning imageNotFound error", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					return nil, apierrors.ErrImageNotFound
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling update image with an nonexistent image id results in 404 response", func() {
+			convey.Convey("Calling update image with an nonexistent image id results in 404 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", "nonexistent"), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateCreated.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusNotFound)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, "nonexistent")
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusNotFound)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, "nonexistent")
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And MongoDB failing to get an image", func() {
+		convey.Convey("And MongoDB failing to get an image", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					return nil, errors.New("internal mongoDB error")
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling update image results in 500 response", func() {
+			convey.Convey("Calling update image results in 500 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateCreated.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And an API with a mongoDB containing an image that fails to update", func() {
+		convey.Convey("And an API with a mongoDB containing an image that fails to update", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					return dbImage(models.StateImporting), nil
 				},
-				UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error {
+				UpsertImageFunc: func(_ context.Context, _ string, _ *models.Image) error {
 					return errors.New("internal mongoDB error")
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling update image results in 500 result", func() {
+			convey.Convey("Calling update image results in 500 result", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID1), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testCollectionID1, models.StateFailedImport.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.UpsertImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UpsertImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.UpsertImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UpsertImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And an image in published state in MongoDB", func() {
+		convey.Convey("And an image in published state in MongoDB", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					return dbImage(models.StatePublished), nil
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling update image results in 403 Forbidden response and it is not updated", func() {
+			convey.Convey("Calling update image results in 403 Forbidden response and it is not updated", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 					fmt.Sprintf(newImageWithStatePayloadFmt, testImageID2, models.StateCreated.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusForbidden)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusForbidden)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID2)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And an image in created state in MongoDB plus a kafka uploadedProducer", func() {
+		convey.Convey("And an image in created state in MongoDB plus a kafka uploadedProducer", func() {
 			channels := &kafka.ProducerChannels{
 				Output: make(chan []byte),
 			}
@@ -935,84 +925,84 @@ func TestUpdateImageHandler(t *testing.T) {
 			}
 
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
-					return dbImageWithId(models.StateCreated, testImageID2), nil
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+					return dbImageWithID(models.StateCreated, testImageID2), nil
 				},
-				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, uploadedProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, uploadedProducer, kafkaStubProducer)
 
-			Convey("Calling image upload with a valid image upload results in 200 OK response with the expected image provided to mongoDB and the message sent to kafka producer", func() {
+			convey.Convey("Calling image upload with a valid image upload results in 200 OK response with the expected image provided to mongoDB and the message sent to kafka producer", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 					fmt.Sprintf(imageUploadPayloadFmt, testCollectionID1, testUploadPath)))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
 
-				sentBytes := serveHTTPAndReadKafka(w, r, imageApi, uploadedProducer, 1)
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
-				So(mongoDBMock.UpsertImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UpsertImageCalls()[0].ID, ShouldEqual, testImageID2)
-				So(*mongoDBMock.UpsertImageCalls()[0].Image, ShouldResemble, *dbFullImage(models.StateUploaded))
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				sentBytes := serveHTTPAndReadKafka(w, r, imageAPI, uploadedProducer, 1)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID2)
+				convey.So(mongoDBMock.UpsertImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UpsertImageCalls()[0].ID, convey.ShouldEqual, testImageID2)
+				convey.So(*mongoDBMock.UpsertImageCalls()[0].Image, convey.ShouldResemble, *dbFullImage(models.StateUploaded))
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 
 				fmt.Println("got line 996")
 
-				Convey("And the expected avro event is sent to the corresponding kafka output channel", func() {
+				convey.Convey("And the expected avro event is sent to the corresponding kafka output channel", func() {
 					expectedBytes, err := schema.ImageUploadedEvent.Marshal(&event.ImageUploaded{
 						ImageID:  testImageID2,
 						Path:     testUploadFilename,
 						Filename: testFilename,
 					})
-					So(err, ShouldBeNil)
-					So(expectedBytes, ShouldResemble, sentBytes[0])
+					convey.So(err, convey.ShouldBeNil)
+					convey.So(expectedBytes, convey.ShouldResemble, sentBytes[0])
 				})
 			})
 
-			Convey("Calling image upload results in a 500 InternalError response when an invalid image uploaded event is generated, and the image is not updated in mongoDB", func() {
-				api.ImageUploadedEvent = func(imageID, uploadPath, filename string) *event.ImageUploaded {
+			convey.Convey("Calling image upload results in a 500 InternalError response when an invalid image uploaded event is generated, and the image is not updated in mongoDB", func() {
+				api.ImageUploadedEvent = func(_, _, _ string) *event.ImageUploaded {
 					return nil
 				}
-				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 					fmt.Sprintf(imageUploadPayloadFmt, testCollectionID1, testUploadPath)))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
-				So(mongoDBMock.UpdateImageCalls(), ShouldHaveLength, 0)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID2)
+				convey.So(mongoDBMock.UpdateImageCalls(), convey.ShouldHaveLength, 0)
 			})
 
-			Convey("Calling image upload on an image that is already uploaded returns a 403 response.", func() {
+			convey.Convey("Calling image upload on an image that is already uploaded returns a 403 response.", func() {
 				mongoDBMock := &mock.MongoServerMock{
-					GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+					GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 						return dbUploadedImage(), nil
 					},
-					AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-					UnlockImageFunc:      func(ctx context.Context, id string) {},
+					AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+					UnlockImageFunc:      func(_ context.Context, _ string) {},
 				}
-				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-				Convey("Calling 'upload image' results in 403 Forbidden response", func() {
+				convey.Convey("Calling 'upload image' results in 403 Forbidden response", func() {
 					r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), bytes.NewBufferString(
 						fmt.Sprintf(imageUploadPayloadFmt, testUploadPath)))
 					r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 					r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 					w := httptest.NewRecorder()
-					imageApi.Router.ServeHTTP(w, r)
-					So(w.Code, ShouldEqual, http.StatusForbidden)
-					So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-					So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
-					So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-					So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+					imageAPI.Router.ServeHTTP(w, r)
+					convey.So(w.Code, convey.ShouldEqual, http.StatusForbidden)
+					convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+					convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID2)
+					convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+					convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 				})
 			})
 		})
@@ -1020,32 +1010,31 @@ func TestUpdateImageHandler(t *testing.T) {
 }
 
 func TestGetDownloadsHandler(t *testing.T) {
-
-	Convey("Given an image API in publishing mode", t, func() {
+	convey.Convey("Given an image API in publishing mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = true
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		doTestGetDownloadsHandler(cfg)
 	})
 
-	Convey("Given an image API in web mode", t, func() {
+	convey.Convey("Given an image API in web mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = false
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		doTestGetDownloadsHandler(cfg)
 	})
 }
 
-func doTestGetDownloadsHandler(cfg *config.Config) {
-	Convey("And an image API with existing valid images stored in a mongoDB mock", func() {
+func doTestGetDownloadsHandler(_ *config.Config) {
+	convey.Convey("And an image API with existing valid images stored in a mongoDB mock", func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		cfg.IsPublishing = true
 
 		firstDownload := dbDownloadWithID(testImagePublishedID, testVariantAlternative, models.StateDownloadPublished)
 		secondDownload := dbDownloadWithID(testImagePublishedID, testVariantOriginal, models.StateDownloadPublished)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+			GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testImageUploadedID:
 					return dbFullImage(models.StateUploaded), nil
@@ -1060,123 +1049,122 @@ func doTestGetDownloadsHandler(cfg *config.Config) {
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("When downloads are requested from an image with no downloads", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), nil)
+		convey.Convey("When downloads are requested from an image with no downloads", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a valid Downloads response with 0 items is returned with status code 200", func() {
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then a valid Downloads response with 0 items is returned with status code 200", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retDownloads := models.Downloads{}
 				err = json.Unmarshal(payload, &retDownloads)
-				So(err, ShouldBeNil)
-				So(retDownloads, ShouldResemble, *apiGetDownloadsResponse())
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retDownloads, convey.ShouldResemble, *apiGetDownloadsResponse())
 			})
 		})
 
-		Convey("When downloads are requested from an image with one download", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageImportingID), nil)
+		convey.Convey("When downloads are requested from an image with one download", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageImportingID), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a valid Downloads response with 1 item is returned with status code 200", func() {
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then a valid Downloads response with 1 item is returned with status code 200", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retDownloads := models.Downloads{}
 				err = json.Unmarshal(payload, &retDownloads)
-				So(err, ShouldBeNil)
-				So(retDownloads, ShouldResemble, *apiGetDownloadsResponse(dbDownload(models.StateDownloadImported)))
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retDownloads, convey.ShouldResemble, *apiGetDownloadsResponse(dbDownload(models.StateDownloadImported)))
 			})
 		})
 
-		Convey("When downloads are requested from an image with two downloads", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImagePublishedID), nil)
+		convey.Convey("When downloads are requested from an image with two downloads", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImagePublishedID), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a valid Downloads response with 2 items is returned with status code 200", func() {
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then a valid Downloads response with 2 items is returned with status code 200", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retDownloads := models.Downloads{}
 				err = json.Unmarshal(payload, &retDownloads)
-				So(err, ShouldBeNil)
-				So(retDownloads.Count, ShouldEqual, 2)
-				So(retDownloads.Offset, ShouldEqual, 0)
-				So(retDownloads.Limit, ShouldEqual, 2)
-				So(retDownloads.TotalCount, ShouldEqual, 2)
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retDownloads.Count, convey.ShouldEqual, 2)
+				convey.So(retDownloads.Offset, convey.ShouldEqual, 0)
+				convey.So(retDownloads.Limit, convey.ShouldEqual, 2)
+				convey.So(retDownloads.TotalCount, convey.ShouldEqual, 2)
 
 				items := retDownloads.Items
-				So(items, ShouldHaveLength, 2)
+				convey.So(items, convey.ShouldHaveLength, 2)
 				// sort the items because they are stored in a map so could come out in any order
-				sort.Sort(downloadsById(items))
-				So(items[0], ShouldResemble, firstDownload)
-				So(items[1], ShouldResemble, secondDownload)
+				sort.Sort(downloadsByID(items))
+				convey.So(items[0], convey.ShouldResemble, firstDownload)
+				convey.So(items[1], convey.ShouldResemble, secondDownload)
 			})
 		})
 
-		Convey("When downloads are requested from an image not in mongo", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageID1), nil)
+		convey.Convey("When downloads are requested from an image not in mongo", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageID1), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a status code 404 (NotFound) is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusNotFound)
+			convey.Convey("Then a status code 404 (NotFound) is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusNotFound)
 			})
 		})
 	})
 
-	Convey("And an image API with mongoDB returning an error", func() {
+	convey.Convey("And an image API with mongoDB returning an error", func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+			GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 				return nil, errMongoDB
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("Then when images are requested, a 500 error is returned", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), nil)
+		convey.Convey("Then when images are requested, a 500 error is returned", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusInternalServerError)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
 		})
 	})
 }
 
 func TestCreateDownloadHandler(t *testing.T) {
-
-	Convey("Given an image API in publishing mode with existing valid images stored in a mongoDB mock", t, func() {
+	convey.Convey("Given an image API in publishing mode with existing valid images stored in a mongoDB mock", t, func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		cfg.IsPublishing = true
 
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+			GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testImageCreatedID:
 					return dbImage(models.StateCreated), nil
@@ -1190,215 +1178,210 @@ func TestCreateDownloadHandler(t *testing.T) {
 					return nil, apierrors.ErrImageNotFound
 				}
 			},
-			UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
-			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-			UnlockImageFunc:      func(ctx context.Context, id string) {},
+			UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
+			AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+			UnlockImageFunc:      func(_ context.Context, _ string) {},
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("When a valid new download is posted to an image in an 'uploaded' state", func() {
+		convey.Convey("When a valid new download is posted to an image in an 'uploaded' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImporting.String())))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a newly created download is returned with status code 201", func() {
-				So(w.Code, ShouldEqual, http.StatusCreated)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then a newly created download is returned with status code 201", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusCreated)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retDownload := models.Download{}
 				err = json.Unmarshal(payload, &retDownload)
-				So(err, ShouldBeNil)
-				So(retDownload, ShouldResemble, dbDownloadWithID(testImageUploadedID, testVariantOriginal, models.StateDownloadImporting))
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retDownload, convey.ShouldResemble, dbDownloadWithID(testImageUploadedID, testVariantOriginal, models.StateDownloadImporting))
 			})
 		})
 
-		Convey("When a new download with an imported state is posted to an image in an 'uploaded' state", func() {
+		convey.Convey("When a new download with an imported state is posted to an image in an 'uploaded' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a status code 403 (Forbidden) is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusForbidden)
+			convey.Convey("Then a status code 403 (Forbidden) is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusForbidden)
 			})
 		})
 
-		Convey("When a new download with an invalid state is posted to an image in an 'uploaded' state", func() {
+		convey.Convey("When a new download with an invalid state is posted to an image in an 'uploaded' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, "stateWibbling")))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a status code 400 (BadRequest) is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusBadRequest)
+			convey.Convey("Then a status code 400 (BadRequest) is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusBadRequest)
 			})
 		})
 
-		Convey("When a valid new download is posted to an image in an 'importing' state", func() {
+		convey.Convey("When a valid new download is posted to an image in an 'importing' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageImportingID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantAlternative, testDownloadType, models.StateDownloadImporting.String())))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a newly created download is returned with status code 201", func() {
-				So(w.Code, ShouldEqual, http.StatusCreated)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then a newly created download is returned with status code 201", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusCreated)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retDownload := models.Download{}
 				err = json.Unmarshal(payload, &retDownload)
-				So(err, ShouldBeNil)
-				So(retDownload, ShouldResemble, dbDownloadWithID(testImageImportingID, testVariantAlternative, models.StateDownloadImporting))
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retDownload, convey.ShouldResemble, dbDownloadWithID(testImageImportingID, testVariantAlternative, models.StateDownloadImporting))
 			})
 		})
 
-		Convey("When a download with an already existing ID is posted to an image in an 'importing' state", func() {
+		convey.Convey("When a download with an already existing ID is posted to an image in an 'importing' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageImportingID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImporting.String())))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a status code 403 (Forbidden) is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusForbidden)
+			convey.Convey("Then a status code 403 (Forbidden) is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusForbidden)
 			})
 		})
 
-		Convey("When a valid new download is posted to an image in a 'published' state", func() {
+		convey.Convey("When a valid new download is posted to an image in a 'published' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImagePublishedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantAlternative, testDownloadType, models.StateDownloadImporting.String())))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a status code 403 (Forbidden) is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusForbidden)
+			convey.Convey("Then a status code 403 (Forbidden) is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusForbidden)
 			})
 		})
 
-		Convey("When a valid new download is posted to an image with an ID not found in mongodb", func() {
+		convey.Convey("When a valid new download is posted to an image with an ID not found in mongodb", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", "nonExistantID"), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantAlternative, testDownloadType, models.StateDownloadImporting.String())))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a status code 404 (NotFound) is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusNotFound)
+			convey.Convey("Then a status code 404 (NotFound) is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusNotFound)
 			})
 		})
-
 	})
 
-	Convey("Given an image API in publishing mode with a mongoDB that fails to update", t, func() {
+	convey.Convey("Given an image API in publishing mode with a mongoDB that fails to update", t, func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		cfg.IsPublishing = true
 
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc:         func(ctx context.Context, id string) (*models.Image, error) { return dbImage(models.StateUploaded), nil },
-			UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return errMongoDB },
-			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-			UnlockImageFunc:      func(ctx context.Context, id string) {},
+			GetImageFunc:         func(_ context.Context, _ string) (*models.Image, error) { return dbImage(models.StateUploaded), nil },
+			UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return errMongoDB },
+			AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+			UnlockImageFunc:      func(_ context.Context, _ string) {},
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("When a valid new download is posted to an image in a 'uploaded' state", func() {
+		convey.Convey("When a valid new download is posted to an image in a 'uploaded' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImporting.String())))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a status code 500 (InternalServerError) is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
+			convey.Convey("Then a status code 500 (InternalServerError) is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
 			})
 		})
-
 	})
 
-	Convey("Given an image API in publishing mode with a mongoDB that fails to lock", t, func() {
+	convey.Convey("Given an image API in publishing mode with a mongoDB that fails to lock", t, func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		cfg.IsPublishing = true
 
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc:         func(ctx context.Context, id string) (*models.Image, error) { return dbImage(models.StateUploaded), nil },
-			UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
-			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return "", errors.New("fail to lock") },
-			UnlockImageFunc:      func(ctx context.Context, id string) {},
+			GetImageFunc:         func(_ context.Context, _ string) (*models.Image, error) { return dbImage(models.StateUploaded), nil },
+			UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
+			AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return "", errors.New("fail to lock") },
+			UnlockImageFunc:      func(_ context.Context, _ string) {},
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("When a valid new download is posted to an image in a 'uploaded' state", func() {
+		convey.Convey("When a valid new download is posted to an image in a 'uploaded' state", func() {
 			r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImageUploadedID), bytes.NewBufferString(
 				fmt.Sprintf(newImageDownloadPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImporting.String())))
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a status code 500 (InternalServerError) is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
+			convey.Convey("Then a status code 500 (InternalServerError) is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
 			})
 		})
-
 	})
 }
-
 func TestGetDownloadHandler(t *testing.T) {
-
-	Convey("Given an image API in publishing mode", t, func() {
+	convey.Convey("Given an image API in publishing mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = true
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		doTestGetDownloadHandler(cfg)
 	})
 
-	Convey("Given an image API in web mode", t, func() {
+	convey.Convey("Given an image API in web mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = false
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		doTestGetDownloadHandler(cfg)
 	})
 }
 
-func doTestGetDownloadHandler(cfg *config.Config) {
-	Convey("And an image API with existing valid images stored in a mongoDB mock", func() {
+func doTestGetDownloadHandler(_ *config.Config) {
+	convey.Convey("And an image API with existing valid images stored in a mongoDB mock", func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		cfg.IsPublishing = true
 
 		firstDownload := dbDownloadWithID(testImagePublishedID, testVariantAlternative, models.StateDownloadPublished)
 		secondDownload := dbDownloadWithID(testImagePublishedID, testVariantOriginal, models.StateDownloadPublished)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+			GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testImageUploadedID:
 					return dbFullImage(models.StateUploaded), nil
@@ -1413,379 +1396,375 @@ func doTestGetDownloadHandler(cfg *config.Config) {
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("When an existing download is requested from an image with one download", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageImportingID, testVariantOriginal), nil)
+		convey.Convey("When an existing download is requested from an image with one download", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageImportingID, testVariantOriginal), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a valid Download response is returned with status code 200", func() {
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then a valid Download response is returned with status code 200", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retDownloads := models.Download{}
 				err = json.Unmarshal(payload, &retDownloads)
-				So(err, ShouldBeNil)
-				So(retDownloads, ShouldResemble, dbDownload(models.StateDownloadImported))
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retDownloads, convey.ShouldResemble, dbDownload(models.StateDownloadImported))
 			})
 		})
 
-		Convey("When an existing download is requested from an image with two downloads", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImagePublishedID, testVariantAlternative), nil)
+		convey.Convey("When an existing download is requested from an image with two downloads", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImagePublishedID, testVariantAlternative), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a valid Download response is returned with status code 200", func() {
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
+			convey.Convey("Then a valid Download response is returned with status code 200", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
 				payload, err := io.ReadAll(w.Body)
-				So(err, ShouldBeNil)
+				convey.So(err, convey.ShouldBeNil)
 				retDownloads := models.Download{}
 				err = json.Unmarshal(payload, &retDownloads)
-				So(err, ShouldBeNil)
-				So(retDownloads, ShouldResemble, dbDownloadWithID(testImagePublishedID, testVariantAlternative, models.StateDownloadPublished))
+				convey.So(err, convey.ShouldBeNil)
+				convey.So(retDownloads, convey.ShouldResemble, dbDownloadWithID(testImagePublishedID, testVariantAlternative, models.StateDownloadPublished))
 			})
 		})
 
-		Convey("When a download is requested from an image not in mongo", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", "nonExistantID", testVariantOriginal), nil)
+		convey.Convey("When a download is requested from an image not in mongo", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", "nonExistantID", testVariantOriginal), http.NoBody)
 
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a status code 404 (NotFound) is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusNotFound)
+			convey.Convey("Then a status code 404 (NotFound) is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusNotFound)
 			})
 		})
 
-		Convey("When a nonexistent download is requested from an image with one download", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageImportingID, "nonExistantVariant"), nil)
+		convey.Convey("When a nonexistent download is requested from an image with one download", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageImportingID, "nonExistantVariant"), http.NoBody)
 
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
+			imageAPI.Router.ServeHTTP(w, r)
 
-			Convey("Then a status code 404 (NotFound) is returned", func() {
-				So(w.Code, ShouldEqual, http.StatusNotFound)
+			convey.Convey("Then a status code 404 (NotFound) is returned", func() {
+				convey.So(w.Code, convey.ShouldEqual, http.StatusNotFound)
 			})
 		})
-
 	})
 
-	Convey("And an image API with mongoDB returning an error", func() {
+	convey.Convey("And an image API with mongoDB returning an error", func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+			GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 				return nil, errMongoDB
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
-		imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+		imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-		Convey("Then when a specific download requested, a 500 error is returned", func() {
-			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageUploadedID, testVariantOriginal), nil)
+		convey.Convey("Then when a specific download requested, a 500 error is returned", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageUploadedID, testVariantOriginal), http.NoBody)
 			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 			w := httptest.NewRecorder()
-			imageApi.Router.ServeHTTP(w, r)
-			So(w.Code, ShouldEqual, http.StatusInternalServerError)
+			imageAPI.Router.ServeHTTP(w, r)
+			convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
 		})
 	})
 }
 
 func TestUpdateDownloadHandler(t *testing.T) {
-	Convey("Given a valid config, auth handler", t, func() {
+	convey.Convey("Given a valid config, auth handler", t, func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 
-		Convey("And an image in a state in 'created' state", func() {
+		convey.Convey("And an image in a state in 'created' state", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
 					return dbFullImageWithDownloads(models.StateCreated, dbDownloadWithID(id, testVariantOriginal, models.StateDownloadImporting)), nil
 				},
-				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'update variant' for the image results in 403 Forbidden response and nothing is updated", func() {
+			convey.Convey("Calling 'update variant' for the image results in 403 Forbidden response and nothing is updated", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusForbidden)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusForbidden)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID2)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And an image in 'importing' state in MongoDB, with a download variant in 'importing' state", func() {
+		convey.Convey("And an image in 'importing' state in MongoDB, with a download variant in 'importing' state", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
 					return dbFullImageWithDownloads(models.StateImporting, dbDownloadWithID(id, testVariantOriginal, models.StateDownloadImporting)), nil
 				},
-				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'update variant' for the image results in 200 OK response and the image is updated as expected", func() {
+			convey.Convey("Calling 'update variant' for the image results in 200 OK response and the image is updated as expected", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
-				So(mongoDBMock.UpsertImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UpsertImageCalls()[0].ID, ShouldResemble, testImageID2)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID2)
+				convey.So(mongoDBMock.UpsertImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UpsertImageCalls()[0].ID, convey.ShouldResemble, testImageID2)
 				update := mongoDBMock.UpsertImageCalls()[0].Image
-				So(update.State, ShouldResemble, models.StateImported.String())
-				So(update.Downloads[testVariantOriginal].State, ShouldResemble, models.StateDownloadImported.String())
-				So(*update.Downloads[testVariantOriginal].ImportStarted, ShouldResemble, testImportStarted)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				convey.So(update.State, convey.ShouldResemble, models.StateImported.String())
+				convey.So(update.Downloads[testVariantOriginal].State, convey.ShouldResemble, models.StateDownloadImported.String())
+				convey.So(*update.Downloads[testVariantOriginal].ImportStarted, convey.ShouldResemble, testImportStarted)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 
-			Convey("Calling update download with a download that has a different id results in 400 response", func() {
+			convey.Convey("Calling update download with a download that has a different id results in 400 response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantAlternative, testDownloadType, models.StateDownloadImported.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusBadRequest)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusBadRequest)
 			})
-
 		})
 
-		Convey("And an image in 'uploaded' state in MongoDB, without any download variants", func() {
+		convey.Convey("And an image in 'uploaded' state in MongoDB, without any download variants", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					return dbImage(models.StateUploaded), nil
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'update variant' for the existing image without variants results in 404 Not found response", func() {
+			convey.Convey("Calling 'update variant' for the existing image without variants results in 404 Not found response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID1, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusNotFound)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusNotFound)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And an image in 'published' state in MongoDB, with a download variant in 'published' state", func() {
+		convey.Convey("And an image in 'published' state in MongoDB, with a download variant in 'published' state", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
 					return dbFullImageWithDownloads(models.StatePublished, dbDownloadWithID(id, testVariantOriginal, models.StateDownloadPublished)), nil
 				},
-				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'complete variant' for the image results in 200 OK response and the image is completed", func() {
+			convey.Convey("Calling 'complete variant' for the image results in 200 OK response and the image is completed", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadCompletedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadCompleted.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
-				So(mongoDBMock.UpsertImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UpsertImageCalls()[0].ID, ShouldResemble, testImageID2)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID2)
+				convey.So(mongoDBMock.UpsertImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UpsertImageCalls()[0].ID, convey.ShouldResemble, testImageID2)
 				update := mongoDBMock.UpsertImageCalls()[0].Image
-				So(update.State, ShouldResemble, models.StateCompleted.String())
-				So(update.Downloads[testVariantOriginal].State, ShouldResemble, models.StateDownloadCompleted.String())
-				So(*update.Downloads[testVariantOriginal].PublishCompleted, ShouldResemble, testPublishCompleted)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				convey.So(update.State, convey.ShouldResemble, models.StateCompleted.String())
+				convey.So(update.Downloads[testVariantOriginal].State, convey.ShouldResemble, models.StateDownloadCompleted.String())
+				convey.So(*update.Downloads[testVariantOriginal].PublishCompleted, convey.ShouldResemble, testPublishCompleted)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And an image in 'published' state in MongoDB, with 2 download variants in 'published' state", func() {
+		convey.Convey("And an image in 'published' state in MongoDB, with 2 download variants in 'published' state", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
 					return dbFullImageWithDownloads(
 						models.StatePublished,
 						dbDownloadWithID(id, testVariantOriginal, models.StateDownloadPublished),
 						dbDownloadWithID(id, testVariantAlternative, models.StateDownloadPublished)), nil
 				},
-				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'update variant' for the image results in 200 OK response, the variant is completed, but the image is not", func() {
+			convey.Convey("Calling 'update variant' for the image results in 200 OK response, the variant is completed, but the image is not", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID2, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadCompletedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadCompleted.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusOK)
-				So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID2)
-				So(mongoDBMock.UpsertImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UpsertImageCalls()[0].ID, ShouldResemble, testImageID2)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusOK)
+				convey.So(w.Header().Get(contentTypeKey), convey.ShouldEqual, contentTypeJSON)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID2)
+				convey.So(mongoDBMock.UpsertImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UpsertImageCalls()[0].ID, convey.ShouldResemble, testImageID2)
 				update := mongoDBMock.UpsertImageCalls()[0].Image
-				So(update.State, ShouldResemble, models.StatePublished.String())
-				So(update.Downloads[testVariantOriginal].State, ShouldResemble, models.StateDownloadCompleted.String())
-				So(*update.Downloads[testVariantOriginal].PublishCompleted, ShouldResemble, testPublishCompleted)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				convey.So(update.State, convey.ShouldResemble, models.StatePublished.String())
+				convey.So(update.Downloads[testVariantOriginal].State, convey.ShouldResemble, models.StateDownloadCompleted.String())
+				convey.So(*update.Downloads[testVariantOriginal].PublishCompleted, convey.ShouldResemble, testPublishCompleted)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And a MongoDB mock that fails to lock", func() {
+		convey.Convey("And a MongoDB mock that fails to lock", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return "", errMongoDB },
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return "", errMongoDB },
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'update variant' for the variant results in 500 StatusInternalServerError response", func() {
+			convey.Convey("Calling 'update variant' for the variant results in 500 StatusInternalServerError response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID1, testVariantOriginal),
 					bytes.NewBufferString(imageDownloadPayload))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And a MongoDB returning error on GetImage", func() {
+		convey.Convey("And a MongoDB returning error on GetImage", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					return nil, errMongoDB
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'update variant' for an nonexistent image results in 500 InternalServerError response", func() {
+			convey.Convey("Calling 'update variant' for an nonexistent image results in 500 InternalServerError response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID1, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And a MongoDB returning error on UploadImage", func() {
+		convey.Convey("And a MongoDB returning error on UploadImage", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
 					return dbFullImageWithDownloads(models.StateImporting, dbDownloadWithID(id, testVariantOriginal, models.StateDownloadImporting)), nil
 				},
-				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return errMongoDB },
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return errMongoDB },
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'import variant' results in 500 InternalServerError response", func() {
+			convey.Convey("Calling 'import variant' results in 500 InternalServerError response", func() {
 				r := httptest.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImageID1, testVariantOriginal), bytes.NewBufferString(
 					fmt.Sprintf(updateImageDownloadImportedPayloadFmt, testVariantOriginal, testDownloadType, models.StateDownloadImported.String())))
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.UpsertImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UpsertImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.UpsertImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UpsertImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
-
 	})
 }
 
 func TestPublishImageHandler(t *testing.T) {
-
-	Convey("Given a valid config, auth handler, kafka producer", t, func() {
+	convey.Convey("Given a valid config, auth handler, kafka producer", t, func() {
 		cfg, err := config.Get()
-		So(err, ShouldBeNil)
+		convey.So(err, convey.ShouldBeNil)
 		cfg.DownloadServiceURL = downloadServiceURL
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 
-		Convey("And an image in 'imported' state in MongoDB", func() {
+		convey.Convey("And an image in 'imported' state in MongoDB", func() {
 			expectedSrcPathOriginal := fmt.Sprintf("images/%s/original", testImageID1)
 			expectedSrcPathPngW500 := fmt.Sprintf("images/%s/png_w500", testImageID1)
 			expectedDstPathOriginal := fmt.Sprintf("%s/some-image-name", expectedSrcPathOriginal)
 			expectedDstPathPngW500 := fmt.Sprintf("%s/some-image-name", expectedSrcPathPngW500)
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					image := dbImage(models.StateImported)
 					image.Filename = "some-image-name"
 					image.Downloads = map[string]models.Download{"original": {ID: "original", Href: expectedSrcPathOriginal}, "png_w500": {ID: "png_w500", Href: expectedSrcPathPngW500}}
 					return image, nil
 				},
-				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
+				UpdateImageFunc: func(_ context.Context, _ string, _ *models.Image) (bool, error) {
 					return true, nil
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
 
-			Convey("Calling 'publish image' results in 204 NoContent response with the expected image state update to mongoDB and the message sent to kafka producer", func() {
+			convey.Convey("Calling 'publish image' results in 204 NoContent response with the expected image state update to mongoDB and the message sent to kafka producer", func() {
 				channels := &kafka.ProducerChannels{
 					Output: make(chan []byte),
 				}
@@ -1794,27 +1773,27 @@ func TestPublishImageHandler(t *testing.T) {
 						return channels
 					},
 				}
-				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, publishedProducer)
-				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, publishedProducer)
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), http.NoBody)
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				sentBytes := serveHTTPAndReadKafka(w, r, imageApi, publishedProducer, 2)
-				So(w.Code, ShouldEqual, http.StatusNoContent)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.UpdateImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.UpdateImageCalls()[0].Image.State, ShouldEqual, models.StatePublished.String())
-				So(mongoDBMock.UpdateImageCalls()[0].Image.Downloads, ShouldHaveLength, 2)
-				So(mongoDBMock.UpdateImageCalls()[0].Image.Downloads["original"].State, ShouldEqual, models.StateDownloadPublished.String())
-				So(mongoDBMock.UpdateImageCalls()[0].Image.Downloads["original"].Href, ShouldEqual, downloadServiceURL+"/images/"+testImageID1+"/original/some-image-name")
-				So(mongoDBMock.UpdateImageCalls()[0].Image.Downloads["png_w500"].State, ShouldEqual, models.StateDownloadPublished.String())
-				So(mongoDBMock.UpdateImageCalls()[0].Image.Downloads["png_w500"].Href, ShouldEqual, downloadServiceURL+"/images/"+testImageID1+"/png_w500/some-image-name")
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				sentBytes := serveHTTPAndReadKafka(w, r, imageAPI, publishedProducer, 2)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusNoContent)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.UpdateImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UpdateImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.UpdateImageCalls()[0].Image.State, convey.ShouldEqual, models.StatePublished.String())
+				convey.So(mongoDBMock.UpdateImageCalls()[0].Image.Downloads, convey.ShouldHaveLength, 2)
+				convey.So(mongoDBMock.UpdateImageCalls()[0].Image.Downloads["original"].State, convey.ShouldEqual, models.StateDownloadPublished.String())
+				convey.So(mongoDBMock.UpdateImageCalls()[0].Image.Downloads["original"].Href, convey.ShouldEqual, downloadServiceURL+"/images/"+testImageID1+"/original/some-image-name")
+				convey.So(mongoDBMock.UpdateImageCalls()[0].Image.Downloads["png_w500"].State, convey.ShouldEqual, models.StateDownloadPublished.String())
+				convey.So(mongoDBMock.UpdateImageCalls()[0].Image.Downloads["png_w500"].Href, convey.ShouldEqual, downloadServiceURL+"/images/"+testImageID1+"/png_w500/some-image-name")
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 
-				Convey("And the expected avro event is sent to the corresponding kafka output channel, with the expected source and dest paths", func() {
+				convey.Convey("And the expected avro event is sent to the corresponding kafka output channel, with the expected source and dest paths", func() {
 					// Note: the paths correspond to the path part of DownloadHrefFmt format "http://<host>/images/<imageID>/<variantName>/<fileName>"
 					expectedBytesOriginal, err := schema.ImagePublishedEvent.Marshal(&event.ImagePublished{
 						SrcPath:      expectedSrcPathOriginal,
@@ -1822,20 +1801,20 @@ func TestPublishImageHandler(t *testing.T) {
 						ImageID:      testImageID1,
 						ImageVariant: "original",
 					})
-					So(err, ShouldBeNil)
+					convey.So(err, convey.ShouldBeNil)
 					expectedBytesPngW500, err := schema.ImagePublishedEvent.Marshal(&event.ImagePublished{
 						SrcPath:      expectedSrcPathPngW500,
 						DstPath:      expectedDstPathPngW500,
 						ImageID:      testImageID1,
 						ImageVariant: "png_w500",
 					})
-					So(err, ShouldBeNil)
+					convey.So(err, convey.ShouldBeNil)
 					validateExpectedBytes(sentBytes, [][]byte{expectedBytesOriginal, expectedBytesPngW500})
 				})
 			})
 
-			Convey("Calling 'publish image' with a 500 InternalError response when an invalid image published event is generated", func() {
-				api.ImagePublishedEvent = func(path, filename, imageId, variant string) *event.ImagePublished {
+			convey.Convey("Calling 'publish image' with a 500 InternalError response when an invalid image published event is generated", func() {
+				api.ImagePublishedEvent = func(_, _, _, _ string) *event.ImagePublished {
 					return nil
 				}
 				channels := &kafka.ProducerChannels{
@@ -1846,141 +1825,141 @@ func TestPublishImageHandler(t *testing.T) {
 						return channels
 					},
 				}
-				imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, publishedProducer)
-				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, publishedProducer)
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), http.NoBody)
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.UpdateImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.UpdateImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And an image with invalid filename, which results in an invalid href for the download variants", func() {
+		convey.Convey("And an image with invalid filename, which results in an invalid href for the download variants", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					image := dbImage(models.StateImported)
 					image.Filename = "a££$(50y4534%£$||}{}"
 					image.Downloads = map[string]models.Download{"original": {}, "png_w500": {}}
 					return image, nil
 				},
-				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
+				UpdateImageFunc: func(_ context.Context, _ string, _ *models.Image) (bool, error) {
 					return true, nil
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'publish image' results in 500 response", func() {
-				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
+			convey.Convey("Calling 'publish image' results in 500 response", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), http.NoBody)
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And an image in 'created' state in MongoDB (non-publishable)", func() {
+		convey.Convey("And an image in 'created' state in MongoDB (non-publishable)", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					return dbImage(models.StateCreated), nil
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'publish image' results in 403 Forbidden response", func() {
-				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
+			convey.Convey("Calling 'publish image' results in 403 Forbidden response", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), http.NoBody)
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusForbidden)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusForbidden)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And MongoDB failing to lock an image", func() {
+		convey.Convey("And MongoDB failing to lock an image", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) {
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) {
 					return "", errors.New("mongoDB lock error")
 				},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'publish image' results in 500 response", func() {
-				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
+			convey.Convey("Calling 'publish image' results in 500 response", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), http.NoBody)
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And MongoDB failing to get an image", func() {
+		convey.Convey("And MongoDB failing to get an image", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					return nil, errors.New("internal mongoDB error")
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'publish image' results in 500 response", func() {
-				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
+			convey.Convey("Calling 'publish image' results in 500 response", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), http.NoBody)
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 
-		Convey("And an API with a mongoDB containing an imported image that fails to update", func() {
+		convey.Convey("And an API with a mongoDB containing an imported image that fails to update", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
 					return dbImage(models.StateImported), nil
 				},
-				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
+				UpdateImageFunc: func(_ context.Context, _ string, _ *models.Image) (bool, error) {
 					return false, errors.New("internal mongoDB error")
 				},
-				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(ctx context.Context, id string) {},
+				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(_ context.Context, _ string) {},
 			}
-			imageApi := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
-			Convey("Calling 'publish image' results in 500 response", func() {
-				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), nil)
+			convey.Convey("Calling 'publish image' results in 500 response", func() {
+				r := httptest.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:24700/images/%s/publish", testImageID1), http.NoBody)
 				r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
 				r = r.WithContext(context.WithValue(r.Context(), handlers.CollectionID.Context(), testCollectionID1))
 				w := httptest.NewRecorder()
-				imageApi.Router.ServeHTTP(w, r)
-				So(w.Code, ShouldEqual, http.StatusInternalServerError)
-				So(mongoDBMock.GetImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.GetImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.UpdateImageCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UpdateImageCalls()[0].ID, ShouldEqual, testImageID1)
-				So(mongoDBMock.UpdateImageCalls()[0].Image.State, ShouldEqual, models.StatePublished.String())
-				So(mongoDBMock.AcquireImageLockCalls(), ShouldHaveLength, 1)
-				So(mongoDBMock.UnlockImageCalls(), ShouldHaveLength, 1)
+				imageAPI.Router.ServeHTTP(w, r)
+				convey.So(w.Code, convey.ShouldEqual, http.StatusInternalServerError)
+				convey.So(mongoDBMock.GetImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.GetImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.UpdateImageCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UpdateImageCalls()[0].ID, convey.ShouldEqual, testImageID1)
+				convey.So(mongoDBMock.UpdateImageCalls()[0].Image.State, convey.ShouldEqual, models.StatePublished.String())
+				convey.So(mongoDBMock.AcquireImageLockCalls(), convey.ShouldHaveLength, 1)
+				convey.So(mongoDBMock.UnlockImageCalls(), convey.ShouldHaveLength, 1)
 			})
 		})
 	})
@@ -1989,18 +1968,18 @@ func TestPublishImageHandler(t *testing.T) {
 // serveHTTPAndReadKafka performs the ServeHTTP with the provided responseRecorder and Request in a parallel go-routine, then reads the bytes
 // from the kafka output channel for the provided number of messages, and waits for the ServeHTTP routine to finish.
 // The bytes sent to kafka output channel are returned in an array corresponding to each call.
-func serveHTTPAndReadKafka(w *httptest.ResponseRecorder, r *http.Request, imageApi *api.API, kafkaProducerMock kafka.IProducer, expectedNumMessages int) [][]byte {
+func serveHTTPAndReadKafka(w *httptest.ResponseRecorder, r *http.Request, imageAPI *api.API, kafkaProducerMock kafka.IProducer, expectedNumMessages int) [][]byte {
 	var sentBytes [][]byte
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		imageApi.Router.ServeHTTP(w, r)
+		imageAPI.Router.ServeHTTP(w, r)
 	}()
 
 	for i := 0; i < expectedNumMessages; i++ {
 		s := <-kafkaProducerMock.Channels().Output
-		So(s, ShouldNotBeNil)
+		convey.So(s, convey.ShouldNotBeNil)
 		sentBytes = append(sentBytes, s)
 	}
 
@@ -2010,8 +1989,7 @@ func serveHTTPAndReadKafka(w *httptest.ResponseRecorder, r *http.Request, imageA
 
 // validateExpectedBytes checks that all byte arrays from b1 resemble all byte arrays from b2, ignoring order
 func validateExpectedBytes(bytes1, bytes2 [][]byte) {
-
-	So(bytes1, ShouldHaveLength, len(bytes2))
+	convey.So(bytes1, convey.ShouldHaveLength, len(bytes2))
 
 	// utility function to compare bytes arrays
 	bytesEqual := func(b1, b2 []byte) bool {
@@ -2034,6 +2012,6 @@ func validateExpectedBytes(bytes1, bytes2 [][]byte) {
 	}
 
 	for _, b1 := range bytes1 {
-		So(findByteArray(b1, bytes2), ShouldBeTrue)
+		convey.So(findByteArray(b1, bytes2), convey.ShouldBeTrue)
 	}
 }

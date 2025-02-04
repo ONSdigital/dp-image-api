@@ -128,6 +128,8 @@ func (m *Mongo) UpdateImage(ctx context.Context, id string, image *models.Image)
 
 // createImageUpdateQuery generates the bson model to update an image with the provided image update.
 // Fields present in mongoDB will not be deleted if they are not present in the image update object.
+//
+//nolint:gocognit,gocyclo // cognitive complexity 58 of func `createImageUpdateQuery` is high (> 40), cyclomatic complexity 27 of func `createImageUpdateQuery` is high (> 20)
 func createImageUpdateQuery(ctx context.Context, id string, image *models.Image) bson.M {
 	updates := make(bson.M)
 
@@ -165,6 +167,7 @@ func createImageUpdateQuery(ctx context.Context, id string, image *models.Image)
 	}
 
 	if image.Downloads != nil {
+		//nolint:gocritic // rangeValCopy: each iteration copies 184 bytes (consider pointers or indexing)
 		for variant, download := range image.Downloads {
 			if download.ID != "" {
 				updates[fmt.Sprintf("downloads.%s.id", variant)] = download.ID

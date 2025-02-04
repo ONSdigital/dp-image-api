@@ -48,14 +48,13 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 	var a *api.API
 
-	urlBuilder := url.NewBuilder(cfg.ApiURL)
+	urlBuilder := url.NewBuilder(cfg.APIURL)
 	// The following dependencies will only be initialised if we are in publishing mode
 	var zc *health.Client
 	var auth api.AuthHandler
 	var uploadedKafkaProducer kafka.IProducer
 	var publishedKafkaProducer kafka.IProducer
 	if cfg.IsPublishing {
-
 		// Get Health client for Zebedee and permissions
 		zc = serviceList.GetHealthClient("Zebedee", cfg.ZebedeeURL)
 		auth = getAuthorisationHandlers(zc)
@@ -76,7 +75,6 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 
 		// Setup the API in publishing
 		a = api.Setup(ctx, cfg, r, auth, mongoDB, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
-
 	} else {
 		// Setup the API in web mode
 		a = api.Setup(ctx, cfg, r, auth, mongoDB, nil, nil, urlBuilder)
@@ -199,7 +197,6 @@ func registerCheckers(ctx context.Context,
 	mongoDB api.MongoServer,
 	uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer,
 	zebedeeClient *health.Client) (err error) {
-
 	hasErrors := false
 
 	if err = hc.AddCheck("Mongo DB", mongoDB.Checker); err != nil {

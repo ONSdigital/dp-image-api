@@ -41,7 +41,7 @@ func (producer *AvroProducer) ImagePublished(event *ImagePublished) error {
 	return producer.marshalAndSendEvent(event)
 }
 
-//marshalAndSendEvent is a generic function that marshals avro events and sends them to the output channel of the producer
+// marshalAndSendEvent is a generic function that marshals avro events and sends them to the output channel of the producer
 func (producer *AvroProducer) marshalAndSendEvent(event interface{}) error {
 	bytes, err := producer.marshaller.Marshal(event)
 	if err != nil {
