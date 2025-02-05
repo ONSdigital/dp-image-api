@@ -178,9 +178,8 @@ func (i *Image) AllDownloadsOfState(s DownloadState) bool {
 	if len(i.Downloads) == 0 {
 		return false
 	}
-	//nolint:gocritic // rangeValCopy: each iteration copies 184 bytes (consider pointers or indexing)
-	for _, download := range i.Downloads {
-		if download.State != s.String() {
+	for idx := range i.Downloads {
+		if i.Downloads[idx].State != s.String() {
 			return false
 		}
 	}
@@ -189,9 +188,8 @@ func (i *Image) AllDownloadsOfState(s DownloadState) bool {
 
 // AnyDownloadsOfState returns true if any image download variant is in specified state
 func (i *Image) AnyDownloadsOfState(s DownloadState) bool {
-	//nolint:gocritic // rangeValCopy: each iteration copies 184 bytes (consider pointers or indexing)
-	for _, download := range i.Downloads {
-		if download.State == s.String() {
+	for idx := range i.Downloads {
+		if i.Downloads[idx].State == s.String() {
 			return true
 		}
 	}

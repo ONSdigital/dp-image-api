@@ -4,50 +4,50 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smartystreets/goconvey/convey"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestConfig(t *testing.T) {
-	convey.Convey("Given an environment with no environment variables set", t, func() {
+	Convey("Given an environment with no environment variables set", t, func() {
 		cfg, err := Get()
 
-		convey.Convey("When the config values are retrieved", func() {
-			convey.Convey("Then there should be no error returned", func() {
-				convey.So(err, convey.ShouldBeNil)
+		Convey("When the config values are retrieved", func() {
+			Convey("Then there should be no error returned", func() {
+				So(err, ShouldBeNil)
 			})
 
-			convey.Convey("Then the values should be set to the expected defaults", func() {
-				convey.So(cfg.BindAddr, convey.ShouldEqual, "localhost:24700")
-				convey.So(cfg.APIURL, convey.ShouldResemble, "http://localhost:24700")
-				convey.So(cfg.Brokers, convey.ShouldResemble, []string{"localhost:9092", "localhost:9093", "localhost:9094"})
-				convey.So(cfg.KafkaVersion, convey.ShouldEqual, "1.0.2")
-				convey.So(cfg.KafkaSecProtocol, convey.ShouldEqual, "")
-				convey.So(cfg.KafkaMaxBytes, convey.ShouldEqual, 2000000)
-				convey.So(cfg.ImageUploadedTopic, convey.ShouldEqual, "image-uploaded")
-				convey.So(cfg.StaticFilePublishedTopic, convey.ShouldEqual, "static-file-published")
-				convey.So(cfg.GracefulShutdownTimeout, convey.ShouldEqual, 5*time.Second)
-				convey.So(cfg.HealthCheckInterval, convey.ShouldEqual, 30*time.Second)
-				convey.So(cfg.HealthCheckCriticalTimeout, convey.ShouldEqual, 90*time.Second)
-				convey.So(cfg.MongoConfig.ClusterEndpoint, convey.ShouldEqual, "localhost:27017")
-				convey.So(cfg.MongoConfig.Database, convey.ShouldEqual, "images")
-				convey.So(cfg.MongoConfig.Collections, convey.ShouldResemble, map[string]string{ImagesCollection: "images", ImagesLockCollection: "images_locks"})
-				convey.So(cfg.MongoConfig.Username, convey.ShouldEqual, "")
-				convey.So(cfg.MongoConfig.Password, convey.ShouldEqual, "")
-				convey.So(cfg.MongoConfig.ReplicaSet, convey.ShouldEqual, "")
-				convey.So(cfg.MongoConfig.IsStrongReadConcernEnabled, convey.ShouldEqual, false)
-				convey.So(cfg.MongoConfig.IsWriteConcernMajorityEnabled, convey.ShouldEqual, true)
-				convey.So(cfg.MongoConfig.QueryTimeout, convey.ShouldEqual, 15*time.Second)
-				convey.So(cfg.MongoConfig.ConnectTimeout, convey.ShouldEqual, 5*time.Second)
-				convey.So(cfg.MongoConfig.IsSSL, convey.ShouldEqual, false)
-				convey.So(cfg.MongoConfig.VerifyCert, convey.ShouldEqual, false)
-				convey.So(cfg.IsPublishing, convey.ShouldBeTrue)
-				convey.So(cfg.ZebedeeURL, convey.ShouldEqual, "http://localhost:8082")
-				convey.So(cfg.DownloadServiceURL, convey.ShouldEqual, "http://localhost:23600")
+			Convey("Then the values should be set to the expected defaults", func() {
+				So(cfg.BindAddr, ShouldEqual, "localhost:24700")
+				So(cfg.APIURL, ShouldResemble, "http://localhost:24700")
+				So(cfg.Brokers, ShouldResemble, []string{"localhost:9092", "localhost:9093", "localhost:9094"})
+				So(cfg.KafkaVersion, ShouldEqual, "1.0.2")
+				So(cfg.KafkaSecProtocol, ShouldEqual, "")
+				So(cfg.KafkaMaxBytes, ShouldEqual, 2000000)
+				So(cfg.ImageUploadedTopic, ShouldEqual, "image-uploaded")
+				So(cfg.StaticFilePublishedTopic, ShouldEqual, "static-file-published")
+				So(cfg.GracefulShutdownTimeout, ShouldEqual, 5*time.Second)
+				So(cfg.HealthCheckInterval, ShouldEqual, 30*time.Second)
+				So(cfg.HealthCheckCriticalTimeout, ShouldEqual, 90*time.Second)
+				So(cfg.MongoConfig.ClusterEndpoint, ShouldEqual, "localhost:27017")
+				So(cfg.MongoConfig.Database, ShouldEqual, "images")
+				So(cfg.MongoConfig.Collections, ShouldResemble, map[string]string{ImagesCollection: "images", ImagesLockCollection: "images_locks"})
+				So(cfg.MongoConfig.Username, ShouldEqual, "")
+				So(cfg.MongoConfig.Password, ShouldEqual, "")
+				So(cfg.MongoConfig.ReplicaSet, ShouldEqual, "")
+				So(cfg.MongoConfig.IsStrongReadConcernEnabled, ShouldEqual, false)
+				So(cfg.MongoConfig.IsWriteConcernMajorityEnabled, ShouldEqual, true)
+				So(cfg.MongoConfig.QueryTimeout, ShouldEqual, 15*time.Second)
+				So(cfg.MongoConfig.ConnectTimeout, ShouldEqual, 5*time.Second)
+				So(cfg.MongoConfig.IsSSL, ShouldEqual, false)
+				So(cfg.MongoConfig.VerifyCert, ShouldEqual, false)
+				So(cfg.IsPublishing, ShouldBeTrue)
+				So(cfg.ZebedeeURL, ShouldEqual, "http://localhost:8082")
+				So(cfg.DownloadServiceURL, ShouldEqual, "http://localhost:23600")
 			})
-			convey.Convey("Then a second call to config should return the same config", func() {
+			Convey("Then a second call to config should return the same config", func() {
 				newCfg, newErr := Get()
-				convey.So(newErr, convey.ShouldBeNil)
-				convey.So(newCfg, convey.ShouldResemble, cfg)
+				So(newErr, ShouldBeNil)
+				So(newCfg, ShouldResemble, cfg)
 			})
 		})
 	})

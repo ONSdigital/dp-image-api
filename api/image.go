@@ -276,9 +276,8 @@ func (api *API) GetDownloadsHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	downloadsList := make([]models.Download, 0)
-	//nolint:gocritic // rangeValCopy: each iteration copies 184 bytes (consider pointers or indexing)
-	for _, dl := range image.Downloads {
-		downloadsList = append(downloadsList, dl)
+	for i := range image.Downloads {
+		downloadsList = append(downloadsList, image.Downloads[i])
 	}
 	downloads := models.Downloads{
 		Items:      downloadsList,
@@ -604,8 +603,8 @@ func (api *API) PublishImageHandler(w http.ResponseWriter, req *http.Request) {
 
 // generateImagePublishEvents creates a kafka 'image-published' event for each download variant for the provided image.
 func generateImagePublishEvents(image *models.Image) (events []*event.ImagePublished) {
-	//nolint:gocritic // rangeValCopy: each iteration copies 184 bytes (consider pointers or indexing)
-	for _, variant := range image.Downloads {
+	for i := range image.Downloads {
+		variant := image.Downloads[i]
 		srcPath := path.Join("images", image.ID, variant.ID)
 		events = append(events, ImagePublishedEvent(srcPath, image.Filename, image.ID, variant.ID))
 	}

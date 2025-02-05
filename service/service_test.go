@@ -17,7 +17,7 @@ import (
 	kafka "github.com/ONSdigital/dp-kafka/v3"
 	"github.com/ONSdigital/dp-kafka/v3/kafkatest"
 	"github.com/pkg/errors"
-	"github.com/smartystreets/goconvey/convey"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -47,9 +47,9 @@ var funcDoGetHTTPServerNil = func(_ string, _ http.Handler) service.HTTPServer {
 }
 
 func TestRunPublishing(t *testing.T) {
-	convey.Convey("Having a set of mocked dependencies", t, func() {
+	Convey("Having a set of mocked dependencies", t, func() {
 		cfg, err := config.Get()
-		convey.So(err, convey.ShouldBeNil)
+		So(err, ShouldBeNil)
 
 		mongoDBMock := &apiMock.MongoServerMock{
 			CheckerFunc: func(_ context.Context, _ *healthcheck.CheckState) error { return nil },
@@ -120,7 +120,7 @@ func TestRunPublishing(t *testing.T) {
 			}
 		}
 
-		convey.Convey("Given that initialising mongoDB returns an error", func() {
+		Convey("Given that initialising mongoDB returns an error", func() {
 			initMock := &serviceMock.InitialiserMock{
 				DoGetHTTPServerFunc:    funcDoGetHTTPServerNil,
 				DoGetMongoDBFunc:       funcDoGetMongoDBErr,
@@ -131,16 +131,16 @@ func TestRunPublishing(t *testing.T) {
 			svcList := service.NewServiceList(initMock)
 			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
-			convey.Convey("Then service Run fails with the same error and the flag is not set. No further initialisations are attempted", func() {
-				convey.So(err, convey.ShouldResemble, errMongoDB)
-				convey.So(svcList.MongoDB, convey.ShouldBeFalse)
-				convey.So(svcList.KafkaProducerUploaded, convey.ShouldBeFalse)
-				convey.So(svcList.KafkaProducerPublished, convey.ShouldBeFalse)
-				convey.So(svcList.HealthCheck, convey.ShouldBeFalse)
+			Convey("Then service Run fails with the same error and the flag is not set. No further initialisations are attempted", func() {
+				So(err, ShouldResemble, errMongoDB)
+				So(svcList.MongoDB, ShouldBeFalse)
+				So(svcList.KafkaProducerUploaded, ShouldBeFalse)
+				So(svcList.KafkaProducerPublished, ShouldBeFalse)
+				So(svcList.HealthCheck, ShouldBeFalse)
 			})
 		})
 
-		convey.Convey("Given that initialising kafka image-uploaded producer returns an error", func() {
+		Convey("Given that initialising kafka image-uploaded producer returns an error", func() {
 			initMock := &serviceMock.InitialiserMock{
 				DoGetHTTPServerFunc:    funcDoGetHTTPServerNil,
 				DoGetMongoDBFunc:       funcDoGetMongoDBOk,
@@ -151,16 +151,16 @@ func TestRunPublishing(t *testing.T) {
 			svcList := service.NewServiceList(initMock)
 			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
-			convey.Convey("Then service Run fails with the same error and the flag is not set. No further initialisations are attempted", func() {
-				convey.So(err, convey.ShouldResemble, errKafkaProducer)
-				convey.So(svcList.MongoDB, convey.ShouldBeTrue)
-				convey.So(svcList.KafkaProducerUploaded, convey.ShouldBeFalse)
-				convey.So(svcList.KafkaProducerPublished, convey.ShouldBeFalse)
-				convey.So(svcList.HealthCheck, convey.ShouldBeFalse)
+			Convey("Then service Run fails with the same error and the flag is not set. No further initialisations are attempted", func() {
+				So(err, ShouldResemble, errKafkaProducer)
+				So(svcList.MongoDB, ShouldBeTrue)
+				So(svcList.KafkaProducerUploaded, ShouldBeFalse)
+				So(svcList.KafkaProducerPublished, ShouldBeFalse)
+				So(svcList.HealthCheck, ShouldBeFalse)
 			})
 		})
 
-		convey.Convey("Given that initialising kafka static-file-published producer returns an error", func() {
+		Convey("Given that initialising kafka static-file-published producer returns an error", func() {
 			initMock := &serviceMock.InitialiserMock{
 				DoGetHTTPServerFunc:    funcDoGetHTTPServerNil,
 				DoGetMongoDBFunc:       funcDoGetMongoDBOk,
@@ -171,16 +171,16 @@ func TestRunPublishing(t *testing.T) {
 			svcList := service.NewServiceList(initMock)
 			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
-			convey.Convey("Then service Run fails with the same error and the flag is not set. No further initialisations are attempted", func() {
-				convey.So(err, convey.ShouldResemble, errKafkaProducer)
-				convey.So(svcList.MongoDB, convey.ShouldBeTrue)
-				convey.So(svcList.KafkaProducerUploaded, convey.ShouldBeTrue)
-				convey.So(svcList.KafkaProducerPublished, convey.ShouldBeFalse)
-				convey.So(svcList.HealthCheck, convey.ShouldBeFalse)
+			Convey("Then service Run fails with the same error and the flag is not set. No further initialisations are attempted", func() {
+				So(err, ShouldResemble, errKafkaProducer)
+				So(svcList.MongoDB, ShouldBeTrue)
+				So(svcList.KafkaProducerUploaded, ShouldBeTrue)
+				So(svcList.KafkaProducerPublished, ShouldBeFalse)
+				So(svcList.HealthCheck, ShouldBeFalse)
 			})
 		})
 
-		convey.Convey("Given that initialising healthcheck returns an error", func() {
+		Convey("Given that initialising healthcheck returns an error", func() {
 			initMock := &serviceMock.InitialiserMock{
 				DoGetHTTPServerFunc:    funcDoGetHTTPServerNil,
 				DoGetMongoDBFunc:       funcDoGetMongoDBOk,
@@ -192,16 +192,16 @@ func TestRunPublishing(t *testing.T) {
 			svcList := service.NewServiceList(initMock)
 			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
-			convey.Convey("Then service Run fails with the same error and the flag is not set", func() {
-				convey.So(err, convey.ShouldResemble, errHealthcheck)
-				convey.So(svcList.MongoDB, convey.ShouldBeTrue)
-				convey.So(svcList.KafkaProducerUploaded, convey.ShouldBeTrue)
-				convey.So(svcList.KafkaProducerPublished, convey.ShouldBeTrue)
-				convey.So(svcList.HealthCheck, convey.ShouldBeFalse)
+			Convey("Then service Run fails with the same error and the flag is not set", func() {
+				So(err, ShouldResemble, errHealthcheck)
+				So(svcList.MongoDB, ShouldBeTrue)
+				So(svcList.KafkaProducerUploaded, ShouldBeTrue)
+				So(svcList.KafkaProducerPublished, ShouldBeTrue)
+				So(svcList.HealthCheck, ShouldBeFalse)
 			})
 		})
 
-		convey.Convey("Given that Checkers cannot be registered", func() {
+		Convey("Given that Checkers cannot be registered", func() {
 			errAddheckFail := errors.New("Error(s) registering checkers for healthcheck")
 			hcMockAddFail := &serviceMock.HealthCheckerMock{
 				AddCheckFunc: func(_ string, _ healthcheck.Checker) error { return errAddheckFail },
@@ -221,20 +221,20 @@ func TestRunPublishing(t *testing.T) {
 			svcList := service.NewServiceList(initMock)
 			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
-			convey.Convey("Then service Run fails, but all checks try to register", func() {
-				convey.So(err, convey.ShouldNotBeNil)
-				convey.So(err.Error(), convey.ShouldResemble, fmt.Sprintf("unable to register checkers: %s", errAddheckFail.Error()))
-				convey.So(svcList.MongoDB, convey.ShouldBeTrue)
-				convey.So(svcList.HealthCheck, convey.ShouldBeTrue)
-				convey.So(hcMockAddFail.AddCheckCalls(), convey.ShouldHaveLength, 4)
-				convey.So(hcMockAddFail.AddCheckCalls()[0].Name, convey.ShouldResemble, "Mongo DB")
-				convey.So(hcMockAddFail.AddCheckCalls()[1].Name, convey.ShouldResemble, "Uploaded Kafka Producer")
-				convey.So(hcMockAddFail.AddCheckCalls()[2].Name, convey.ShouldResemble, "Published Kafka Producer")
-				convey.So(hcMockAddFail.AddCheckCalls()[3].Name, convey.ShouldResemble, "Zebedee")
+			Convey("Then service Run fails, but all checks try to register", func() {
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldResemble, fmt.Sprintf("unable to register checkers: %s", errAddheckFail.Error()))
+				So(svcList.MongoDB, ShouldBeTrue)
+				So(svcList.HealthCheck, ShouldBeTrue)
+				So(hcMockAddFail.AddCheckCalls(), ShouldHaveLength, 4)
+				So(hcMockAddFail.AddCheckCalls()[0].Name, ShouldResemble, "Mongo DB")
+				So(hcMockAddFail.AddCheckCalls()[1].Name, ShouldResemble, "Uploaded Kafka Producer")
+				So(hcMockAddFail.AddCheckCalls()[2].Name, ShouldResemble, "Published Kafka Producer")
+				So(hcMockAddFail.AddCheckCalls()[3].Name, ShouldResemble, "Zebedee")
 			})
 		})
 
-		convey.Convey("Given that all dependencies are successfully initialised", func() {
+		Convey("Given that all dependencies are successfully initialised", func() {
 			initMock := &serviceMock.InitialiserMock{
 				DoGetHTTPServerFunc:    funcDoGetHTTPServer,
 				DoGetMongoDBFunc:       funcDoGetMongoDBOk,
@@ -247,29 +247,29 @@ func TestRunPublishing(t *testing.T) {
 			serverWg.Add(1)
 			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
-			convey.Convey("Then service Run succeeds and all the flags are set", func() {
-				convey.So(err, convey.ShouldBeNil)
-				convey.So(svcList.MongoDB, convey.ShouldBeTrue)
-				convey.So(svcList.KafkaProducerUploaded, convey.ShouldBeTrue)
-				convey.So(svcList.KafkaProducerPublished, convey.ShouldBeTrue)
-				convey.So(svcList.HealthCheck, convey.ShouldBeTrue)
+			Convey("Then service Run succeeds and all the flags are set", func() {
+				So(err, ShouldBeNil)
+				So(svcList.MongoDB, ShouldBeTrue)
+				So(svcList.KafkaProducerUploaded, ShouldBeTrue)
+				So(svcList.KafkaProducerPublished, ShouldBeTrue)
+				So(svcList.HealthCheck, ShouldBeTrue)
 			})
 
-			convey.Convey("The checkers are registered and the healthcheck and http server started", func() {
-				convey.So(hcMock.AddCheckCalls(), convey.ShouldHaveLength, 4)
-				convey.So(hcMock.AddCheckCalls()[0].Name, convey.ShouldResemble, "Mongo DB")
-				convey.So(hcMock.AddCheckCalls()[1].Name, convey.ShouldResemble, "Uploaded Kafka Producer")
-				convey.So(hcMock.AddCheckCalls()[2].Name, convey.ShouldResemble, "Published Kafka Producer")
-				convey.So(hcMock.AddCheckCalls()[3].Name, convey.ShouldEqual, "Zebedee")
-				convey.So(initMock.DoGetHTTPServerCalls(), convey.ShouldHaveLength, 1)
-				convey.So(initMock.DoGetHTTPServerCalls()[0].BindAddr, convey.ShouldEqual, "localhost:24700")
-				convey.So(hcMock.StartCalls(), convey.ShouldHaveLength, 1)
+			Convey("The checkers are registered and the healthcheck and http server started", func() {
+				So(hcMock.AddCheckCalls(), ShouldHaveLength, 4)
+				So(hcMock.AddCheckCalls()[0].Name, ShouldResemble, "Mongo DB")
+				So(hcMock.AddCheckCalls()[1].Name, ShouldResemble, "Uploaded Kafka Producer")
+				So(hcMock.AddCheckCalls()[2].Name, ShouldResemble, "Published Kafka Producer")
+				So(hcMock.AddCheckCalls()[3].Name, ShouldEqual, "Zebedee")
+				So(initMock.DoGetHTTPServerCalls(), ShouldHaveLength, 1)
+				So(initMock.DoGetHTTPServerCalls()[0].BindAddr, ShouldEqual, "localhost:24700")
+				So(hcMock.StartCalls(), ShouldHaveLength, 1)
 				serverWg.Wait() // Wait for HTTP server go-routine to finish
-				convey.So(serverMock.ListenAndServeCalls(), convey.ShouldHaveLength, 1)
+				So(serverMock.ListenAndServeCalls(), ShouldHaveLength, 1)
 			})
 		})
 
-		convey.Convey("Given that all dependencies are successfully initialised but the http server fails", func() {
+		Convey("Given that all dependencies are successfully initialised but the http server fails", func() {
 			initMock := &serviceMock.InitialiserMock{
 				DoGetHTTPServerFunc:    funcDoGetFailingHTTPSerer,
 				DoGetMongoDBFunc:       funcDoGetMongoDBOk,
@@ -281,16 +281,16 @@ func TestRunPublishing(t *testing.T) {
 			svcList := service.NewServiceList(initMock)
 			serverWg.Add(1)
 			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
-			convey.So(err, convey.ShouldBeNil)
+			So(err, ShouldBeNil)
 
-			convey.Convey("Then the error is returned in the error channel", func() {
+			Convey("Then the error is returned in the error channel", func() {
 				sErr := <-svcErrors
-				convey.So(sErr.Error(), convey.ShouldResemble, fmt.Sprintf("failure in http listen and serve: %s", errServer.Error()))
-				convey.So(failingServerMock.ListenAndServeCalls(), convey.ShouldHaveLength, 1)
+				So(sErr.Error(), ShouldResemble, fmt.Sprintf("failure in http listen and serve: %s", errServer.Error()))
+				So(failingServerMock.ListenAndServeCalls(), ShouldHaveLength, 1)
 			})
 		})
 
-		convey.Convey("Given that all required dependencies are successfully initialised in web mode", func() {
+		Convey("Given that all required dependencies are successfully initialised in web mode", func() {
 			cfg.IsPublishing = false
 			initMock := &serviceMock.InitialiserMock{
 				DoGetHTTPServerFunc:  funcDoGetHTTPServer,
@@ -302,21 +302,21 @@ func TestRunPublishing(t *testing.T) {
 			serverWg.Add(1)
 			_, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
 
-			convey.Convey("Then service Run succeeds but only the required flags are set", func() {
-				convey.So(err, convey.ShouldBeNil)
-				convey.So(svcList.MongoDB, convey.ShouldBeTrue)
-				convey.So(svcList.KafkaProducerUploaded, convey.ShouldBeFalse)
-				convey.So(svcList.KafkaProducerPublished, convey.ShouldBeFalse)
-				convey.So(svcList.HealthCheck, convey.ShouldBeTrue)
+			Convey("Then service Run succeeds but only the required flags are set", func() {
+				So(err, ShouldBeNil)
+				So(svcList.MongoDB, ShouldBeTrue)
+				So(svcList.KafkaProducerUploaded, ShouldBeFalse)
+				So(svcList.KafkaProducerPublished, ShouldBeFalse)
+				So(svcList.HealthCheck, ShouldBeTrue)
 			})
 		})
 	})
 }
 
 func TestClose(t *testing.T) {
-	convey.Convey("Having a correctly initialised service", t, func() {
+	Convey("Having a correctly initialised service", t, func() {
 		cfg, err := config.Get()
-		convey.So(err, convey.ShouldBeNil)
+		So(err, ShouldBeNil)
 
 		hcStopped := false
 		serverStopped := false
@@ -380,7 +380,7 @@ func TestClose(t *testing.T) {
 			return nil, errors.New("wrong topic")
 		}
 
-		convey.Convey("Closing the service results in all the dependencies being closed in the expected order", func() {
+		Convey("Closing the service results in all the dependencies being closed in the expected order", func() {
 			initMock := &serviceMock.InitialiserMock{
 				DoGetHTTPServerFunc:    func(_ string, _ http.Handler) service.HTTPServer { return serverMock },
 				DoGetMongoDBFunc:       func(_ context.Context, _ config.MongoConfig) (api.MongoServer, error) { return mongoDBMock, nil },
@@ -394,18 +394,18 @@ func TestClose(t *testing.T) {
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
 			svc, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
-			convey.So(err, convey.ShouldBeNil)
+			So(err, ShouldBeNil)
 
 			err = svc.Close(context.Background())
-			convey.So(err, convey.ShouldBeNil)
-			convey.So(hcMock.StopCalls(), convey.ShouldHaveLength, 1)
-			convey.So(serverMock.ShutdownCalls(), convey.ShouldHaveLength, 1)
-			convey.So(mongoDBMock.CloseCalls(), convey.ShouldHaveLength, 1)
-			convey.So(kafkaUploadedProducerMock.CloseCalls(), convey.ShouldHaveLength, 1)
-			convey.So(kafkaPublishedProducerMock.CloseCalls(), convey.ShouldHaveLength, 1)
+			So(err, ShouldBeNil)
+			So(hcMock.StopCalls(), ShouldHaveLength, 1)
+			So(serverMock.ShutdownCalls(), ShouldHaveLength, 1)
+			So(mongoDBMock.CloseCalls(), ShouldHaveLength, 1)
+			So(kafkaUploadedProducerMock.CloseCalls(), ShouldHaveLength, 1)
+			So(kafkaPublishedProducerMock.CloseCalls(), ShouldHaveLength, 1)
 		})
 
-		convey.Convey("If services fail to stop, the Close operation tries to close all dependencies and returns an error", func() {
+		Convey("If services fail to stop, the Close operation tries to close all dependencies and returns an error", func() {
 			failingserverMock := &serviceMock.HTTPServerMock{
 				ListenAndServeFunc: func() error { return nil },
 				ShutdownFunc: func(_ context.Context) error {
@@ -426,15 +426,15 @@ func TestClose(t *testing.T) {
 			svcErrors := make(chan error, 1)
 			svcList := service.NewServiceList(initMock)
 			svc, err := service.Run(ctx, cfg, svcList, testBuildTime, testGitCommit, testVersion, svcErrors)
-			convey.So(err, convey.ShouldBeNil)
+			So(err, ShouldBeNil)
 
 			err = svc.Close(context.Background())
-			convey.So(err, convey.ShouldNotBeNil)
-			convey.So(hcMock.StopCalls(), convey.ShouldHaveLength, 1)
-			convey.So(failingserverMock.ShutdownCalls(), convey.ShouldHaveLength, 1)
-			convey.So(mongoDBMock.CloseCalls(), convey.ShouldHaveLength, 1)
-			convey.So(kafkaUploadedProducerMock.CloseCalls(), convey.ShouldHaveLength, 1)
-			convey.So(kafkaPublishedProducerMock.CloseCalls(), convey.ShouldHaveLength, 1)
+			So(err, ShouldNotBeNil)
+			So(hcMock.StopCalls(), ShouldHaveLength, 1)
+			So(failingserverMock.ShutdownCalls(), ShouldHaveLength, 1)
+			So(mongoDBMock.CloseCalls(), ShouldHaveLength, 1)
+			So(kafkaUploadedProducerMock.CloseCalls(), ShouldHaveLength, 1)
+			So(kafkaPublishedProducerMock.CloseCalls(), ShouldHaveLength, 1)
 		})
 	})
 }
