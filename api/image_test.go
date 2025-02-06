@@ -412,23 +412,23 @@ func TestGetImagesHandler(t *testing.T) {
 		cfg, err := config.Get()
 		cfg.IsPublishing = true
 		So(err, ShouldBeNil)
-		doTestGetImagesHandler(cfg)
+		doTestGetImagesHandler()
 	})
 
 	Convey("Given an image API in web mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = false
 		So(err, ShouldBeNil)
-		doTestGetImagesHandler(cfg)
+		doTestGetImagesHandler()
 	})
 }
 
-func doTestGetImagesHandler(_ *config.Config) {
+func doTestGetImagesHandler() {
 	Convey("And an image API with mongoDB returning the images as expected according to the collectionID filter", func() {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImagesFunc: func(_ context.Context, collectionID string) ([]models.Image, error) {
+			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
 				if collectionID == testCollectionID1 {
 					return []models.Image{*dbImage(models.StateCreated), *dbImage(models.StateImported), *dbFullImageWithDownloads(models.StatePublished, dbDownload(models.StateDownloadPublished))}, nil
 				} else if collectionID == "" {
@@ -438,7 +438,7 @@ func doTestGetImagesHandler(_ *config.Config) {
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -514,12 +514,12 @@ func doTestGetImagesHandler(_ *config.Config) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImagesFunc: func(_ context.Context, _ string) ([]models.Image, error) {
+			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
 				return []models.Image{}, errMongoDB
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -544,11 +544,11 @@ func TestCreateImageHandler(t *testing.T) {
 		cfg.IsPublishing = true
 
 		mongoDBMock := &mock.MongoServerMock{
-			UpsertImageFunc: func(_ context.Context, _ string, _ *models.Image) error { return nil },
+			UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error { return nil },
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -643,11 +643,11 @@ func TestCreateImageHandler(t *testing.T) {
 		cfg.IsPublishing = true
 
 		mongoDBMock := &mock.MongoServerMock{
-			UpsertImageFunc: func(_ context.Context, _ string, _ *models.Image) error { return errMongoDB },
+			UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error { return errMongoDB },
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -683,7 +683,7 @@ func TestGetImageHandler(t *testing.T) {
 func doTestGetImageHandler(cfg *config.Config) {
 	Convey("And an image API with mongoDB returning 'created' and 'published' images", func() {
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testImageID1:
 					return dbImage(models.StateCreated), nil
@@ -695,7 +695,7 @@ func doTestGetImageHandler(cfg *config.Config) {
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -750,7 +750,7 @@ func TestUpdateImageHandler(t *testing.T) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -787,14 +787,14 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("And an image in created state in MongoDB", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImage(models.StateCreated), nil
 				},
-				UpdateImageFunc: func(_ context.Context, _ string, _ *models.Image) (bool, error) {
+				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -814,11 +814,11 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("And MongoDB returning imageNotFound error", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return nil, apierrors.ErrImageNotFound
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -838,11 +838,11 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("And MongoDB failing to get an image", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return nil, errors.New("internal mongoDB error")
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -862,14 +862,14 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("And an API with a mongoDB containing an image that fails to update", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImage(models.StateImporting), nil
 				},
-				UpsertImageFunc: func(_ context.Context, _ string, _ *models.Image) error {
+				UpsertImageFunc: func(ctx context.Context, id string, image *models.Image) error {
 					return errors.New("internal mongoDB error")
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -891,11 +891,11 @@ func TestUpdateImageHandler(t *testing.T) {
 
 		Convey("And an image in published state in MongoDB", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImage(models.StatePublished), nil
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -924,12 +924,12 @@ func TestUpdateImageHandler(t *testing.T) {
 			}
 
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImageWithID(models.StateCreated, testImageID2), nil
 				},
-				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, uploadedProducer, kafkaStubProducer)
 
@@ -964,7 +964,7 @@ func TestUpdateImageHandler(t *testing.T) {
 			})
 
 			Convey("Calling image upload results in a 500 InternalError response when an invalid image uploaded event is generated, and the image is not updated in mongoDB", func() {
-				api.ImageUploadedEvent = func(_, _, _ string) *event.ImageUploaded {
+				api.ImageUploadedEvent = func(imageID, uploadPath, filename string) *event.ImageUploaded {
 					return nil
 				}
 				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
@@ -982,11 +982,11 @@ func TestUpdateImageHandler(t *testing.T) {
 
 			Convey("Calling image upload on an image that is already uploaded returns a 403 response.", func() {
 				mongoDBMock := &mock.MongoServerMock{
-					GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+					GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 						return dbUploadedImage(), nil
 					},
-					AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-					UnlockImageFunc:      func(_ context.Context, _ string) {},
+					AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+					UnlockImageFunc:      func(ctx context.Context, id string) {},
 				}
 				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1013,18 +1013,18 @@ func TestGetDownloadsHandler(t *testing.T) {
 		cfg, err := config.Get()
 		cfg.IsPublishing = true
 		So(err, ShouldBeNil)
-		doTestGetDownloadsHandler(cfg)
+		doTestGetDownloadsHandler()
 	})
 
 	Convey("Given an image API in web mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = false
 		So(err, ShouldBeNil)
-		doTestGetDownloadsHandler(cfg)
+		doTestGetDownloadsHandler()
 	})
 }
 
-func doTestGetDownloadsHandler(_ *config.Config) {
+func doTestGetDownloadsHandler() {
 	Convey("And an image API with existing valid images stored in a mongoDB mock", func() {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
@@ -1033,7 +1033,7 @@ func doTestGetDownloadsHandler(_ *config.Config) {
 		firstDownload := dbDownloadWithID(testImagePublishedID, testVariantAlternative, models.StateDownloadPublished)
 		secondDownload := dbDownloadWithID(testImagePublishedID, testVariantOriginal, models.StateDownloadPublished)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testImageUploadedID:
 					return dbFullImage(models.StateUploaded), nil
@@ -1048,7 +1048,7 @@ func doTestGetDownloadsHandler(_ *config.Config) {
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -1135,12 +1135,12 @@ func doTestGetDownloadsHandler(_ *config.Config) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				return nil, errMongoDB
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -1163,7 +1163,7 @@ func TestCreateDownloadHandler(t *testing.T) {
 		cfg.IsPublishing = true
 
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testImageCreatedID:
 					return dbImage(models.StateCreated), nil
@@ -1177,13 +1177,13 @@ func TestCreateDownloadHandler(t *testing.T) {
 					return nil, apierrors.ErrImageNotFound
 				}
 			},
-			UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
-			AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-			UnlockImageFunc:      func(_ context.Context, _ string) {},
+			UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
+			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+			UnlockImageFunc:      func(ctx context.Context, id string) {},
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -1295,14 +1295,14 @@ func TestCreateDownloadHandler(t *testing.T) {
 		cfg.IsPublishing = true
 
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc:         func(_ context.Context, _ string) (*models.Image, error) { return dbImage(models.StateUploaded), nil },
-			UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return errMongoDB },
-			AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-			UnlockImageFunc:      func(_ context.Context, _ string) {},
+			GetImageFunc:         func(ctx context.Context, id string) (*models.Image, error) { return dbImage(models.StateUploaded), nil },
+			UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return errMongoDB },
+			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+			UnlockImageFunc:      func(ctx context.Context, id string) {},
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -1328,14 +1328,14 @@ func TestCreateDownloadHandler(t *testing.T) {
 		cfg.IsPublishing = true
 
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc:         func(_ context.Context, _ string) (*models.Image, error) { return dbImage(models.StateUploaded), nil },
-			UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
-			AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return "", errors.New("fail to lock") },
-			UnlockImageFunc:      func(_ context.Context, _ string) {},
+			GetImageFunc:         func(ctx context.Context, id string) (*models.Image, error) { return dbImage(models.StateUploaded), nil },
+			UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
+			AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return "", errors.New("fail to lock") },
+			UnlockImageFunc:      func(ctx context.Context, id string) {},
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -1360,18 +1360,18 @@ func TestGetDownloadHandler(t *testing.T) {
 		cfg, err := config.Get()
 		cfg.IsPublishing = true
 		So(err, ShouldBeNil)
-		doTestGetDownloadHandler(cfg)
+		doTestGetDownloadHandler()
 	})
 
 	Convey("Given an image API in web mode", t, func() {
 		cfg, err := config.Get()
 		cfg.IsPublishing = false
 		So(err, ShouldBeNil)
-		doTestGetDownloadHandler(cfg)
+		doTestGetDownloadHandler()
 	})
 }
 
-func doTestGetDownloadHandler(_ *config.Config) {
+func doTestGetDownloadHandler() {
 	Convey("And an image API with existing valid images stored in a mongoDB mock", func() {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
@@ -1380,7 +1380,7 @@ func doTestGetDownloadHandler(_ *config.Config) {
 		firstDownload := dbDownloadWithID(testImagePublishedID, testVariantAlternative, models.StateDownloadPublished)
 		secondDownload := dbDownloadWithID(testImagePublishedID, testVariantOriginal, models.StateDownloadPublished)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				switch id {
 				case testImageUploadedID:
 					return dbFullImage(models.StateUploaded), nil
@@ -1395,7 +1395,7 @@ func doTestGetDownloadHandler(_ *config.Config) {
 		}
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -1467,12 +1467,12 @@ func doTestGetDownloadHandler(_ *config.Config) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
-			GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				return nil, errMongoDB
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -1493,19 +1493,19 @@ func TestUpdateDownloadHandler(t *testing.T) {
 		cfg, err := config.Get()
 		So(err, ShouldBeNil)
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
 
 		Convey("And an image in a state in 'created' state", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbFullImageWithDownloads(models.StateCreated, dbDownloadWithID(id, testVariantOriginal, models.StateDownloadImporting)), nil
 				},
-				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1526,12 +1526,12 @@ func TestUpdateDownloadHandler(t *testing.T) {
 
 		Convey("And an image in 'importing' state in MongoDB, with a download variant in 'importing' state", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbFullImageWithDownloads(models.StateImporting, dbDownloadWithID(id, testVariantOriginal, models.StateDownloadImporting)), nil
 				},
-				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1569,11 +1569,11 @@ func TestUpdateDownloadHandler(t *testing.T) {
 
 		Convey("And an image in 'uploaded' state in MongoDB, without any download variants", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImage(models.StateUploaded), nil
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1594,12 +1594,12 @@ func TestUpdateDownloadHandler(t *testing.T) {
 
 		Convey("And an image in 'published' state in MongoDB, with a download variant in 'published' state", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbFullImageWithDownloads(models.StatePublished, dbDownloadWithID(id, testVariantOriginal, models.StateDownloadPublished)), nil
 				},
-				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1627,15 +1627,15 @@ func TestUpdateDownloadHandler(t *testing.T) {
 
 		Convey("And an image in 'published' state in MongoDB, with 2 download variants in 'published' state", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbFullImageWithDownloads(
 						models.StatePublished,
 						dbDownloadWithID(id, testVariantOriginal, models.StateDownloadPublished),
 						dbDownloadWithID(id, testVariantAlternative, models.StateDownloadPublished)), nil
 				},
-				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return nil },
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return nil },
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1663,7 +1663,7 @@ func TestUpdateDownloadHandler(t *testing.T) {
 
 		Convey("And a MongoDB mock that fails to lock", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return "", errMongoDB },
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return "", errMongoDB },
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1680,11 +1680,11 @@ func TestUpdateDownloadHandler(t *testing.T) {
 
 		Convey("And a MongoDB returning error on GetImage", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return nil, errMongoDB
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1705,12 +1705,12 @@ func TestUpdateDownloadHandler(t *testing.T) {
 
 		Convey("And a MongoDB returning error on UploadImage", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, id string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbFullImageWithDownloads(models.StateImporting, dbDownloadWithID(id, testVariantOriginal, models.StateDownloadImporting)), nil
 				},
-				UpsertImageFunc:      func(_ context.Context, _ string, _ *models.Image) error { return errMongoDB },
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				UpsertImageFunc:      func(ctx context.Context, id string, image *models.Image) error { return errMongoDB },
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1739,7 +1739,7 @@ func TestPublishImageHandler(t *testing.T) {
 		So(err, ShouldBeNil)
 		cfg.DownloadServiceURL = downloadServiceURL
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return handler
 			},
 		}
@@ -1750,17 +1750,17 @@ func TestPublishImageHandler(t *testing.T) {
 			expectedDstPathOriginal := fmt.Sprintf("%s/some-image-name", expectedSrcPathOriginal)
 			expectedDstPathPngW500 := fmt.Sprintf("%s/some-image-name", expectedSrcPathPngW500)
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					image := dbImage(models.StateImported)
 					image.Filename = "some-image-name"
 					image.Downloads = map[string]models.Download{"original": {ID: "original", Href: expectedSrcPathOriginal}, "png_w500": {ID: "png_w500", Href: expectedSrcPathPngW500}}
 					return image, nil
 				},
-				UpdateImageFunc: func(_ context.Context, _ string, _ *models.Image) (bool, error) {
+				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 
 			Convey("Calling 'publish image' results in 204 NoContent response with the expected image state update to mongoDB and the message sent to kafka producer", func() {
@@ -1813,7 +1813,7 @@ func TestPublishImageHandler(t *testing.T) {
 			})
 
 			Convey("Calling 'publish image' with a 500 InternalError response when an invalid image published event is generated", func() {
-				api.ImagePublishedEvent = func(_, _, _, _ string) *event.ImagePublished {
+				api.ImagePublishedEvent = func(path, filename, imageId, variant string) *event.ImagePublished {
 					return nil
 				}
 				channels := &kafka.ProducerChannels{
@@ -1839,17 +1839,17 @@ func TestPublishImageHandler(t *testing.T) {
 
 		Convey("And an image with invalid filename, which results in an invalid href for the download variants", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					image := dbImage(models.StateImported)
 					image.Filename = "a££$(50y4534%£$||}{}"
 					image.Downloads = map[string]models.Download{"original": {}, "png_w500": {}}
 					return image, nil
 				},
-				UpdateImageFunc: func(_ context.Context, _ string, _ *models.Image) (bool, error) {
+				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return true, nil
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1869,11 +1869,11 @@ func TestPublishImageHandler(t *testing.T) {
 
 		Convey("And an image in 'created' state in MongoDB (non-publishable)", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImage(models.StateCreated), nil
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1893,7 +1893,7 @@ func TestPublishImageHandler(t *testing.T) {
 
 		Convey("And MongoDB failing to lock an image", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) {
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) {
 					return "", errors.New("mongoDB lock error")
 				},
 			}
@@ -1911,11 +1911,11 @@ func TestPublishImageHandler(t *testing.T) {
 
 		Convey("And MongoDB failing to get an image", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return nil, errors.New("internal mongoDB error")
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 
@@ -1934,14 +1934,14 @@ func TestPublishImageHandler(t *testing.T) {
 
 		Convey("And an API with a mongoDB containing an imported image that fails to update", func() {
 			mongoDBMock := &mock.MongoServerMock{
-				GetImageFunc: func(_ context.Context, _ string) (*models.Image, error) {
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 					return dbImage(models.StateImported), nil
 				},
-				UpdateImageFunc: func(_ context.Context, _ string, _ *models.Image) (bool, error) {
+				UpdateImageFunc: func(ctx context.Context, id string, image *models.Image) (bool, error) {
 					return false, errors.New("internal mongoDB error")
 				},
-				AcquireImageLockFunc: func(_ context.Context, _ string) (string, error) { return testLockID, nil },
-				UnlockImageFunc:      func(_ context.Context, _ string) {},
+				AcquireImageLockFunc: func(ctx context.Context, id string) (string, error) { return testLockID, nil },
+				UnlockImageFunc:      func(ctx context.Context, id string) {},
 			}
 			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
 

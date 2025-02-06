@@ -31,7 +31,7 @@ func TestSetup(t *testing.T) {
 		ctx := context.Background()
 
 		authHandlerMock := &mock.AuthHandlerMock{
-			RequireFunc: func(_ dpauth.Permissions, _ http.HandlerFunc) http.HandlerFunc {
+			RequireFunc: func(required dpauth.Permissions, handler http.HandlerFunc) http.HandlerFunc {
 				return func(http.ResponseWriter, *http.Request) {}
 			},
 		}

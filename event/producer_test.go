@@ -21,7 +21,7 @@ func TestAvroProducer(t *testing.T) {
 
 		// mock that represents a marshaller
 		marshallerMock := &mock.MarshallerMock{
-			MarshalFunc: func(_ interface{}) ([]byte, error) {
+			MarshalFunc: func(s interface{}) ([]byte, error) {
 				return avroBytes, nil
 			},
 		}
@@ -92,7 +92,7 @@ func TestAvroProducer(t *testing.T) {
 	Convey("Given a message producer mock that fails to marshall", t, func() {
 		// mock that represents a marshaller
 		marshallerMock := &mock.MarshallerMock{
-			MarshalFunc: func(_ interface{}) ([]byte, error) {
+			MarshalFunc: func(s interface{}) ([]byte, error) {
 				return nil, errMarshal
 			},
 		}

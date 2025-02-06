@@ -28,6 +28,14 @@ linters-settings:
     line-length: 140
   gofmt:
     simplify: false
+  revive:
+    rules:
+      # disabled as parameter names are useful for context even when unused, especially in interface implementations
+      - name: unused-parameter
+        severity: warning
+        disabled: true
+    include:
+      - "**/*_test.go" # Specify test files to include
   gocritic:
     enabled-tags:
       - diagnostic
