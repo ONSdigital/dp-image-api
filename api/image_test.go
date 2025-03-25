@@ -25,8 +25,8 @@ import (
 	"github.com/ONSdigital/dp-image-api/schema"
 	kafka "github.com/ONSdigital/dp-kafka/v3"
 	"github.com/ONSdigital/dp-kafka/v3/kafkatest"
-	"github.com/ONSdigital/dp-net/handlers"
-	dpreq "github.com/ONSdigital/dp-net/request"
+	"github.com/ONSdigital/dp-net/v3/handlers"
+	dpreq "github.com/ONSdigital/dp-net/v3/request"
 
 	. "github.com/smartystreets/goconvey/convey"
 )

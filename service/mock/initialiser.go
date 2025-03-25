@@ -5,12 +5,11 @@ package mock
 
 import (
 	"context"
-	"github.com/ONSdigital/dp-api-clients-go/health"
+	"github.com/ONSdigital/dp-api-clients-go/v2/health"
 	"github.com/ONSdigital/dp-image-api/api"
 	"github.com/ONSdigital/dp-image-api/config"
 	"github.com/ONSdigital/dp-image-api/service"
 	kafka "github.com/ONSdigital/dp-kafka/v3"
-	"github.com/ONSdigital/dp-mongodb/v3/mongodb"
 	"net/http"
 	"sync"
 )
@@ -21,31 +20,31 @@ var _ service.Initialiser = &InitialiserMock{}
 
 // InitialiserMock is a mock implementation of service.Initialiser.
 //
-// 	func TestSomethingThatUsesInitialiser(t *testing.T) {
+//	func TestSomethingThatUsesInitialiser(t *testing.T) {
 //
-// 		// make and configure a mocked service.Initialiser
-// 		mockedInitialiser := &InitialiserMock{
-// 			DoGetHTTPServerFunc: func(bindAddr string, router http.Handler) service.HTTPServer {
-// 				panic("mock out the DoGetHTTPServer method")
-// 			},
-// 			DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
-// 				panic("mock out the DoGetHealthCheck method")
-// 			},
-// 			DoGetHealthClientFunc: func(name string, url string) *health.Client {
-// 				panic("mock out the DoGetHealthClient method")
-// 			},
-// 			DoGetKafkaProducerFunc: func(ctx context.Context, cfg *config.Config, topic string) (kafka.IProducer, error) {
-// 				panic("mock out the DoGetKafkaProducer method")
-// 			},
-// 			DoGetMongoDBFunc: func(ctx context.Context, cfg mongodb.MongoDriverConfig) (api.MongoServer, error) {
-// 				panic("mock out the DoGetMongoDB method")
-// 			},
-// 		}
+//		// make and configure a mocked service.Initialiser
+//		mockedInitialiser := &InitialiserMock{
+//			DoGetHTTPServerFunc: func(bindAddr string, router http.Handler) service.HTTPServer {
+//				panic("mock out the DoGetHTTPServer method")
+//			},
+//			DoGetHealthCheckFunc: func(cfg *config.Config, buildTime string, gitCommit string, version string) (service.HealthChecker, error) {
+//				panic("mock out the DoGetHealthCheck method")
+//			},
+//			DoGetHealthClientFunc: func(name string, url string) *health.Client {
+//				panic("mock out the DoGetHealthClient method")
+//			},
+//			DoGetKafkaProducerFunc: func(ctx context.Context, cfg *config.Config, topic string) (kafka.IProducer, error) {
+//				panic("mock out the DoGetKafkaProducer method")
+//			},
+//			DoGetMongoDBFunc: func(ctx context.Context, cfg config.MongoConfig) (api.MongoServer, error) {
+//				panic("mock out the DoGetMongoDB method")
+//			},
+//		}
 //
-// 		// use mockedInitialiser in code that requires service.Initialiser
-// 		// and then make assertions.
+//		// use mockedInitialiser in code that requires service.Initialiser
+//		// and then make assertions.
 //
-// 	}
+//	}
 type InitialiserMock struct {
 	// DoGetHTTPServerFunc mocks the DoGetHTTPServer method.
 	DoGetHTTPServerFunc func(bindAddr string, router http.Handler) service.HTTPServer
@@ -60,7 +59,7 @@ type InitialiserMock struct {
 	DoGetKafkaProducerFunc func(ctx context.Context, cfg *config.Config, topic string) (kafka.IProducer, error)
 
 	// DoGetMongoDBFunc mocks the DoGetMongoDB method.
-	DoGetMongoDBFunc func(ctx context.Context, cfg mongodb.MongoDriverConfig) (api.MongoServer, error)
+	DoGetMongoDBFunc func(ctx context.Context, cfg config.MongoConfig) (api.MongoServer, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -103,7 +102,7 @@ type InitialiserMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Cfg is the cfg argument value.
-			Cfg mongodb.MongoDriverConfig
+			Cfg config.MongoConfig
 		}
 	}
 	lockDoGetHTTPServer    sync.RWMutex
@@ -133,7 +132,8 @@ func (mock *InitialiserMock) DoGetHTTPServer(bindAddr string, router http.Handle
 
 // DoGetHTTPServerCalls gets all the calls that were made to DoGetHTTPServer.
 // Check the length with:
-//     len(mockedInitialiser.DoGetHTTPServerCalls())
+//
+//	len(mockedInitialiser.DoGetHTTPServerCalls())
 func (mock *InitialiserMock) DoGetHTTPServerCalls() []struct {
 	BindAddr string
 	Router   http.Handler
@@ -172,7 +172,8 @@ func (mock *InitialiserMock) DoGetHealthCheck(cfg *config.Config, buildTime stri
 
 // DoGetHealthCheckCalls gets all the calls that were made to DoGetHealthCheck.
 // Check the length with:
-//     len(mockedInitialiser.DoGetHealthCheckCalls())
+//
+//	len(mockedInitialiser.DoGetHealthCheckCalls())
 func (mock *InitialiserMock) DoGetHealthCheckCalls() []struct {
 	Cfg       *config.Config
 	BuildTime string
@@ -211,7 +212,8 @@ func (mock *InitialiserMock) DoGetHealthClient(name string, url string) *health.
 
 // DoGetHealthClientCalls gets all the calls that were made to DoGetHealthClient.
 // Check the length with:
-//     len(mockedInitialiser.DoGetHealthClientCalls())
+//
+//	len(mockedInitialiser.DoGetHealthClientCalls())
 func (mock *InitialiserMock) DoGetHealthClientCalls() []struct {
 	Name string
 	URL  string
@@ -248,7 +250,8 @@ func (mock *InitialiserMock) DoGetKafkaProducer(ctx context.Context, cfg *config
 
 // DoGetKafkaProducerCalls gets all the calls that were made to DoGetKafkaProducer.
 // Check the length with:
-//     len(mockedInitialiser.DoGetKafkaProducerCalls())
+//
+//	len(mockedInitialiser.DoGetKafkaProducerCalls())
 func (mock *InitialiserMock) DoGetKafkaProducerCalls() []struct {
 	Ctx   context.Context
 	Cfg   *config.Config
@@ -266,13 +269,13 @@ func (mock *InitialiserMock) DoGetKafkaProducerCalls() []struct {
 }
 
 // DoGetMongoDB calls DoGetMongoDBFunc.
-func (mock *InitialiserMock) DoGetMongoDB(ctx context.Context, cfg mongodb.MongoDriverConfig) (api.MongoServer, error) {
+func (mock *InitialiserMock) DoGetMongoDB(ctx context.Context, cfg config.MongoConfig) (api.MongoServer, error) {
 	if mock.DoGetMongoDBFunc == nil {
 		panic("InitialiserMock.DoGetMongoDBFunc: method is nil but Initialiser.DoGetMongoDB was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
-		Cfg mongodb.MongoDriverConfig
+		Cfg config.MongoConfig
 	}{
 		Ctx: ctx,
 		Cfg: cfg,
@@ -285,14 +288,15 @@ func (mock *InitialiserMock) DoGetMongoDB(ctx context.Context, cfg mongodb.Mongo
 
 // DoGetMongoDBCalls gets all the calls that were made to DoGetMongoDB.
 // Check the length with:
-//     len(mockedInitialiser.DoGetMongoDBCalls())
+//
+//	len(mockedInitialiser.DoGetMongoDBCalls())
 func (mock *InitialiserMock) DoGetMongoDBCalls() []struct {
 	Ctx context.Context
-	Cfg mongodb.MongoDriverConfig
+	Cfg config.MongoConfig
 } {
 	var calls []struct {
 		Ctx context.Context
-		Cfg mongodb.MongoDriverConfig
+		Cfg config.MongoConfig
 	}
 	mock.lockDoGetMongoDB.RLock()
 	calls = mock.calls.DoGetMongoDB
