@@ -49,18 +49,18 @@ func TestSetup(t *testing.T) {
 					return &kafka.ProducerChannels{}
 				},
 			}
-			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
+			imageAPI := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
 
 			Convey("Then the following routes should have been added", func() {
-				So(hasRoute(api.Router, "/images", http.MethodGet), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images", http.MethodPost), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}", http.MethodGet), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}", http.MethodPut), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodGet), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodPost), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodGet), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodPut), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPost), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images", http.MethodGet), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images", http.MethodPost), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images/{id}", http.MethodGet), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images/{id}", http.MethodPut), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images/{id}/downloads", http.MethodGet), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images/{id}/downloads", http.MethodPost), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images/{id}/downloads/{variant}", http.MethodGet), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images/{id}/downloads/{variant}", http.MethodPut), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images/{id}/publish", http.MethodPost), ShouldBeTrue)
 			})
 
 			Convey("And auth handler is called once per route with the expected permissions", func() {
@@ -90,18 +90,18 @@ func TestSetup(t *testing.T) {
 			cfg := &config.Config{IsPublishing: false}
 			uploadedKafkaProducer := &kafkatest.IProducerMock{}
 			publishedKafkaProducer := &kafkatest.IProducerMock{}
-			api := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
+			imageAPI := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
 
 			Convey("Then only the get routes should have been added", func() {
-				So(hasRoute(api.Router, "/images", http.MethodGet), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images", http.MethodPost), ShouldBeFalse)
-				So(hasRoute(api.Router, "/images/{id}", http.MethodGet), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}", http.MethodPut), ShouldBeFalse)
-				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodGet), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/downloads", http.MethodPost), ShouldBeFalse)
-				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodGet), ShouldBeTrue)
-				So(hasRoute(api.Router, "/images/{id}/downloads/{variant}", http.MethodPut), ShouldBeFalse)
-				So(hasRoute(api.Router, "/images/{id}/publish", http.MethodPut), ShouldBeFalse)
+				So(hasRoute(imageAPI.Router, "/images", http.MethodGet), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images", http.MethodPost), ShouldBeFalse)
+				So(hasRoute(imageAPI.Router, "/images/{id}", http.MethodGet), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images/{id}", http.MethodPut), ShouldBeFalse)
+				So(hasRoute(imageAPI.Router, "/images/{id}/downloads", http.MethodGet), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images/{id}/downloads", http.MethodPost), ShouldBeFalse)
+				So(hasRoute(imageAPI.Router, "/images/{id}/downloads/{variant}", http.MethodGet), ShouldBeTrue)
+				So(hasRoute(imageAPI.Router, "/images/{id}/downloads/{variant}", http.MethodPut), ShouldBeFalse)
+				So(hasRoute(imageAPI.Router, "/images/{id}/publish", http.MethodPut), ShouldBeFalse)
 			})
 
 			Convey("And no auth permissions are required", func() {
