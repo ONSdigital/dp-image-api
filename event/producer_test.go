@@ -54,12 +54,12 @@ func TestAvroProducer(t *testing.T) {
 		})
 
 		Convey("When ImageUploaded is called on the event producer", func() {
-			event := &event.ImageUploaded{
+			uploadedEvent := &event.ImageUploaded{
 				ImageID:  "myImage",
 				Path:     "myPath",
 				Filename: "filename.png",
 			}
-			err := eventProducer.ImageUploaded(event)
+			err := eventProducer.ImageUploaded(uploadedEvent)
 
 			Convey("The expected event is available on the output channel", func() {
 				So(err, ShouldBeNil)
@@ -71,13 +71,13 @@ func TestAvroProducer(t *testing.T) {
 		})
 
 		Convey("When ImagePublished is called on the event producer", func() {
-			event := &event.ImagePublished{
+			publishedEvent := &event.ImagePublished{
 				SrcPath:      "path/private/image.png",
 				DstPath:      "path/public/img.png",
 				ImageID:      "123",
 				ImageVariant: "original",
 			}
-			err := eventProducer.ImagePublished(event)
+			err := eventProducer.ImagePublished(publishedEvent)
 
 			Convey("The expected event is available on the output channel", func() {
 				So(err, ShouldBeNil)
@@ -101,12 +101,12 @@ func TestAvroProducer(t *testing.T) {
 		eventProducer := event.NewAvroProducer(nil, marshallerMock)
 
 		Convey("When ImageUploaded is called on the event producer", func() {
-			event := &event.ImageUploaded{
+			uploadedEvent := &event.ImageUploaded{
 				ImageID:  "myImage",
 				Path:     "myPath",
 				Filename: "filename.png",
 			}
-			err := eventProducer.ImageUploaded(event)
+			err := eventProducer.ImageUploaded(uploadedEvent)
 
 			Convey("The expected error is returned", func() {
 				So(err, ShouldResemble, errMarshal)
@@ -114,13 +114,13 @@ func TestAvroProducer(t *testing.T) {
 		})
 
 		Convey("When ImagePublished is called on the event producer", func() {
-			event := &event.ImagePublished{
+			publishedEvent := &event.ImagePublished{
 				SrcPath:      "path/private/image.png",
 				DstPath:      "path/public/img.png",
 				ImageID:      "123",
 				ImageVariant: "original",
 			}
-			err := eventProducer.ImagePublished(event)
+			err := eventProducer.ImagePublished(publishedEvent)
 
 			Convey("The expected error is returned", func() {
 				So(err, ShouldResemble, errMarshal)

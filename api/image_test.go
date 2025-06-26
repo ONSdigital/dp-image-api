@@ -429,12 +429,14 @@ func doTestGetImagesHandler() {
 		So(err, ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
 			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
-				if collectionID == testCollectionID1 {
+				switch collectionID {
+				case testCollectionID1:
 					return []models.Image{*dbImage(models.StateCreated), *dbImage(models.StateImported), *dbFullImageWithDownloads(models.StatePublished, dbDownload(models.StateDownloadPublished))}, nil
-				} else if collectionID == "" {
+				case "":
 					return []models.Image{*dbImage(models.StateCreated), *dbCreatedImageNoCollectionID(), *dbImage(models.StateImported), *dbFullImageWithDownloads(models.StatePublished, dbDownload(models.StateDownloadPublished))}, nil
+				default:
+					return []models.Image{}, nil
 				}
-				return []models.Image{}, nil
 			},
 		}
 		authHandlerMock := &mock.AuthHandlerMock{
