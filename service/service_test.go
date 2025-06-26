@@ -372,12 +372,14 @@ func TestClose(t *testing.T) {
 		kafkaUploadedProducerMock := createKafkaProducerMock()
 		kafkaPublishedProducerMock := createKafkaProducerMock()
 		doGetKafkaProducerFunc := func(ctx context.Context, cfg *config.Config, topic string) (kafka.IProducer, error) {
-			if topic == cfg.ImageUploadedTopic {
+			switch topic {
+			case cfg.ImageUploadedTopic:
 				return kafkaUploadedProducerMock, nil
-			} else if topic == cfg.StaticFilePublishedTopic {
+			case cfg.StaticFilePublishedTopic:
 				return kafkaPublishedProducerMock, nil
+			default:
+				return nil, errors.New("wrong topic")
 			}
-			return nil, errors.New("wrong topic")
 		}
 
 		Convey("Closing the service results in all the dependencies being closed in the expected order", func() {
