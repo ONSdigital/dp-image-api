@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 
-	"github.com/ONSdigital/dp-image-api/url"
+	dpurl "github.com/ONSdigital/dp-image-api/url"
 
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
 	"github.com/ONSdigital/dp-image-api/apierrors"
@@ -25,18 +26,22 @@ type API struct {
 	auth               AuthHandler
 	uploadProducer     *event.AvroProducer
 	publishedProducer  *event.AvroProducer
-	urlBuilder         *url.Builder
+	urlBuilder         *dpurl.Builder
 	downloadServiceURL string
+	apiUrl             *url.URL
+	enableURLRewriting bool
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
-func Setup(_ context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer, builder *url.Builder) *API {
+func Setup(_ context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer, builder *dpurl.Builder, apiUrl *url.URL, enableURLRewriting bool) *API {
 	api := &API{
 		Router:             r,
 		auth:               auth,
 		mongoDB:            mongoDB,
 		urlBuilder:         builder,
 		downloadServiceURL: cfg.DownloadServiceURL,
+		enableURLRewriting: enableURLRewriting,
+		apiUrl:             apiUrl,
 	}
 
 	if cfg.IsPublishing {

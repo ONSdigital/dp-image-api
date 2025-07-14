@@ -4,10 +4,13 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
 	"sync"
 	"testing"
 
-	"github.com/ONSdigital/dp-image-api/url"
+	dpurl "github.com/ONSdigital/dp-image-api/url"
+	"github.com/ONSdigital/log.go/v2/log"
 
 	"github.com/gorilla/mux"
 
@@ -35,7 +38,7 @@ func TestSetup(t *testing.T) {
 				return func(http.ResponseWriter, *http.Request) {}
 			},
 		}
-		urlBuilder := url.NewBuilder("")
+		urlBuilder := dpurl.NewBuilder("")
 
 		Convey("When created in Publishing mode", func() {
 			cfg := &config.Config{IsPublishing: true}
@@ -49,7 +52,14 @@ func TestSetup(t *testing.T) {
 					return &kafka.ProducerChannels{}
 				},
 			}
-			imageAPI := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
+
+			apiURL, err := url.Parse(cfg.APIURL)
+			if err != nil {
+				log.Fatal(ctx, "could not parse image api url", err, log.Data{"url": cfg.APIURL})
+				os.Exit(1)
+			}
+
+			imageAPI := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder, apiURL, cfg.EnableURLRewriting)
 
 			Convey("Then the following routes should have been added", func() {
 				So(hasRoute(imageAPI.Router, "/images", http.MethodGet), ShouldBeTrue)
@@ -90,7 +100,14 @@ func TestSetup(t *testing.T) {
 			cfg := &config.Config{IsPublishing: false}
 			uploadedKafkaProducer := &kafkatest.IProducerMock{}
 			publishedKafkaProducer := &kafkatest.IProducerMock{}
-			imageAPI := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
+
+			apiURL, err := url.Parse(cfg.APIURL)
+			if err != nil {
+				log.Fatal(ctx, "could not parse image api url", err, log.Data{"url": cfg.APIURL})
+				os.Exit(1)
+			}
+
+			imageAPI := api.Setup(ctx, cfg, r, authHandlerMock, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder, apiURL, cfg.EnableURLRewriting)
 
 			Convey("Then only the get routes should have been added", func() {
 				So(hasRoute(imageAPI.Router, "/images", http.MethodGet), ShouldBeTrue)
@@ -117,8 +134,15 @@ func TestClose(t *testing.T) {
 		ctx := context.Background()
 		uploadedKafkaProducer := &kafkatest.IProducerMock{}
 		publishedKafkaProducer := &kafkatest.IProducerMock{}
-		urlBuilder := url.NewBuilder("")
-		a := api.Setup(ctx, &config.Config{}, r, &mock.AuthHandlerMock{}, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
+		urlBuilder := dpurl.NewBuilder("")
+		cfg := &config.Config{}
+
+		apiURL, err := url.Parse(cfg.APIURL)
+		if err != nil {
+			log.Fatal(ctx, "could not parse image api url", err, log.Data{"url": cfg.APIURL})
+			os.Exit(1)
+		}
+		a := api.Setup(ctx, &config.Config{}, r, &mock.AuthHandlerMock{}, &mock.MongoServerMock{}, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder, apiURL, cfg.EnableURLRewriting)
 
 		Convey("When the api is closed any dependencies are closed also", func() {
 			err := a.Close(ctx)
@@ -132,8 +156,14 @@ func TestClose(t *testing.T) {
 func GetAPIWithMocks(cfg *config.Config, mongoDBMock *mock.MongoServerMock, authHandlerMock *mock.AuthHandlerMock, uploadedKafkaProducerMock, publishedKafkaProducerMock kafka.IProducer) *api.API {
 	mu.Lock()
 	defer mu.Unlock()
-	urlBuilder := url.NewBuilder("http://example.com")
-	return api.Setup(testContext, cfg, mux.NewRouter(), authHandlerMock, mongoDBMock, uploadedKafkaProducerMock, publishedKafkaProducerMock, urlBuilder)
+	urlBuilder := dpurl.NewBuilder("http://example.com")
+
+	apiURL, err := url.Parse(cfg.APIURL)
+	if err != nil {
+		log.Fatal(testContext, "could not parse image api url", err, log.Data{"url": cfg.APIURL})
+		os.Exit(1)
+	}
+	return api.Setup(testContext, cfg, mux.NewRouter(), authHandlerMock, mongoDBMock, uploadedKafkaProducerMock, publishedKafkaProducerMock, urlBuilder, apiURL, cfg.EnableURLRewriting)
 }
 
 func hasRoute(r *mux.Router, path, method string) bool {

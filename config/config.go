@@ -32,6 +32,7 @@ type Config struct {
 	IsPublishing               bool          `envconfig:"IS_PUBLISHING"`
 	ZebedeeURL                 string        `envconfig:"ZEBEDEE_URL"`
 	DownloadServiceURL         string        `envconfig:"DOWNLOAD_SERVICE_URL"`
+	EnableURLRewriting         bool          `envconfig:"ENABLE_URL_REWRITING"`
 	MongoConfig
 }
 
@@ -65,6 +66,7 @@ func Get() (*Config, error) {
 		ZebedeeURL:                 "http://localhost:8082",
 		IsPublishing:               true,
 		DownloadServiceURL:         "http://localhost:23600",
+		EnableURLRewriting:         false,
 		MongoConfig: MongoConfig{
 			ClusterEndpoint:               "localhost:27017",
 			Username:                      "",

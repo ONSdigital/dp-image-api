@@ -43,6 +43,7 @@ func TestConfig(t *testing.T) {
 				So(cfg.IsPublishing, ShouldBeTrue)
 				So(cfg.ZebedeeURL, ShouldEqual, "http://localhost:8082")
 				So(cfg.DownloadServiceURL, ShouldEqual, "http://localhost:23600")
+				So(cfg.EnableURLRewriting, ShouldEqual, false)
 			})
 			Convey("Then a second call to config should return the same config", func() {
 				newCfg, newErr := Get()
