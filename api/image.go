@@ -72,21 +72,12 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 	imageLinkBuilder := links.FromHeadersOrDefault(&req.Header, api.apiUrl)
 
 	if api.enableURLRewriting {
-		for i, item := range images.Items {
-			item.Links.Self, err = imageLinkBuilder.BuildLink(item.Links.Self)
+		for image := range images.Items {
+			err := rewriteImageLinks(ctx, *imageLinkBuilder, &images.Items[image])
 			if err != nil {
-				log.Error(ctx, "could not build self link", err, log.Data{"link": item.Links.Self})
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
-			item.Links.Downloads, err = imageLinkBuilder.BuildLink(item.Links.Downloads)
-			if err != nil {
-				log.Error(ctx, "could not build download link", err, log.Data{"link": item.Links.Downloads})
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			images.Items[i] = item
 		}
 	}
 
@@ -181,16 +172,8 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 	imageLinkBuilder := links.FromHeadersOrDefault(&req.Header, api.apiUrl)
 
 	if api.enableURLRewriting {
-		image.Links.Self, err = imageLinkBuilder.BuildLink(image.Links.Self)
+		err := rewriteImageLinks(ctx, *imageLinkBuilder, image)
 		if err != nil {
-			log.Error(ctx, "could not build self link", err, log.Data{"link": image.Links.Self})
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		image.Links.Downloads, err = imageLinkBuilder.BuildLink(image.Links.Downloads)
-		if err != nil {
-			log.Error(ctx, "could not build download link", err, log.Data{"link": image.Links.Downloads})
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -313,6 +296,19 @@ func (api *API) GetDownloadsHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
+	}
+
+	imageLinkBuilder := links.FromHeadersOrDefault(&req.Header, api.apiUrl)
+
+	if api.enableURLRewriting {
+		for download := range image.Downloads {
+			err := rewriteDownloadLinks(ctx, *imageLinkBuilder, image.Downloads[download])
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
 	}
 
 	downloadsList := make([]models.Download, 0)
@@ -455,6 +451,16 @@ func (api *API) GetDownloadHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
+	}
+
+	imageLinkBuilder := links.FromHeadersOrDefault(&req.Header, api.apiUrl)
+
+	if api.enableURLRewriting {
+		err := rewriteDownloadLinks(ctx, *imageLinkBuilder, image.Downloads[variant])
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	download, found := image.Downloads[variant]
@@ -654,4 +660,42 @@ func generateImagePublishEvents(image *models.Image) (events []*event.ImagePubli
 // unlockImage unlocks the provided image lockID
 func (api *API) unlockImage(ctx context.Context, lockID string) {
 	api.mongoDB.UnlockImage(ctx, lockID)
+}
+
+// rewriteImageLinks rewrites the self and download links of a given image
+func rewriteImageLinks(ctx context.Context, builder links.Builder, image *models.Image) error {
+	var err error
+
+	image.Links.Self, err = builder.BuildLink(image.Links.Self)
+	if err != nil {
+		log.Error(ctx, "could not build self link", err, log.Data{"link": image.Links.Self})
+		return err
+	}
+
+	image.Links.Downloads, err = builder.BuildLink(image.Links.Downloads)
+	if err != nil {
+		log.Error(ctx, "could not build download link", err, log.Data{"link": image.Links.Downloads})
+		return err
+	}
+
+	return nil
+}
+
+// rewriteDownloadLinks rewrites the self and image links of a given image download
+func rewriteDownloadLinks(ctx context.Context, builder links.Builder, download models.Download) error {
+	var err error
+
+	download.Links.Self, err = builder.BuildLink(download.Links.Self)
+	if err != nil {
+		log.Error(ctx, "could not build self link", err, log.Data{"link": download.Links.Self})
+		return err
+	}
+
+	download.Links.Image, err = builder.BuildLink(download.Links.Image)
+	if err != nil {
+		log.Error(ctx, "could not build image link", err, log.Data{"link": download.Links.Image})
+		return err
+	}
+
+	return nil
 }
