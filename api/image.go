@@ -10,6 +10,7 @@ import (
 	"github.com/ONSdigital/dp-image-api/apierrors"
 	"github.com/ONSdigital/dp-image-api/event"
 	"github.com/ONSdigital/dp-image-api/models"
+	"github.com/ONSdigital/dp-net/v2/links"
 	"github.com/ONSdigital/dp-net/v3/handlers"
 	dpreq "github.com/ONSdigital/dp-net/v3/request"
 	"github.com/ONSdigital/log.go/v2/log"
@@ -66,6 +67,27 @@ func (api *API) GetImagesHandler(w http.ResponseWriter, req *http.Request) {
 		Count:      len(items),
 		TotalCount: len(items),
 		Limit:      len(items),
+	}
+
+	imageLinkBuilder := links.FromHeadersOrDefault(&req.Header, api.apiUrl)
+
+	if api.enableURLRewriting {
+		for i, item := range images.Items {
+			item.Links.Self, err = imageLinkBuilder.BuildLink(item.Links.Self)
+			if err != nil {
+				log.Error(ctx, "could not build self link", err, log.Data{"link": item.Links.Self})
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			item.Links.Downloads, err = imageLinkBuilder.BuildLink(item.Links.Downloads)
+			if err != nil {
+				log.Error(ctx, "could not build download link", err, log.Data{"link": item.Links.Downloads})
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			images.Items[i] = item
+		}
 	}
 
 	if err := WriteJSONBody(images, w, http.StatusOK); err != nil {
@@ -154,6 +176,24 @@ func (api *API) GetImageHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		handleError(ctx, w, err, logdata)
 		return
+	}
+
+	imageLinkBuilder := links.FromHeadersOrDefault(&req.Header, api.apiUrl)
+
+	if api.enableURLRewriting {
+		image.Links.Self, err = imageLinkBuilder.BuildLink(image.Links.Self)
+		if err != nil {
+			log.Error(ctx, "could not build self link", err, log.Data{"link": image.Links.Self})
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		image.Links.Downloads, err = imageLinkBuilder.BuildLink(image.Links.Downloads)
+		if err != nil {
+			log.Error(ctx, "could not build download link", err, log.Data{"link": image.Links.Downloads})
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	if err := WriteJSONBody(image, w, http.StatusOK); err != nil {
