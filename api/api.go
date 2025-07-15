@@ -33,15 +33,21 @@ type API struct {
 }
 
 // Setup creates the API struct and its endpoints with corresponding handlers
-func Setup(_ context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer, builder *dpurl.Builder, apiUrl *url.URL, enableURLRewriting bool) *API {
+func Setup(ctx context.Context, cfg *config.Config, r *mux.Router, auth AuthHandler, mongoDB MongoServer, uploadedKafkaProducer, publishedKafkaProducer kafka.IProducer, builder *dpurl.Builder) *API {
+	apiURL, err := url.Parse(cfg.APIURL)
+	if err != nil {
+		log.Error(ctx, "could not parse image api url", err, log.Data{"url": cfg.APIURL})
+		return nil
+	}
+
 	api := &API{
 		Router:             r,
 		auth:               auth,
 		mongoDB:            mongoDB,
 		urlBuilder:         builder,
 		downloadServiceURL: cfg.DownloadServiceURL,
-		enableURLRewriting: enableURLRewriting,
-		apiUrl:             apiUrl,
+		enableURLRewriting: cfg.EnableURLRewriting,
+		apiUrl:             apiURL,
 	}
 
 	if cfg.IsPublishing {

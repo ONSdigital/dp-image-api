@@ -308,7 +308,6 @@ func (api *API) GetDownloadsHandler(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		}
-
 	}
 
 	downloadsList := make([]models.Download, 0)

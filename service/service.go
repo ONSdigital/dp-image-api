@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"net/url"
-	"os"
 
-	dpurl "github.com/ONSdigital/dp-image-api/url"
+	"github.com/ONSdigital/dp-image-api/url"
 
 	"github.com/ONSdigital/dp-api-clients-go/v2/health"
 	dpauth "github.com/ONSdigital/dp-authorisation/auth"
@@ -48,15 +46,9 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		return nil, err
 	}
 
-	apiURL, err := url.Parse(cfg.APIURL)
-	if err != nil {
-		log.Fatal(ctx, "could not parse image api url", err, log.Data{"url": cfg.APIURL})
-		os.Exit(1)
-	}
-
 	var a *api.API
 
-	urlBuilder := dpurl.NewBuilder(cfg.APIURL)
+	urlBuilder := url.NewBuilder(cfg.APIURL)
 	// The following dependencies will only be initialised if we are in publishing mode
 	var zc *health.Client
 	var auth api.AuthHandler
@@ -82,10 +74,10 @@ func Run(ctx context.Context, cfg *config.Config, serviceList *ExternalServiceLi
 		}
 
 		// Setup the API in publishing
-		a = api.Setup(ctx, cfg, r, auth, mongoDB, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder, apiURL, cfg.EnableURLRewriting)
+		a = api.Setup(ctx, cfg, r, auth, mongoDB, uploadedKafkaProducer, publishedKafkaProducer, urlBuilder)
 	} else {
 		// Setup the API in web mode
-		a = api.Setup(ctx, cfg, r, auth, mongoDB, nil, nil, urlBuilder, apiURL, cfg.EnableURLRewriting)
+		a = api.Setup(ctx, cfg, r, auth, mongoDB, nil, nil, urlBuilder)
 	}
 
 	// Get HealthCheck

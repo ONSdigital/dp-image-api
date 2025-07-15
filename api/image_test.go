@@ -63,6 +63,9 @@ var (
 	testImportCompleted  = time.Date(2020, time.April, 26, 8, 7, 32, 0, time.UTC)
 	testPublishStarted   = time.Date(2020, time.April, 26, 9, 51, 3, 0, time.UTC)
 	testPublishCompleted = time.Date(2020, time.April, 26, 10, 1, 28, 0, time.UTC)
+	expectedProto        = "https"
+	expectedHost         = "api.somehost"
+	expectedPathPrefix   = "v1"
 )
 
 var errMongoDB = errors.New("MongoDB generic error")
@@ -424,9 +427,10 @@ func TestGetImagesHandler(t *testing.T) {
 }
 
 func doTestGetImagesHandler() {
+	cfg, err := config.Get()
+	So(err, ShouldBeNil)
+
 	Convey("And an image API with mongoDB returning the images as expected according to the collectionID filter", func() {
-		cfg, err := config.Get()
-		So(err, ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
 			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
 				switch collectionID {
@@ -510,11 +514,53 @@ func doTestGetImagesHandler() {
 			So(w.Code, ShouldEqual, http.StatusOK)
 			So(w.Header().Get(contentTypeKey), ShouldEqual, contentTypeJSON)
 		})
+
+		Convey("When the request headers for host, prefix and protocol are set", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), http.NoBody)
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
+			r.Header.Add("X-Forwarded-Proto", expectedProto)
+			r.Header.Add("X-Forwarded-Host", expectedHost)
+			r.Header.Add("X-Forwarded-Path-Prefix", expectedPathPrefix)
+
+			w := httptest.NewRecorder()
+
+			Convey("And URL rewriting is enabled", func() {
+				cfg.EnableURLRewriting = true
+
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+				imageAPI.Router.ServeHTTP(w, r)
+
+				Convey("Then the response body should contain the rewritten links", func() {
+					var images models.Images
+					err := json.Unmarshal(w.Body.Bytes(), &images)
+					So(err, ShouldBeNil)
+
+					So(images.Items[0].Links.Self, ShouldEqual, fmt.Sprintf("%s://%s/%s/images/%s", expectedProto, expectedHost, expectedPathPrefix, testImageID1))
+					So(images.Items[0].Links.Downloads, ShouldEqual, fmt.Sprintf("%s://%s/%s/images/%s/downloads", expectedProto, expectedHost, expectedPathPrefix, testImageID1))
+				})
+			})
+
+			Convey("And URL rewriting is disabled", func() {
+				cfg.EnableURLRewriting = false
+
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+				imageAPI.Router.ServeHTTP(w, r)
+
+				Convey("Then the response body should not contain the rewritten links", func() {
+					var images models.Images
+					err := json.Unmarshal(w.Body.Bytes(), &images)
+					So(err, ShouldBeNil)
+
+					So(images.Items[0].Links.Self, ShouldEqual, fmt.Sprintf("http://example.com/images/%s", testImageID1))
+					So(images.Items[0].Links.Downloads, ShouldEqual, fmt.Sprintf("http://example.com/images/%s/downloads", testImageID1))
+				})
+			})
+		})
 	})
 
 	Convey("And an image API with mongoDB returning an error", func() {
-		cfg, err := config.Get()
-		So(err, ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
 			GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
 				return []models.Image{}, errMongoDB
@@ -743,6 +789,50 @@ func doTestGetImageHandler(cfg *config.Config) {
 			w := httptest.NewRecorder()
 			imageAPI.Router.ServeHTTP(w, r)
 			So(w.Code, ShouldEqual, http.StatusNotFound)
+		})
+
+		Convey("When the request headers for host, prefix and protocol are set", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s", testImageID2), http.NoBody)
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
+			r.Header.Add("X-Forwarded-Proto", expectedProto)
+			r.Header.Add("X-Forwarded-Host", expectedHost)
+			r.Header.Add("X-Forwarded-Path-Prefix", expectedPathPrefix)
+
+			w := httptest.NewRecorder()
+
+			Convey("And URL rewriting is enabled", func() {
+				cfg.EnableURLRewriting = true
+
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+				imageAPI.Router.ServeHTTP(w, r)
+
+				Convey("Then the response body should contain the rewritten links", func() {
+					var image models.Image
+					err := json.Unmarshal(w.Body.Bytes(), &image)
+					So(err, ShouldBeNil)
+
+					So(image.Links.Self, ShouldEqual, fmt.Sprintf("%s://%s/%s/images/%s", expectedProto, expectedHost, expectedPathPrefix, testImageID2))
+					So(image.Links.Downloads, ShouldEqual, fmt.Sprintf("%s://%s/%s/images/%s/downloads", expectedProto, expectedHost, expectedPathPrefix, testImageID2))
+				})
+			})
+
+			Convey("And URL rewriting is disabled", func() {
+				cfg.EnableURLRewriting = false
+
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+				imageAPI.Router.ServeHTTP(w, r)
+
+				Convey("Then the response body should not contain the rewritten links", func() {
+					var image models.Image
+					err := json.Unmarshal(w.Body.Bytes(), &image)
+					So(err, ShouldBeNil)
+
+					So(image.Links.Self, ShouldEqual, fmt.Sprintf("http://example.com/images/%s", testImageID2))
+					So(image.Links.Downloads, ShouldEqual, fmt.Sprintf("http://example.com/images/%s/downloads", testImageID2))
+				})
+			})
 		})
 	})
 }
@@ -1027,9 +1117,10 @@ func TestGetDownloadsHandler(t *testing.T) {
 }
 
 func doTestGetDownloadsHandler() {
+	cfg, err := config.Get()
+	So(err, ShouldBeNil)
+
 	Convey("And an image API with existing valid images stored in a mongoDB mock", func() {
-		cfg, err := config.Get()
-		So(err, ShouldBeNil)
 		cfg.IsPublishing = true
 
 		firstDownload := dbDownloadWithID(testImagePublishedID, testVariantAlternative, models.StateDownloadPublished)
@@ -1131,11 +1222,60 @@ func doTestGetDownloadsHandler() {
 				So(w.Code, ShouldEqual, http.StatusNotFound)
 			})
 		})
+
+		Convey("When the request headers for host, prefix and protocol are set", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads", testImagePublishedID), http.NoBody)
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
+			r.Header.Add("X-Forwarded-Proto", expectedProto)
+			r.Header.Add("X-Forwarded-Host", expectedHost)
+			r.Header.Add("X-Forwarded-Path-Prefix", expectedPathPrefix)
+
+			w := httptest.NewRecorder()
+
+			image := dbDownloadWithID(testImagePublishedID, testVariantAlternative, models.StateDownloadPublished)
+			mongoDBMock := &mock.MongoServerMock{
+				GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
+					return dbFullImageWithDownloads(models.StatePublished, image), nil
+				},
+			}
+
+			Convey("And URL rewriting is enabled", func() {
+				cfg.EnableURLRewriting = true
+
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+				imageAPI.Router.ServeHTTP(w, r)
+
+				Convey("Then the response body should contain the rewritten links", func() {
+					var downloads models.Downloads
+					err := json.Unmarshal(w.Body.Bytes(), &downloads)
+					So(err, ShouldBeNil)
+
+					So(downloads.Items[0].Links.Self, ShouldEqual, fmt.Sprintf("%s://%s/%s/images/%s/downloads/%s", expectedProto, expectedHost, expectedPathPrefix, testImagePublishedID, testVariantAlternative))
+					So(downloads.Items[0].Links.Image, ShouldEqual, fmt.Sprintf("%s://%s/%s/images/%s", expectedProto, expectedHost, expectedPathPrefix, testImagePublishedID))
+				})
+			})
+
+			Convey("And URL rewriting is disabled", func() {
+				cfg.EnableURLRewriting = false
+
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+				imageAPI.Router.ServeHTTP(w, r)
+
+				Convey("Then the response body should not contain the rewritten links", func() {
+					var downloads models.Downloads
+					err := json.Unmarshal(w.Body.Bytes(), &downloads)
+					So(err, ShouldBeNil)
+
+					So(downloads.Items[0].Links.Self, ShouldEqual, fmt.Sprintf("http://example.com/images/%s/downloads/%s", testImagePublishedID, testVariantAlternative))
+					So(downloads.Items[0].Links.Image, ShouldEqual, fmt.Sprintf("http://example.com/images/%s", testImagePublishedID))
+				})
+			})
+		})
 	})
 
 	Convey("And an image API with mongoDB returning an error", func() {
-		cfg, err := config.Get()
-		So(err, ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
 			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				return nil, errMongoDB
@@ -1374,9 +1514,10 @@ func TestGetDownloadHandler(t *testing.T) {
 }
 
 func doTestGetDownloadHandler() {
+	cfg, err := config.Get()
+	So(err, ShouldBeNil)
+
 	Convey("And an image API with existing valid images stored in a mongoDB mock", func() {
-		cfg, err := config.Get()
-		So(err, ShouldBeNil)
 		cfg.IsPublishing = true
 
 		firstDownload := dbDownloadWithID(testImagePublishedID, testVariantAlternative, models.StateDownloadPublished)
@@ -1463,11 +1604,53 @@ func doTestGetDownloadHandler() {
 				So(w.Code, ShouldEqual, http.StatusNotFound)
 			})
 		})
+
+		Convey("When the request headers for host, prefix and protocol are set", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images/%s/downloads/%s", testImagePublishedID, testVariantOriginal), http.NoBody)
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
+			r.Header.Add("X-Forwarded-Proto", expectedProto)
+			r.Header.Add("X-Forwarded-Host", expectedHost)
+			r.Header.Add("X-Forwarded-Path-Prefix", expectedPathPrefix)
+
+			w := httptest.NewRecorder()
+
+			Convey("And URL rewriting is enabled", func() {
+				cfg.EnableURLRewriting = true
+
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+				imageAPI.Router.ServeHTTP(w, r)
+
+				Convey("Then the response body should contain the rewritten links", func() {
+					var download models.Download
+					err := json.Unmarshal(w.Body.Bytes(), &download)
+					So(err, ShouldBeNil)
+
+					So(download.Links.Self, ShouldEqual, fmt.Sprintf("%s://%s/%s/images/%s/downloads/%s", expectedProto, expectedHost, expectedPathPrefix, testImagePublishedID, testVariantOriginal))
+					So(download.Links.Image, ShouldEqual, fmt.Sprintf("%s://%s/%s/images/%s", expectedProto, expectedHost, expectedPathPrefix, testImagePublishedID))
+				})
+			})
+
+			Convey("And URL rewriting is disabled", func() {
+				cfg.EnableURLRewriting = false
+
+				imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+				imageAPI.Router.ServeHTTP(w, r)
+
+				Convey("Then the response body should not contain the rewritten links", func() {
+					var download models.Download
+					err := json.Unmarshal(w.Body.Bytes(), &download)
+					So(err, ShouldBeNil)
+
+					So(download.Links.Self, ShouldEqual, fmt.Sprintf("http://example.com/images/%s/downloads/%s", testImagePublishedID, testVariantOriginal))
+					So(download.Links.Image, ShouldEqual, fmt.Sprintf("http://example.com/images/%s", testImagePublishedID))
+				})
+			})
+		})
 	})
 
 	Convey("And an image API with mongoDB returning an error", func() {
-		cfg, err := config.Get()
-		So(err, ShouldBeNil)
 		mongoDBMock := &mock.MongoServerMock{
 			GetImageFunc: func(ctx context.Context, id string) (*models.Image, error) {
 				return nil, errMongoDB
