@@ -3,11 +3,12 @@ module github.com/ONSdigital/dp-image-api
 go 1.24
 
 require (
-	github.com/ONSdigital/dp-api-clients-go/v2 v2.266.0
+	github.com/ONSdigital/dp-api-clients-go/v2 v2.267.0
 	github.com/ONSdigital/dp-authorisation v0.5.0
 	github.com/ONSdigital/dp-healthcheck v1.6.4
 	github.com/ONSdigital/dp-kafka/v3 v3.10.0
 	github.com/ONSdigital/dp-mongodb/v3 v3.8.0
+	github.com/ONSdigital/dp-net/v2 v2.22.0
 	github.com/ONSdigital/dp-net/v3 v3.2.1
 	github.com/ONSdigital/log.go/v2 v2.4.5
 	github.com/google/uuid v1.6.0
@@ -20,7 +21,6 @@ require (
 )
 
 require (
-	github.com/ONSdigital/dp-net/v2 v2.22.0 // indirect
 	github.com/Shopify/sarama v1.38.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/eapache/go-resiliency v1.7.0 // indirect
