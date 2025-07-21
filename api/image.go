@@ -663,6 +663,11 @@ func (api *API) unlockImage(ctx context.Context, lockID string) {
 
 // rewriteImageLinks rewrites the self and download links of a given image
 func rewriteImageLinks(ctx context.Context, builder links.Builder, image *models.Image) error {
+	if image.Links == nil || image.Links.Self == "" || image.Links.Downloads == "" {
+		log.Warn(ctx, "image link missing, skipping", log.Data{"image_id": image.ID})
+		return nil
+	}
+
 	var err error
 
 	image.Links.Self, err = builder.BuildLink(image.Links.Self)

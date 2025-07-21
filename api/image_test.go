@@ -558,6 +558,50 @@ func doTestGetImagesHandler() {
 				})
 			})
 		})
+
+		Convey("When some images have empty or missing links", func() {
+			r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:24700/images?collection_id=%s", testCollectionID1), http.NoBody)
+			r = r.WithContext(context.WithValue(r.Context(), dpreq.FlorenceIdentityKey, testUserAuthToken))
+			r.Header.Add("X-Forwarded-Proto", expectedProto)
+			r.Header.Add("X-Forwarded-Host", expectedHost)
+			r.Header.Add("X-Forwarded-Path-Prefix", expectedPathPrefix)
+
+			w := httptest.NewRecorder()
+
+			cfg.EnableURLRewriting = true
+
+			image := dbFullImage(models.StateUploaded)
+
+			mongoDBMock := &mock.MongoServerMock{
+				GetImagesFunc: func(ctx context.Context, collectionID string) ([]models.Image, error) {
+					return []models.Image{*image, {
+						ID:       testImageID1,
+						Filename: "image-without-links",
+						Links: &models.ImageLinks{
+							Self:      "",
+							Downloads: "",
+						},
+					}}, nil
+				},
+			}
+
+			imageAPI := GetAPIWithMocks(cfg, mongoDBMock, authHandlerMock, kafkaStubProducer, kafkaStubProducer)
+
+			imageAPI.Router.ServeHTTP(w, r)
+
+			Convey("Then the image with missing links should be skipped without error", func() {
+				var images models.Images
+				err := json.Unmarshal(w.Body.Bytes(), &images)
+				So(err, ShouldBeNil)
+
+				So(images.Items[0].Links.Self, ShouldEqual, fmt.Sprintf("%s://%s/%s/images/%s", expectedProto, expectedHost, expectedPathPrefix, testImageID2))
+				So(images.Items[0].Links.Downloads, ShouldEqual, fmt.Sprintf("%s://%s/%s/images/%s/downloads", expectedProto, expectedHost, expectedPathPrefix, testImageID2))
+
+				So(images.Items[1].Links.Self, ShouldBeBlank)
+				So(images.Items[1].Links.Downloads, ShouldBeBlank)
+				So(w.Code, ShouldEqual, http.StatusOK)
+			})
+		})
 	})
 
 	Convey("And an image API with mongoDB returning an error", func() {
