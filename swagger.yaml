@@ -319,6 +319,8 @@ definitions:
       - "state"
       - "collection_id"
       - "type"
+      - "image_alt_text"
+      - "image_title"
     properties:
       state:
         type: string
@@ -335,6 +337,12 @@ definitions:
         description: "Image's file name. According to SEO recommendations, the name should not be longer than 5 words. And it should not include extension because multiple extensions for the same image might be available as download variants."
         example: "image-name"
         maxLength: 40
+      image_alt_text:
+        type: string
+        description: "Alt text for image"
+      image_title:
+        type: string
+        description: "Title for image"
       license:
         type: object
         description: "License that defines the third party permissions for this image"
@@ -369,6 +377,8 @@ definitions:
       - "state"
       - "collection_id"
       - "type"
+      - "image_alt_text"
+      - "image_title"
     properties:
       id:
         type: string
@@ -401,6 +411,12 @@ definitions:
         description: "Image's file name. According to SEO recommendations, the name should not be longer than 5 words. And it should not include extension because multiple extensions for the same image might be available as download variants."
         example: "image-name"
         maxLength: 40
+      image_alt_text:
+        type: string
+        description: "Alt text for image"
+      image_title:
+        type: string
+        description: "Title for image"
       license:
         type: object
         description: "License that defines the third party permissions for this image"
