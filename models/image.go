@@ -20,16 +20,18 @@ type Images struct {
 
 // Image represents an image metadata model as it is stored in mongoDB and json representation for API
 type Image struct {
-	ID           string              `bson:"_id,omitempty"           json:"id,omitempty"`
-	CollectionID string              `bson:"collection_id,omitempty" json:"collection_id,omitempty"`
-	State        string              `bson:"state,omitempty"         json:"state,omitempty"`
-	Error        string              `bson:"error,omitempty"         json:"error,omitempty"`
-	Filename     string              `bson:"filename,omitempty"      json:"filename,omitempty"`
-	License      *License            `bson:"license,omitempty"       json:"license,omitempty"`
-	Links        *ImageLinks         `bson:"links,omitempty"         json:"links,omitempty"`
-	Upload       *Upload             `bson:"upload,omitempty"        json:"upload,omitempty"`
-	Type         string              `bson:"type,omitempty"          json:"type,omitempty"`
-	Downloads    map[string]Download `bson:"downloads,omitempty"     json:"-"`
+	ID           string              `bson:"_id,omitempty"            json:"id,omitempty"`
+	CollectionID string              `bson:"collection_id,omitempty"  json:"collection_id,omitempty"`
+	State        string              `bson:"state,omitempty"          json:"state,omitempty"`
+	Error        string              `bson:"error,omitempty"          json:"error,omitempty"`
+	Filename     string              `bson:"filename,omitempty"       json:"filename,omitempty"`
+	License      *License            `bson:"license,omitempty"        json:"license,omitempty"`
+	Links        *ImageLinks         `bson:"links,omitempty"          json:"links,omitempty"`
+	Upload       *Upload             `bson:"upload,omitempty"         json:"upload,omitempty"`
+	Type         string              `bson:"type,omitempty"           json:"type,omitempty"`
+	Downloads    map[string]Download `bson:"downloads,omitempty"      json:"-"`
+	ImageAltText string              `bson:"image_alt_text,omitempty" json:"image_alt_text,omitempty"`
+	ImageTitle   string              `bson:"image_title,omitempty"    json:"image_title,omitempty"`
 }
 
 // License represents a license model
