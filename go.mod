@@ -6,7 +6,7 @@ require (
 	github.com/ONSdigital/dp-api-clients-go/v2 v2.287.0
 	github.com/ONSdigital/dp-authorisation v0.5.0
 	github.com/ONSdigital/dp-healthcheck v1.6.4
-	github.com/ONSdigital/dp-kafka/v5 v5.1.0
+	github.com/ONSdigital/dp-kafka/v5 v5.2.0
 	github.com/ONSdigital/dp-mongodb/v3 v3.13.0
 	github.com/ONSdigital/dp-net/v2 v2.22.0
 	github.com/ONSdigital/dp-net/v3 v3.17.0
@@ -42,7 +42,7 @@ require (
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
-	github.com/klauspost/compress v1.18.5 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/montanaflynn/stats v0.8.2 // indirect
